@@ -21,8 +21,12 @@ func TestRun(t *testing.T) {
 
 	codegenDir := t.TempDir()
 	authoringPath := writeFixtureToDir(t, codegenDir, "example.yaml")
+	collectionAuthoringPath := writeFixtureToDir(t, codegenDir, "context_collection_inference.yaml")
 	normalizedPath := writeFixtureToDir(t, codegenDir, "normalized.golden.yaml")
 	configPath := writeFixtureToDir(t, codegenDir, "ffcodegen.yaml")
+	configDefaultsPath := writeFixtureToDir(t, codegenDir, "ffcodegen.defaults.yaml")
+	configCollectionDefaultsPath := writeFixtureToDir(t, codegenDir, "ffcodegen.collection.defaults.yaml")
+	badDefaultsPath := writeFixtureToDir(t, codegenDir, "ffcodegen.bad.defaults.yaml")
 	badConfigPath := writeFixtureToDir(t, codegenDir, "ffcodegen_missing_target.yaml")
 
 	tests := []struct {
@@ -71,6 +75,20 @@ func TestRun(t *testing.T) {
 			wantStdoutFile: "go.golden.go",
 		},
 		{
+			name: "generate with context defaults",
+			args: func(_ string) []string {
+				return []string{"go", "--in", authoringPath, "--config", configDefaultsPath}
+			},
+			wantStdoutFile: "go.defaults.golden.go",
+		},
+		{
+			name: "generate with collection context defaults",
+			args: func(_ string) []string {
+				return []string{"go", "--in", collectionAuthoringPath, "--config", configCollectionDefaultsPath}
+			},
+			wantStdoutFile: "go.collection.defaults.golden.go",
+		},
+		{
 			name: "errors on missing required in",
 			args: func(_ string) []string {
 				return []string{"go"}
@@ -90,6 +108,13 @@ func TestRun(t *testing.T) {
 				return []string{"go", "--in", authoringPath, "--config", badConfigPath}
 			},
 			wantErr: "targets.go is required",
+		},
+		{
+			name: "errors on invalid context defaults",
+			args: func(_ string) []string {
+				return []string{"go", "--in", authoringPath, "--config", badDefaultsPath}
+			},
+			wantErr: `compile go code: context.defaults.scalar_types.int: unsupported type "nope"`,
 		},
 		{
 			name: "errors on unknown target",

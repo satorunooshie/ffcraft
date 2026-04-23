@@ -15,12 +15,13 @@ import (
 )
 
 type Config struct {
-	PackageName   string
-	ContextType   string
-	ClientType    string
-	EvaluatorType string
-	ContextFields []ContextFieldConfig
-	Accessors     map[string]AccessorConfig
+	PackageName     string
+	ContextType     string
+	ClientType      string
+	EvaluatorType   string
+	ContextDefaults ContextDefaultsConfig
+	ContextFields   []ContextFieldConfig
+	Accessors       map[string]AccessorConfig
 }
 
 type CompileOptions struct {
@@ -37,6 +38,11 @@ type ContextFieldConfig struct {
 	Path string `yaml:"path"`
 	Name string `yaml:"name"`
 	Type string `yaml:"type"`
+}
+
+type ContextDefaultsConfig struct {
+	ScalarTypes     map[string]string `yaml:"scalar_types"`
+	CollectionTypes map[string]string `yaml:"collection_types"`
 }
 
 type flagKind int
@@ -104,7 +110,7 @@ func Compile(doc *ast.Document, cfg Config) ([]byte, error) {
 		cfg.EvaluatorType = "Evaluator"
 	}
 
-	contextFields, err := collectContextFields(doc, cfg.ContextFields)
+	contextFields, err := collectContextFields(doc, cfg.ContextDefaults, cfg.ContextFields)
 	if err != nil {
 		return nil, err
 	}
@@ -192,7 +198,11 @@ func collectFlags(doc *ast.Document, accessors map[string]AccessorConfig) ([]com
 	return flags, nil
 }
 
-func collectContextFields(doc *ast.Document, overrides []ContextFieldConfig) ([]compiledContextField, error) {
+func collectContextFields(doc *ast.Document, defaults ContextDefaultsConfig, overrides []ContextFieldConfig) ([]compiledContextField, error) {
+	if err := validateContextDefaults(defaults); err != nil {
+		return nil, err
+	}
+
 	byPath := map[string]compiledContextField{}
 	order := make([]string, 0)
 
@@ -206,7 +216,7 @@ func collectContextFields(doc *ast.Document, overrides []ContextFieldConfig) ([]
 		byPath[path] = compiledContextField{
 			Path:      path,
 			FieldName: toExportedName(strings.ReplaceAll(path, ".", "_")),
-			FieldType: normalizeFieldType(inferredType),
+			FieldType: normalizeFieldType(applyContextDefaults(inferredType, defaults)),
 		}
 		order = append(order, path)
 	}
@@ -234,6 +244,9 @@ func collectContextFields(doc *ast.Document, overrides []ContextFieldConfig) ([]
 			field.FieldName = override.Name
 		}
 		if override.Type != "" {
+			if !isSupportedFieldType(override.Type) {
+				return nil, fmt.Errorf("context.fields[%q].type: unsupported type %q", override.Path, override.Type)
+			}
 			field.FieldType = normalizeFieldType(override.Type)
 		}
 		byPath[override.Path] = field
@@ -273,9 +286,9 @@ func collectContextFieldsFromCondition(cond ast.Condition, add func(path, inferr
 	case *ast.Lte:
 		collectContextFieldsFromBinary(c.Left, c.Right, add)
 	case *ast.In:
-		collectContextFieldsFromBinary(c.Target, c.Candidate, add)
+		collectContextFieldsFromMembership(c.Target, c.Candidate, add)
 	case *ast.Contains:
-		collectContextFieldsFromBinary(c.Container, c.Value, add)
+		collectContextFieldsFromContains(c.Container, c.Value, add)
 	case *ast.StartsWith:
 		if v, ok := c.Target.(*ast.Var); ok {
 			add(v.Path, "string")
@@ -330,6 +343,24 @@ func collectContextFieldsFromBinary(left, right ast.Value, add func(path, inferr
 	}
 }
 
+func collectContextFieldsFromMembership(target, candidate ast.Value, add func(path, inferredType string)) {
+	if v, ok := target.(*ast.Var); ok {
+		add(v.Path, inferValueType(candidate, v.Path))
+	}
+	if v, ok := candidate.(*ast.Var); ok {
+		add(v.Path, inferCollectionType(target))
+	}
+}
+
+func collectContextFieldsFromContains(container, value ast.Value, add func(path, inferredType string)) {
+	if v, ok := container.(*ast.Var); ok {
+		add(v.Path, inferCollectionType(value))
+	}
+	if v, ok := value.(*ast.Var); ok {
+		add(v.Path, inferValueType(container, v.Path))
+	}
+}
+
 func inferValueType(value ast.Value, path string) string {
 	switch v := value.(type) {
 	case *ast.Scalar:
@@ -344,12 +375,7 @@ func inferValueType(value ast.Value, path string) string {
 			return "string"
 		}
 	case *ast.List:
-		for _, item := range v.Values {
-			t := inferValueType(item, path)
-			if t != "string" {
-				return t
-			}
-		}
+		return inferListElementType(v.Values, path)
 	}
 	if strings.HasSuffix(path, ".id") {
 		return "int64"
@@ -357,12 +383,148 @@ func inferValueType(value ast.Value, path string) string {
 	return "string"
 }
 
+func inferCollectionType(value ast.Value) string {
+	switch v := value.(type) {
+	case *ast.Scalar:
+		switch v.Kind {
+		case ast.ScalarKindBool:
+			return "[]bool"
+		case ast.ScalarKindInt:
+			return "[]int64"
+		case ast.ScalarKindDouble:
+			return "[]float64"
+		default:
+			return "[]string"
+		}
+	case *ast.List:
+		elementType := inferListElementType(v.Values, "")
+		switch elementType {
+		case "bool":
+			return "[]bool"
+		case "int64":
+			return "[]int64"
+		case "float64":
+			return "[]float64"
+		case "string":
+			return "[]string"
+		default:
+			return "[]any"
+		}
+	default:
+		return "[]string"
+	}
+}
+
+func inferListElementType(values []ast.Value, path string) string {
+	if len(values) == 0 {
+		return "string"
+	}
+	result := ""
+	for _, item := range values {
+		t := inferValueType(item, path)
+		if t == "" {
+			continue
+		}
+		if result == "" {
+			result = t
+			continue
+		}
+		if result != t {
+			return "any"
+		}
+	}
+	if result == "" {
+		return "string"
+	}
+	return result
+}
+
 func normalizeFieldType(value string) string {
+	value = strings.TrimSpace(value)
 	switch value {
-	case "string", "bool", "int64", "float64":
+	case "string", "bool", "int", "int64", "float64":
+		return value
+	case "[]string", "[]bool", "[]int", "[]int64", "[]float64", "[]any":
+		return value
+	case "map[string]any":
 		return value
 	default:
 		return "string"
+	}
+}
+
+func isSupportedFieldType(value string) bool {
+	return normalizeFieldType(value) == strings.TrimSpace(value)
+}
+
+func applyContextDefaults(value string, defaults ContextDefaultsConfig) string {
+	value = strings.TrimSpace(value)
+	if key := inferredScalarTypeKey(value); key != "" {
+		if override, ok := defaults.ScalarTypes[key]; ok && strings.TrimSpace(override) != "" {
+			return override
+		}
+	}
+	if key := inferredCollectionTypeKey(value); key != "" {
+		if override, ok := defaults.CollectionTypes[key]; ok && strings.TrimSpace(override) != "" {
+			return override
+		}
+	}
+	return value
+}
+
+func validateContextDefaults(defaults ContextDefaultsConfig) error {
+	for key, value := range defaults.ScalarTypes {
+		switch key {
+		case "string", "bool", "int", "float":
+		default:
+			return fmt.Errorf("context.defaults.scalar_types.%s: unsupported key", key)
+		}
+		if !isSupportedFieldType(value) {
+			return fmt.Errorf("context.defaults.scalar_types.%s: unsupported type %q", key, value)
+		}
+	}
+	for key, value := range defaults.CollectionTypes {
+		switch key {
+		case "string", "bool", "int", "float", "any":
+		default:
+			return fmt.Errorf("context.defaults.collection_types.%s: unsupported key", key)
+		}
+		if !isSupportedFieldType(value) {
+			return fmt.Errorf("context.defaults.collection_types.%s: unsupported type %q", key, value)
+		}
+	}
+	return nil
+}
+
+func inferredScalarTypeKey(value string) string {
+	switch value {
+	case "string":
+		return "string"
+	case "bool":
+		return "bool"
+	case "int", "int64":
+		return "int"
+	case "float64":
+		return "float"
+	default:
+		return ""
+	}
+}
+
+func inferredCollectionTypeKey(value string) string {
+	switch value {
+	case "[]string":
+		return "string"
+	case "[]bool":
+		return "bool"
+	case "[]int", "[]int64":
+		return "int"
+	case "[]float64":
+		return "float"
+	case "[]any":
+		return "any"
+	default:
+		return ""
 	}
 }
 
@@ -865,6 +1027,8 @@ func toExportedName(value string) string {
 		switch upper {
 		case "ID":
 			b.WriteString(upper)
+		case "IDS":
+			b.WriteString("IDs")
 		default:
 			b.WriteString(strings.ToUpper(part[:1]))
 			if len(part) > 1 {

@@ -1,0 +1,25 @@
+version: v1
+
+variant_sets:
+  boolean:
+    on: true
+    off: false
+
+flags:
+  - key: targeted-experience
+    variant_set: boolean
+    default_variant: off
+    environments:
+      prod:
+        rules:
+          - if:
+              all_of:
+                - contains:
+                    - { var: user.tags }
+                    - vip
+                - in:
+                    - 7
+                    - { var: user.scores }
+            serve: on
+        default_action:
+          serve: off

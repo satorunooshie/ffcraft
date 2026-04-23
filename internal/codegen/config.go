@@ -27,7 +27,8 @@ type Target struct {
 }
 
 type ContextConfig struct {
-	Fields []gogen.ContextFieldConfig `yaml:"fields"`
+	Defaults gogen.ContextDefaultsConfig `yaml:"defaults"`
+	Fields   []gogen.ContextFieldConfig  `yaml:"fields"`
 }
 
 func Load(path string) (*Config, error) {

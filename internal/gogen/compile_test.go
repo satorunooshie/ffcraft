@@ -155,6 +155,63 @@ func TestCompile(t *testing.T) {
 			},
 			goldenFile: "additional_types.golden.go",
 		},
+		{
+			name:    "context collection overrides",
+			fixture: "context_collection_overrides.yaml",
+			config: Config{
+				PackageName: "featureflags",
+				ContextFields: []ContextFieldConfig{
+					{Path: "user.scores", Name: "UserScores", Type: "[]int"},
+					{Path: "user.tags", Name: "UserTags", Type: "[]string"},
+				},
+			},
+			goldenFile: "context_collection_overrides.golden.go",
+		},
+		{
+			name:    "context collection inference",
+			fixture: "context_collection_inference.yaml",
+			config: Config{
+				PackageName: "featureflags",
+			},
+			goldenFile: "context_collection_inference.golden.go",
+		},
+		{
+			name:    "context defaults",
+			fixture: "context_collection_inference.yaml",
+			config: Config{
+				PackageName: "featureflags",
+				ContextDefaults: ContextDefaultsConfig{
+					ScalarTypes: map[string]string{
+						"int": "int",
+					},
+					CollectionTypes: map[string]string{
+						"int":    "[]int",
+						"string": "[]string",
+					},
+				},
+			},
+			goldenFile: "context_defaults.golden.go",
+		},
+		{
+			name:    "context defaults with field override precedence",
+			fixture: "context_collection_inference.yaml",
+			config: Config{
+				PackageName: "featureflags",
+				ContextDefaults: ContextDefaultsConfig{
+					ScalarTypes: map[string]string{
+						"int": "int",
+					},
+					CollectionTypes: map[string]string{
+						"int":    "[]int",
+						"string": "[]string",
+					},
+				},
+				ContextFields: []ContextFieldConfig{
+					{Path: "user.scores", Type: "[]int64"},
+				},
+			},
+			goldenFile: "context_defaults_precedence.golden.go",
+		},
 	}
 
 	for _, tt := range tests {
@@ -173,6 +230,82 @@ func TestCompile(t *testing.T) {
 
 			if diff := cmp.Diff(string(bytes.TrimSpace(want)), string(bytes.TrimSpace(got))); diff != "" {
 				t.Fatalf("Compile() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestCompile_ContextTypeValidation(t *testing.T) {
+	doc := mustNormalizeFixture(t, "context_collection_inference.yaml")
+
+	tests := []struct {
+		name    string
+		config  Config
+		wantErr string
+	}{
+		{
+			name: "invalid context default type",
+			config: Config{
+				PackageName: "featureflags",
+				ContextDefaults: ContextDefaultsConfig{
+					ScalarTypes: map[string]string{
+						"int": "nope",
+					},
+				},
+			},
+			wantErr: `context.defaults.scalar_types.int: unsupported type "nope"`,
+		},
+		{
+			name: "invalid context default key",
+			config: Config{
+				PackageName: "featureflags",
+				ContextDefaults: ContextDefaultsConfig{
+					CollectionTypes: map[string]string{
+						"number": "[]int",
+					},
+				},
+			},
+			wantErr: "context.defaults.collection_types.number: unsupported key",
+		},
+		{
+			name: "invalid context field type",
+			config: Config{
+				PackageName: "featureflags",
+				ContextFields: []ContextFieldConfig{
+					{Path: "user.tags", Type: "nope"},
+				},
+			},
+			wantErr: `context.fields["user.tags"].type: unsupported type "nope"`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := Compile(doc, tt.config)
+			if err == nil {
+				t.Fatal("expected error")
+			}
+			if !strings.Contains(err.Error(), tt.wantErr) {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
+	}
+}
+
+func TestToExportedName(t *testing.T) {
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{input: "user.id", want: "UserID"},
+		{input: "user.role_ids", want: "UserRoleIDs"},
+		{input: "role_ids", want: "RoleIDs"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			if got := toExportedName(tt.input); got != tt.want {
+				t.Fatalf("toExportedName(%q) = %q, want %q", tt.input, got, tt.want)
 			}
 		})
 	}

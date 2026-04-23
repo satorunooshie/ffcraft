@@ -68,6 +68,11 @@ targets:
     client_type: Client
     evaluator_type: Evaluator
     context:
+      defaults:
+        scalar_types:
+          int: int
+        collection_types:
+          int: "[]int"
       fields:
         - path: user.id
           name: UserID
@@ -96,8 +101,39 @@ Go target fields:
 - `targets.go.context_type`: generated context struct name
 - `targets.go.client_type`: generated client interface name
 - `targets.go.evaluator_type`: generated evaluator type name
+- `targets.go.context.defaults`: optional inferred type overrides for generated context fields
 - `targets.go.context.fields`: optional context field overrides
 - `targets.go.accessors`: optional accessor and variant type overrides
+
+### Context Defaults
+
+`context.defaults` changes the generated Go type used when `ffcodegen` infers a field from condition operands.
+
+Supported keys:
+
+- `context.defaults.scalar_types.string`
+- `context.defaults.scalar_types.bool`
+- `context.defaults.scalar_types.int`
+- `context.defaults.scalar_types.float`
+- `context.defaults.collection_types.string`
+- `context.defaults.collection_types.bool`
+- `context.defaults.collection_types.int`
+- `context.defaults.collection_types.float`
+- `context.defaults.collection_types.any`
+
+Example:
+
+```yaml
+context:
+  defaults:
+    scalar_types:
+      int: int
+    collection_types:
+      int: "[]int"
+      string: "[]string"
+```
+
+`context.fields[].type` still takes precedence for per-path overrides.
 
 ### Context Fields
 
@@ -113,10 +149,19 @@ Supported field types:
 
 - `string`
 - `bool`
+- `int`
 - `int64`
 - `float64`
+- `[]string`
+- `[]bool`
+- `[]int`
+- `[]int64`
+- `[]float64`
+- `[]any`
+- `map[string]any`
 
 If a path is referenced in authoring YAML but not listed in `context.fields`, `ffcodegen` infers it automatically.
+For collection operators, `contains` and `in` also infer slice types such as `[]string` and `[]int64` when the operand shape makes the collection side unambiguous.
 
 ### Accessors
 

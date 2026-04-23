@@ -104,12 +104,13 @@ func runGo(args []string, stdout, stderr io.Writer) error {
 	}
 
 	output, err := gogen.Compile(doc, gogen.Config{
-		PackageName:   target.PackageName,
-		ContextType:   target.ContextType,
-		ClientType:    target.ClientType,
-		EvaluatorType: target.EvaluatorType,
-		ContextFields: target.Context.Fields,
-		Accessors:     target.Accessors,
+		PackageName:     target.PackageName,
+		ContextType:     target.ContextType,
+		ClientType:      target.ClientType,
+		EvaluatorType:   target.EvaluatorType,
+		ContextDefaults: target.Context.Defaults,
+		ContextFields:   target.Context.Fields,
+		Accessors:       target.Accessors,
 	})
 	if err != nil {
 		return fmt.Errorf("compile go code: %w", err)

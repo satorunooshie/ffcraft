@@ -1,0 +1,12 @@
+version: v1
+source: ./context_collection_inference.yaml
+
+targets:
+  go:
+    package: testflags
+    output: ./flags.gen.go
+    context:
+      defaults:
+        collection_types:
+          int: "[]int"
+          string: "[]string"

@@ -1,0 +1,101 @@
+version: v1
+
+variant_sets:
+  boolean:
+    on: true
+    off: false
+
+rules:
+  is_internal:
+    eq:
+      - { var: user.role }
+      - internal
+
+distributions:
+  experiment_distribution:
+    stickiness: user.id
+    allocations:
+      on: 67
+      off: 33
+  ten_percent_on:
+    stickiness: user.id
+    allocations:
+      on: 10
+      off: 90
+  fifty_percent_on:
+    stickiness: user.id
+    allocations:
+      on: 50
+      off: 50
+
+flags:
+  - key: experiment-1
+    variant_set: boolean
+    default_variant: off
+    environments:
+      test:
+        serve: on
+      local:
+        default_action:
+          distribute: experiment_distribution
+      dev:
+        default_action:
+          distribute: experiment_distribution
+      prod:
+        default_action:
+          distribute: experiment_distribution
+  - key: rollout-feature-xxx
+    variant_set: boolean
+    default_variant: off
+    environments:
+      test:
+        default_action:
+          serve: on
+      local:
+        default_action:
+          serve: on
+      dev:
+        default_action:
+          serve: on
+      prod:
+        default_action:
+          serve: off
+        scheduled_rollouts:
+          - name: paused step
+            description: keep the plan but exclude this step
+            date: "2025-05-01T08:59:59Z"
+            disabled: true
+            default_action:
+              serve: on
+          - name: internal launch
+            description: enable for internal users
+            date: "2025-05-01T09:00:00Z"
+            rules:
+              - if:
+                  rule: is_internal
+                serve: on
+            default_action:
+              serve: off
+          - name: internal and plus 10 percent
+            description: internal users and 10 percent of the rest
+            date: "2025-05-10T09:00:00Z"
+            rules:
+              - if:
+                  rule: is_internal
+                serve: on
+            default_action:
+              distribute: ten_percent_on
+          - name: broad rollout
+            description: internal and beta users plus 50 percent
+            date: "2025-05-15T09:00:00Z"
+            rules:
+              - if:
+                  rule: is_internal
+                serve: on
+            default_action:
+              distribute: fifty_percent_on
+          - name: full launch
+            description: enable for everyone
+            date: "2025-05-22T09:00:00Z"
+            default_action:
+              serve: on

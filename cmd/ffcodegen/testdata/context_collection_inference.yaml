@@ -1,0 +1,28 @@
+version: v1
+
+variant_sets:
+  boolean:
+    on: true
+    off: false
+
+flags:
+  - key: inferred-collections
+    variant_set: boolean
+    default_variant: off
+    environments:
+      prod:
+        rules:
+          - if:
+              all_of:
+                - contains:
+                    - { var: user.tags }
+                    - beta
+                - in:
+                    - 7
+                    - { var: user.scores }
+                - in:
+                    - { var: user.country }
+                    - [JP, US]
+            serve: on
+        default_action:
+          serve: off
