@@ -1,0 +1,17 @@
+version: v1
+variant_sets:
+  complex:
+    arr:
+      - alpha
+      - 1
+      - true
+    obj:
+      enabled: true
+      ratio: 1.5
+flags:
+  - key: complex-flag
+    variant_set: complex
+    default_variant: arr
+    environments:
+      prod:
+        serve: obj

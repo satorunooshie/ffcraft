@@ -1,0 +1,7 @@
+new-checkout:
+    variations:
+        "off": false
+        "on": true
+    defaultRule:
+        variation: "off"
+

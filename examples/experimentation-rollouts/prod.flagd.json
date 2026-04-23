@@ -1,0 +1,107 @@
+{
+  "$schema": "https://flagd.dev/schema/v0/flags.json",
+  "flags": {
+    "checkout-experimentation": {
+      "state": "ENABLED",
+      "variants": {
+        "off": false,
+        "on": true
+      },
+      "defaultVariant": "off",
+      "targeting": {
+        "if": [
+          {
+            "and": [
+              {
+                "\u003e=": [
+                  {
+                    "var": "$flagd.timestamp"
+                  },
+                  1778230800
+                ]
+              },
+              {
+                "\u003e=": [
+                  {
+                    "var": "$flagd.timestamp"
+                  },
+                  1778403600
+                ]
+              },
+              {
+                "\u003c": [
+                  {
+                    "var": "$flagd.timestamp"
+                  },
+                  1779267600
+                ]
+              }
+            ]
+          },
+          {
+            "if": [
+              {
+                "==": [
+                  {
+                    "var": "user.type"
+                  },
+                  "internal"
+                ]
+              },
+              "on",
+              {
+                "if": [
+                  {
+                    "==": [
+                      {
+                        "var": "user.segment"
+                      },
+                      "beta"
+                    ]
+                  },
+                  "on",
+                  {
+                    "fractional": [
+                      {
+                        "cat": [
+                          {
+                            "var": "$flagd.flagKey"
+                          },
+                          {
+                            "var": "targetingKey"
+                          }
+                        ]
+                      },
+                      [
+                        "off",
+                        50
+                      ],
+                      [
+                        "on",
+                        50
+                      ]
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "if": [
+              {
+                "\u003e=": [
+                  {
+                    "var": "$flagd.timestamp"
+                  },
+                  1779440400
+                ]
+              },
+              "on",
+              "off"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

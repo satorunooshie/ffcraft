@@ -1,0 +1,15 @@
+version: v1
+
+variant_sets:
+  quota:
+    low: 1
+    high: 5
+
+flags:
+  - key: quota-limit
+    variant_set: quota
+    default_variant: low
+    environments:
+      prod:
+        default_action:
+          serve: high

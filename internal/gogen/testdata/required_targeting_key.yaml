@@ -1,0 +1,38 @@
+version: v1
+
+variant_sets:
+  boolean:
+    on: true
+    off: false
+  experiment_variant:
+    control: control
+    treatment: treatment
+
+distributions:
+  experiment_rollout:
+    stickiness: user.id
+    allocations:
+      control: 50
+      treatment: 50
+
+flags:
+  - key: checkout-rollout
+    variant_set: experiment_variant
+    default_variant: control
+    environments:
+      prod:
+        default_action:
+          distribute: experiment_rollout
+
+  - key: home-rollout
+    variant_set: boolean
+    default_variant: off
+    environments:
+      prod:
+        default_action:
+          progressive_rollout:
+            variant: on
+            stickiness: user.id
+            start: "2026-05-01T09:00:00Z"
+            end: "2026-05-22T09:00:00Z"
+            steps: 4

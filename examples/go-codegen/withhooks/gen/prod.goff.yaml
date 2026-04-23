@@ -1,0 +1,7 @@
+show_sample_banner:
+    variations:
+        "off": false
+        "on": true
+    defaultRule:
+        variation: "on"
+

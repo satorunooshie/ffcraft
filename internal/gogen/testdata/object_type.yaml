@@ -1,0 +1,21 @@
+version: v1
+
+variant_sets:
+  theme_config:
+    default:
+      primary: blue
+      nested:
+        enabled: true
+    alt:
+      primary: green
+      nested:
+        enabled: false
+
+flags:
+  - key: theme-config
+    variant_set: theme_config
+    default_variant: default
+    environments:
+      prod:
+        default_action:
+          serve: alt

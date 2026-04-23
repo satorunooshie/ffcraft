@@ -1,0 +1,11 @@
+version: v1
+variant_sets:
+  boolean: &boolset
+    on: true
+    off: false
+flags:
+  - key: alias-flag
+    variant_set: boolean
+    default_variant: off
+    environments:
+      prod: *boolset

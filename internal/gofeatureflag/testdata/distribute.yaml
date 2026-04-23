@@ -1,0 +1,30 @@
+version: v1
+
+variant_sets:
+  checkout_mode:
+    control: control
+    treatment_a: treatment_a
+    treatment_b: treatment_b
+
+distributions:
+  checkout_ab:
+    stickiness: user.id
+    allocations:
+      treatment_a: 10
+      treatment_b: 10
+      control: 80
+
+flags:
+  - key: checkout-experiment
+    variant_set: checkout_mode
+    default_variant: control
+    environments:
+      prod:
+        rules:
+          - if:
+              eq:
+                - { var: user.plan }
+                - premium
+            distribute: checkout_ab
+        default_action:
+          serve: control

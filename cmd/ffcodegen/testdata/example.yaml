@@ -1,0 +1,21 @@
+version: v1
+
+variant_sets:
+  boolean:
+    on: true
+    off: false
+
+flags:
+  - key: enable-new-home
+    variant_set: boolean
+    default_variant: off
+    environments:
+      prod:
+        rules:
+          - if:
+              eq:
+                - { var: user.id }
+                - 1
+            serve: on
+        default_action:
+          serve: off

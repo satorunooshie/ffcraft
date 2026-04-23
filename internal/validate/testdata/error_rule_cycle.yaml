@@ -1,0 +1,22 @@
+version: v1
+variant_sets:
+  boolean:
+    on: true
+    off: false
+rules:
+  a:
+    rule: b
+  b:
+    rule: a
+flags:
+  - key: feature-a
+    variant_set: boolean
+    default_variant: off
+    environments:
+      prod:
+        rules:
+          - if:
+              rule: a
+            serve: on
+        default_action:
+          serve: off

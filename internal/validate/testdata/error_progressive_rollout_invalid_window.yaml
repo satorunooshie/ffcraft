@@ -1,0 +1,18 @@
+version: v1
+variant_sets:
+  boolean:
+    on: true
+    off: false
+flags:
+  - key: bad-window
+    variant_set: boolean
+    default_variant: off
+    environments:
+      prod:
+        default_action:
+          progressive_rollout:
+            variant: on
+            stickiness: user.id
+            start: "2026-05-10T00:00:00Z"
+            end: "2026-05-10T00:00:00Z"
+            steps: 3

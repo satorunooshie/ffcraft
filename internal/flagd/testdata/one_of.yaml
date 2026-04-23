@@ -1,0 +1,23 @@
+version: v1
+variant_sets:
+  boolean:
+    on: true
+    off: false
+flags:
+  - key: one-of-flag
+    variant_set: boolean
+    default_variant: off
+    environments:
+      prod:
+        rules:
+          - if:
+              one_of:
+                - eq:
+                    - { var: user.country }
+                    - JP
+                - eq:
+                    - { var: user.country }
+                    - US
+            serve: on
+        default_action:
+          serve: off

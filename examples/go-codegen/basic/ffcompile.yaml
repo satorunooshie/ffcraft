@@ -1,0 +1,39 @@
+version: v1
+
+variant_sets:
+  boolean:
+    on: true
+    off: false
+  checkout_mode:
+    control: control
+    treatment: treatment
+
+distributions:
+  checkout_ab:
+    stickiness: user.id
+    allocations:
+      control: 50
+      treatment: 50
+
+flags:
+  - key: enable-new-home
+    variant_set: boolean
+    default_variant: off
+    environments:
+      prod:
+        rules:
+          - if:
+              eq:
+                - { var: device.platform }
+                - ios
+            serve: on
+        default_action:
+          serve: off
+
+  - key: checkout-mode
+    variant_set: checkout_mode
+    default_variant: control
+    environments:
+      prod:
+        default_action:
+          distribute: checkout_ab

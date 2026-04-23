@@ -1,0 +1,52 @@
+version: v1
+
+variant_sets:
+  boolean:
+    on: true
+    off: false
+
+rules:
+  is_internal:
+    eq:
+      - { var: user.type }
+      - internal
+  is_beta_user:
+    eq:
+      - { var: user.segment }
+      - beta
+
+distributions:
+  experiment_split:
+    stickiness: targetingKey
+    allocations:
+      on: 50
+      off: 50
+
+flags:
+  - key: checkout-experimentation
+    variant_set: boolean
+    default_variant: off
+    environments:
+      prod:
+        default_action:
+          serve: off
+        scheduled_rollouts:
+          - name: beta experiment
+            description: temporary overlay during the beta window
+            date: "2026-05-08T09:00:00Z"
+            experimentation:
+              start: "2026-05-10T09:00:00Z"
+              end: "2026-05-20T09:00:00Z"
+            rules:
+              - if:
+                  rule: is_internal
+                serve: on
+              - if:
+                  rule: is_beta_user
+                serve: on
+            default_action:
+              distribute: experiment_split
+          - name: full launch
+            date: "2026-05-22T09:00:00Z"
+            default_action:
+              serve: on

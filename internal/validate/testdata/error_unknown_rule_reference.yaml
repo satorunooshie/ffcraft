@@ -1,0 +1,15 @@
+version: v1
+variant_sets:
+  boolean:
+    on: true
+    off: false
+flags:
+  - key: unknown-rule
+    variant_set: boolean
+    default_variant: off
+    environments:
+      prod:
+        rules:
+          - if:
+              rule: missing_rule
+            serve: on

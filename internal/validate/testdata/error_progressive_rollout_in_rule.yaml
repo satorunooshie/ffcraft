@@ -1,0 +1,22 @@
+version: v1
+variant_sets:
+  boolean:
+    on: true
+    off: false
+flags:
+  - key: bad-rule-progressive
+    variant_set: boolean
+    default_variant: off
+    environments:
+      prod:
+        rules:
+          - if:
+              literal_bool: true
+            progressive_rollout:
+              variant: on
+              stickiness: user.id
+              start: "2026-05-01T00:00:00Z"
+              end: "2026-05-10T00:00:00Z"
+              steps: 3
+        default_action:
+          serve: off

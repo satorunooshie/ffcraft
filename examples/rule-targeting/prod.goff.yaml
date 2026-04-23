@@ -1,0 +1,13 @@
+onboarding-banner:
+    variations:
+        beta: enabled-beta-banner
+        control: disabled
+        vip: enabled-vip-banner
+    defaultRule:
+        variation: control
+    targeting:
+        - query: organization.tier eq "vip"
+          variation: vip
+        - query: (user.country eq "JP") AND (user.tags co "beta")
+          variation: beta
+

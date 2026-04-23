@@ -1,0 +1,27 @@
+experiment_rollout:
+    variations:
+        control: control
+        treatment: treatment
+    defaultRule:
+        variation: control
+    targeting:
+        - query: user.type eq "internal"
+          percentage:
+            control: 67
+            treatment: 33
+    bucketingKey: user.id
+homepage_theme:
+    variations:
+        default: default
+        high_contrast: high_contrast
+        modern: modern
+    defaultRule:
+        variation: default
+    targeting:
+        - query: user.country eq "JP"
+          percentage:
+            default: 50
+            high_contrast: 10
+            modern: 40
+    bucketingKey: user.id
+

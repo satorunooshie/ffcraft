@@ -1,0 +1,23 @@
+checkout-experiment:
+    variations:
+        control: control
+        treatment_a: treatment_a
+        treatment_b: treatment_b
+    defaultRule:
+        variation: control
+    targeting:
+        - query: (user.plan eq "premium") AND (device.platform eq "ios")
+          percentage:
+            control: 80
+            treatment_a: 10
+            treatment_b: 10
+    bucketingKey: user.id
+enable-new-home:
+    variations:
+        "off": false
+        "on": true
+    defaultRule:
+        variation: "off"
+    targeting:
+        - query: (user.type eq "internal") AND (device.platform eq "ios")
+          variation: "on"

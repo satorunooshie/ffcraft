@@ -1,0 +1,6 @@
+enable-new-home:
+    variations:
+        "off": false
+        "on": true
+    defaultRule:
+        variation: "on"

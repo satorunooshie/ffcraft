@@ -1,0 +1,96 @@
+{
+  "$schema": "https://flagd.dev/schema/v0/flags.json",
+  "flags": {
+    "experiment_rollout": {
+      "state": "ENABLED",
+      "variants": {
+        "control": "control",
+        "treatment": "treatment"
+      },
+      "defaultVariant": "control",
+      "targeting": {
+        "if": [
+          {
+            "==": [
+              {
+                "var": "user.type"
+              },
+              "internal"
+            ]
+          },
+          {
+            "fractional": [
+              {
+                "cat": [
+                  {
+                    "var": "$flagd.flagKey"
+                  },
+                  {
+                    "var": "user.id"
+                  }
+                ]
+              },
+              [
+                "control",
+                67
+              ],
+              [
+                "treatment",
+                33
+              ]
+            ]
+          },
+          "control"
+        ]
+      }
+    },
+    "homepage_theme": {
+      "state": "ENABLED",
+      "variants": {
+        "default": "default",
+        "high_contrast": "high_contrast",
+        "modern": "modern"
+      },
+      "defaultVariant": "default",
+      "targeting": {
+        "if": [
+          {
+            "==": [
+              {
+                "var": "user.country"
+              },
+              "JP"
+            ]
+          },
+          {
+            "fractional": [
+              {
+                "cat": [
+                  {
+                    "var": "$flagd.flagKey"
+                  },
+                  {
+                    "var": "user.id"
+                  }
+                ]
+              },
+              [
+                "default",
+                50
+              ],
+              [
+                "high_contrast",
+                10
+              ],
+              [
+                "modern",
+                40
+              ]
+            ]
+          },
+          "default"
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,194 @@
+{
+  "$schema": "https://flagd.dev/schema/v0/flags.json",
+  "flags": {
+    "checkout-progressive": {
+      "state": "ENABLED",
+      "variants": {
+        "off": false,
+        "on": true
+      },
+      "defaultVariant": "off",
+      "targeting": {
+        "if": [
+          {
+            "\u003e=": [
+              {
+                "var": "$flagd.timestamp"
+              },
+              1777626000
+            ]
+          },
+          {
+            "if": [
+              {
+                "==": [
+                  {
+                    "var": "user.type"
+                  },
+                  "internal"
+                ]
+              },
+              "on",
+              {
+                "fractional": [
+                  {
+                    "cat": [
+                      {
+                        "var": "$flagd.flagKey"
+                      },
+                      {
+                        "var": "targetingKey"
+                      }
+                    ]
+                  },
+                  [
+                    "off",
+                    75
+                  ],
+                  [
+                    "on",
+                    25
+                  ]
+                ]
+              }
+            ]
+          },
+          {
+            "if": [
+              {
+                "\u003e=": [
+                  {
+                    "var": "$flagd.timestamp"
+                  },
+                  1778230800
+                ]
+              },
+              {
+                "if": [
+                  {
+                    "==": [
+                      {
+                        "var": "user.type"
+                      },
+                      "internal"
+                    ]
+                  },
+                  "on",
+                  {
+                    "fractional": [
+                      {
+                        "cat": [
+                          {
+                            "var": "$flagd.flagKey"
+                          },
+                          {
+                            "var": "targetingKey"
+                          }
+                        ]
+                      },
+                      [
+                        "off",
+                        50
+                      ],
+                      [
+                        "on",
+                        50
+                      ]
+                    ]
+                  }
+                ]
+              },
+              {
+                "if": [
+                  {
+                    "\u003e=": [
+                      {
+                        "var": "$flagd.timestamp"
+                      },
+                      1778835600
+                    ]
+                  },
+                  {
+                    "if": [
+                      {
+                        "==": [
+                          {
+                            "var": "user.type"
+                          },
+                          "internal"
+                        ]
+                      },
+                      "on",
+                      {
+                        "fractional": [
+                          {
+                            "cat": [
+                              {
+                                "var": "$flagd.flagKey"
+                              },
+                              {
+                                "var": "targetingKey"
+                              }
+                            ]
+                          },
+                          [
+                            "off",
+                            25
+                          ],
+                          [
+                            "on",
+                            75
+                          ]
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "if": [
+                      {
+                        "\u003e=": [
+                          {
+                            "var": "$flagd.timestamp"
+                          },
+                          1779440400
+                        ]
+                      },
+                      {
+                        "if": [
+                          {
+                            "==": [
+                              {
+                                "var": "user.type"
+                              },
+                              "internal"
+                            ]
+                          },
+                          "on",
+                          "on"
+                        ]
+                      },
+                      {
+                        "if": [
+                          {
+                            "==": [
+                              {
+                                "var": "user.type"
+                              },
+                              "internal"
+                            ]
+                          },
+                          "on",
+                          "off"
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

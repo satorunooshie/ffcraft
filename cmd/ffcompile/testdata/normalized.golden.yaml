@@ -1,0 +1,12 @@
+version: normalized/v1
+flags:
+    - key: enable-new-home
+      variants:
+        "off": false
+        "on": true
+      default_variant: "off"
+      environments:
+        prod:
+            static_variant: "on"
+            default_action:
+                serve: "on"

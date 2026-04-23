@@ -1,0 +1,19 @@
+checkout-mode:
+    variations:
+        control: control
+        treatment: treatment
+    defaultRule:
+        percentage:
+            control: 50
+            treatment: 50
+    bucketingKey: user.id
+enable-new-home:
+    variations:
+        "off": false
+        "on": true
+    defaultRule:
+        variation: "off"
+    targeting:
+        - query: device.platform eq "ios"
+          variation: "on"
+

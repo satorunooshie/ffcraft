@@ -1,0 +1,470 @@
+syntax = "proto3";
+
+package ffcraft.v1;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/satorunooshie/ffcraft/gen/ffcraft/v1;ffcraftv1";
+
+message FeatureFlagDocument {
+  string version = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string = {const: "v1"}
+  ];
+
+  map<string, VariantSet> variant_sets = 2 [
+    (buf.validate.field).map.min_pairs = 1,
+    (buf.validate.field).map.keys.string = {
+      min_len: 1
+      max_len: 128
+    }
+  ];
+
+  map<string, Condition> rules = 3 [(buf.validate.field).map.keys.string = {
+    min_len: 1
+    max_len: 128
+  }];
+
+  map<string, Distribution> distributions = 4 [(buf.validate.field).map.keys.string = {
+    min_len: 1
+    max_len: 128
+  }];
+
+  repeated Flag flags = 5 [(buf.validate.field).repeated.min_items = 1];
+}
+
+message VariantSet {
+  map<string, VariantValue> variants = 1 [
+    (buf.validate.field).map.min_pairs = 1,
+    (buf.validate.field).map.keys.string = {
+      min_len: 1
+      max_len: 128
+    }
+  ];
+}
+
+message VariantValue {
+  oneof kind {
+    bool bool_value = 1;
+    string string_value = 2 [(buf.validate.field).string.max_len = 1024];
+    int64 int_value = 3;
+    double double_value = 4;
+    google.protobuf.Struct object_value = 5;
+    ListValue list_value = 6;
+    NullValue null_value = 7;
+  }
+}
+
+message ListValue {
+  repeated VariantValue values = 1;
+}
+
+message NullValue {}
+
+message Flag {
+  string key = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 128
+      pattern: "^[a-z0-9][a-z0-9._-]*$"
+    }
+  ];
+
+  // reference to document.variant_sets
+  string variant_set = 2 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 128
+    }
+  ];
+
+  string default_variant = 3 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 128
+    }
+  ];
+
+  map<string, Environment> environments = 4 [
+    (buf.validate.field).map.min_pairs = 1,
+    (buf.validate.field).map.keys.string = {
+      min_len: 1
+      max_len: 64
+      pattern: "^[a-z][a-z0-9_-]*$"
+    }
+  ];
+
+  Metadata metadata = 5;
+}
+
+message Metadata {
+  string owner = 1 [(buf.validate.field).string.max_len = 128];
+  string description = 2 [(buf.validate.field).string.max_len = 2048];
+  string expiry = 3 [(buf.validate.field).string.max_len = 32];
+  repeated string tags = 4 [(buf.validate.field).repeated.items.string = {
+    min_len: 1
+    max_len: 64
+  }];
+}
+
+message Environment {
+  oneof kind {
+    FixedServe fixed_serve = 1;
+    RuleEvaluation rule_evaluation = 2;
+  }
+}
+
+message FixedServe {
+  string variant = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 128
+    }
+  ];
+}
+
+message RuleEvaluation {
+  repeated RuleEntry rules = 1;
+  Action default_action = 2;
+  Experimentation experimentation = 3;
+  repeated ScheduledStep scheduled_rollouts = 4;
+}
+
+message RuleEntry {
+  Condition if = 1 [(buf.validate.field).required = true];
+  Action action = 2 [(buf.validate.field).required = true];
+}
+
+message Action {
+  oneof kind {
+    Serve serve = 1;
+    Distribute distribute = 2;
+    ProgressiveRollout progressive_rollout = 3;
+  }
+}
+
+message Serve {
+  string variant = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 128
+    }
+  ];
+}
+
+message Distribute {
+  string distribution = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 128
+    }
+  ];
+}
+
+message ProgressiveRollout {
+  string variant = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 128
+    }
+  ];
+
+  string stickiness = 2 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 256
+    }
+  ];
+
+  string start = 3 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 64
+    }
+  ];
+
+  string end = 4 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 64
+    }
+  ];
+
+  uint32 steps = 5 [(buf.validate.field).uint32 = {gte: 1}];
+}
+
+message Experimentation {
+  string start = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 64
+    }
+  ];
+
+  string end = 2 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 64
+    }
+  ];
+}
+
+message ScheduledStep {
+  string name = 1 [(buf.validate.field).string.max_len = 128];
+
+  string description = 2 [(buf.validate.field).string.max_len = 2048];
+
+  bool disabled = 3;
+
+  string date = 4 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 64
+    }
+  ];
+
+  repeated RuleEntry rules = 5;
+  Action default_action = 6 [(buf.validate.field).required = true];
+  Experimentation experimentation = 7;
+}
+
+message Distribution {
+  string stickiness = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 256
+    }
+  ];
+
+  map<string, double> allocations = 2 [
+    (buf.validate.field).map.min_pairs = 1,
+    (buf.validate.field).map.keys.string = {
+      min_len: 1
+      max_len: 128
+    },
+    (buf.validate.field).map.values.double = {gte: 0}
+  ];
+}
+
+message Condition {
+  oneof kind {
+    RuleRef rule = 1;
+    Eq eq = 2;
+    Ne ne = 3;
+    Gt gt = 4;
+    Gte gte = 5;
+    Lt lt = 6;
+    Lte lte = 7;
+    In in = 8;
+    Contains contains = 9;
+    StartsWith starts_with = 10;
+    EndsWith ends_with = 11;
+    Matches matches = 12;
+    SemverGt semver_gt = 13;
+    SemverGte semver_gte = 14;
+    SemverLt semver_lt = 15;
+    SemverLte semver_lte = 16;
+    AllOf all_of = 17;
+    AnyOf any_of = 18;
+    Not not = 19;
+    OneOf one_of = 20;
+    LiteralBool literal_bool = 21;
+  }
+}
+
+message RuleRef {
+  string name = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 128
+    }
+  ];
+}
+
+message LiteralBool {
+  bool value = 1;
+}
+
+message AllOf {
+  repeated Condition conditions = 1 [(buf.validate.field).repeated.min_items = 1];
+}
+
+message AnyOf {
+  repeated Condition conditions = 1 [(buf.validate.field).repeated.min_items = 1];
+}
+
+message OneOf {
+  repeated Condition conditions = 1 [(buf.validate.field).repeated.min_items = 1];
+}
+
+message Not {
+  Condition condition = 1 [(buf.validate.field).required = true];
+}
+
+message Eq {
+  Value left = 1 [(buf.validate.field).required = true];
+  Value right = 2 [(buf.validate.field).required = true];
+}
+
+message Ne {
+  Value left = 1 [(buf.validate.field).required = true];
+  Value right = 2 [(buf.validate.field).required = true];
+}
+
+message Gt {
+  Value left = 1 [(buf.validate.field).required = true];
+  Value right = 2 [(buf.validate.field).required = true];
+}
+
+message Gte {
+  Value left = 1 [(buf.validate.field).required = true];
+  Value right = 2 [(buf.validate.field).required = true];
+}
+
+message Lt {
+  Value left = 1 [(buf.validate.field).required = true];
+  Value right = 2 [(buf.validate.field).required = true];
+}
+
+message Lte {
+  Value left = 1 [(buf.validate.field).required = true];
+  Value right = 2 [(buf.validate.field).required = true];
+}
+
+message In {
+  Value target = 1 [(buf.validate.field).required = true];
+  Value candidate = 2 [(buf.validate.field).required = true];
+}
+
+message Contains {
+  Value container = 1 [(buf.validate.field).required = true];
+  Value value = 2 [(buf.validate.field).required = true];
+}
+
+message StartsWith {
+  Value target = 1 [(buf.validate.field).required = true];
+  string prefix = 2 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.max_len = 256
+  ];
+}
+
+message EndsWith {
+  Value target = 1 [(buf.validate.field).required = true];
+  string suffix = 2 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.max_len = 256
+  ];
+}
+
+message Matches {
+  Value target = 1 [(buf.validate.field).required = true];
+  string pattern = 2 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string.max_len = 1024
+  ];
+}
+
+message SemverGt {
+  Value left = 1 [(buf.validate.field).required = true];
+  string right = 2 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 64
+    }
+  ];
+}
+
+message SemverGte {
+  Value left = 1 [(buf.validate.field).required = true];
+  string right = 2 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 64
+    }
+  ];
+}
+
+message SemverLt {
+  Value left = 1 [(buf.validate.field).required = true];
+  string right = 2 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 64
+    }
+  ];
+}
+
+message SemverLte {
+  Value left = 1 [(buf.validate.field).required = true];
+  string right = 2 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 64
+    }
+  ];
+}
+
+message Value {
+  oneof kind {
+    VarRef var = 1;
+    Scalar scalar = 2;
+    StringList string_list = 3;
+    ValueList list = 4;
+  }
+}
+
+message VarRef {
+  string path = 1 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 256
+      pattern: "^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)*$"
+    }
+  ];
+}
+
+message Scalar {
+  oneof kind {
+    string string_value = 1 [(buf.validate.field).string.max_len = 1024];
+    bool bool_value = 2;
+    int64 int_value = 3;
+    double double_value = 4;
+    NullValue null_value = 5;
+  }
+}
+
+message StringList {
+  repeated string values = 1 [
+    (buf.validate.field).repeated.min_items = 1,
+    (buf.validate.field).repeated.items.string = {
+      min_len: 1
+      max_len: 256
+    }
+  ];
+}
+
+message ValueList {
+  repeated Value values = 1 [(buf.validate.field).repeated.min_items = 1];
+}

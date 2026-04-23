@@ -1,0 +1,13 @@
+version: v1
+source: ./example.yaml
+
+targets:
+  go:
+    package: testflags
+    output: ./flags.gen.go
+    context_type: EvalContext
+    client_type: Client
+    evaluator_type: Evaluator
+    accessors:
+      enable-new-home:
+        name: EnableNewHome

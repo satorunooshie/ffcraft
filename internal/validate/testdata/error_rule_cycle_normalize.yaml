@@ -1,0 +1,20 @@
+version: v1
+variant_sets:
+  boolean:
+    on: true
+    off: false
+rules:
+  a:
+    rule: b
+  b:
+    rule: a
+flags:
+  - key: cyclical
+    variant_set: boolean
+    default_variant: off
+    environments:
+      prod:
+        rules:
+          - if:
+              rule: a
+            serve: on

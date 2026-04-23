@@ -1,0 +1,19 @@
+checkout-progressive:
+    variations:
+        "off": false
+        "on": true
+    defaultRule:
+        progressiveRollout:
+            initial:
+                variation: "off"
+                date: "2026-05-01T09:00:00Z"
+                percentage: 0
+            end:
+                variation: "on"
+                date: "2026-05-22T09:00:00Z"
+                percentage: 100
+    targeting:
+        - query: user.type eq "internal"
+          variation: "on"
+    bucketingKey: targetingKey
+

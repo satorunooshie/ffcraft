@@ -1,0 +1,26 @@
+version: v1
+
+variant_sets:
+  boolean:
+    on: true
+    off: false
+  banner_mode:
+    control: control
+    announcement: announcement
+
+flags:
+  - key: static-home
+    variant_set: boolean
+    default_variant: off
+    environments:
+      prod:
+        default_action:
+          serve: on
+
+  - key: banner-mode
+    variant_set: banner_mode
+    default_variant: control
+    environments:
+      prod:
+        default_action:
+          serve: announcement

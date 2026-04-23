@@ -1,0 +1,20 @@
+version: v1
+variant_sets:
+  boolean:
+    on: true
+    off: false
+flags:
+  - key: invalid-condition
+    variant_set: boolean
+    default_variant: off
+    environments:
+      prod:
+        rules:
+          - if:
+              eq:
+                - { var: user.country }
+                - JP
+              ne:
+                - { var: user.plan }
+                - free
+            serve: on

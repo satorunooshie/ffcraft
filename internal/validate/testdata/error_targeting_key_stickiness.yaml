@@ -1,0 +1,19 @@
+version: v1
+variant_sets:
+  boolean:
+    on: true
+    off: false
+distributions:
+  canary:
+    stickiness: targetingKey
+    allocations:
+      on: 50
+      off: 50
+flags:
+  - key: rollout-flag
+    variant_set: boolean
+    default_variant: off
+    environments:
+      prod:
+        default_action:
+          distribute: canary

@@ -1,0 +1,37 @@
+version: v1
+
+variant_sets:
+  banner_mode:
+    control: disabled
+    beta: enabled-beta-banner
+    vip: enabled-vip-banner
+
+rules:
+  jp_beta:
+    all_of:
+      - eq:
+          - { var: user.country }
+          - JP
+      - contains:
+          - { var: user.tags }
+          - beta
+  vip_org:
+    eq:
+      - { var: organization.tier }
+      - vip
+
+flags:
+  - key: onboarding-banner
+    variant_set: banner_mode
+    default_variant: control
+    environments:
+      prod:
+        rules:
+          - if:
+              rule: vip_org
+            serve: vip
+          - if:
+              rule: jp_beta
+            serve: beta
+        default_action:
+          serve: control

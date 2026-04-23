@@ -1,0 +1,61 @@
+version: v1
+
+variant_sets:
+  boolean:
+    on: true
+    off: false
+
+rules:
+  is_internal:
+    eq:
+      - { var: user.type }
+      - internal
+  is_beta:
+    eq:
+      - { var: user.segment }
+      - beta
+
+distributions:
+  small_rollout:
+    stickiness: user.id
+    allocations:
+      on: 5
+      off: 95
+  large_rollout:
+    stickiness: user.id
+    allocations:
+      on: 50
+      off: 50
+
+flags:
+  - key: multi-step-rollout
+    variant_set: boolean
+    default_variant: off
+    environments:
+      prod:
+        default_action:
+          serve: off
+        scheduled_rollouts:
+          - name: internal
+            date: "2026-05-01T09:00:00Z"
+            rules:
+              - if:
+                  rule: is_internal
+                serve: on
+            default_action:
+              serve: off
+          - name: beta-expand
+            date: "2026-05-08T09:00:00Z"
+            rules:
+              - if:
+                  rule: is_internal
+                serve: on
+              - if:
+                  rule: is_beta
+                serve: on
+            default_action:
+              distribute: small_rollout
+          - name: broad-rollout
+            date: "2026-05-15T09:00:00Z"
+            default_action:
+              distribute: large_rollout

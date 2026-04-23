@@ -1,0 +1,57 @@
+{
+  "$schema": "https://flagd.dev/schema/v0/flags.json",
+  "flags": {
+    "checkout-mode": {
+      "state": "ENABLED",
+      "variants": {
+        "control": "control",
+        "treatment": "treatment"
+      },
+      "defaultVariant": "control",
+      "targeting": {
+        "fractional": [
+          {
+            "cat": [
+              {
+                "var": "$flagd.flagKey"
+              },
+              {
+                "var": "user.id"
+              }
+            ]
+          },
+          [
+            "control",
+            50
+          ],
+          [
+            "treatment",
+            50
+          ]
+        ]
+      }
+    },
+    "enable-new-home": {
+      "state": "ENABLED",
+      "variants": {
+        "off": false,
+        "on": true
+      },
+      "defaultVariant": "off",
+      "targeting": {
+        "if": [
+          {
+            "==": [
+              {
+                "var": "device.platform"
+              },
+              "ios"
+            ]
+          },
+          "on",
+          "off"
+        ]
+      }
+    }
+  }
+}

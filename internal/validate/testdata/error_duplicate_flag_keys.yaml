@@ -1,0 +1,18 @@
+version: v1
+variant_sets:
+  boolean:
+    on: true
+    off: false
+flags:
+  - key: duplicate
+    variant_set: boolean
+    default_variant: off
+    environments:
+      prod:
+        serve: on
+  - key: duplicate
+    variant_set: boolean
+    default_variant: off
+    environments:
+      prod:
+        serve: off

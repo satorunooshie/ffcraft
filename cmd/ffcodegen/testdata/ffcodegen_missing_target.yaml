@@ -1,0 +1,6 @@
+version: v1
+source: ./example.yaml
+
+targets:
+  ts:
+    output: ./flags.ts

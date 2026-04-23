@@ -1,0 +1,21 @@
+version: v1
+
+variant_sets:
+  boolean:
+    on: true
+    off: false
+
+flags:
+  - key: prod-flag
+    variant_set: boolean
+    default_variant: off
+    environments:
+      prod:
+        serve: on
+
+  - key: dev-only-flag
+    variant_set: boolean
+    default_variant: off
+    environments:
+      dev:
+        serve: on

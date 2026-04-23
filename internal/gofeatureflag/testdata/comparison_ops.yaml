@@ -1,0 +1,37 @@
+version: v1
+
+variant_sets:
+  boolean:
+    on: true
+    off: false
+
+flags:
+  - key: comparison-ops
+    variant_set: boolean
+    default_variant: off
+    environments:
+      prod:
+        rules:
+          - if:
+              all_of:
+                - eq:
+                    - { var: user.id }
+                    - "123"
+                - ne:
+                    - { var: user.country }
+                    - JP
+                - gt:
+                    - { var: user.age }
+                    - 20
+                - gte:
+                    - { var: user.level }
+                    - 2
+                - lt:
+                    - { var: user.score }
+                    - 100
+                - lte:
+                    - { var: user.rank }
+                    - 10
+            serve: on
+        default_action:
+          serve: off

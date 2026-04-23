@@ -1,0 +1,56 @@
+version: v1
+
+variant_sets:
+  quota:
+    low: 1
+    high: 5
+  score:
+    cold: 0.5
+    hot: 0.95
+  theme_config:
+    default:
+      primary: blue
+      nested:
+        enabled: true
+    alt:
+      primary: green
+      nested:
+        enabled: false
+  badges:
+    empty: []
+    starter:
+      - new
+      - vip
+
+flags:
+  - key: quota-limit
+    variant_set: quota
+    default_variant: low
+    environments:
+      prod:
+        default_action:
+          serve: high
+
+  - key: score-threshold
+    variant_set: score
+    default_variant: cold
+    environments:
+      prod:
+        default_action:
+          serve: hot
+
+  - key: theme-config
+    variant_set: theme_config
+    default_variant: default
+    environments:
+      prod:
+        default_action:
+          serve: alt
+
+  - key: starter-badges
+    variant_set: badges
+    default_variant: empty
+    environments:
+      prod:
+        default_action:
+          serve: starter

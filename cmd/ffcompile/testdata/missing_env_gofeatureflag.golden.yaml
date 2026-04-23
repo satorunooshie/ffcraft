@@ -1,0 +1,6 @@
+prod-flag:
+    variations:
+        "off": false
+        "on": true
+    defaultRule:
+        variation: "on"

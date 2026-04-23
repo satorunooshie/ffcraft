@@ -1,0 +1,44 @@
+version: v1
+variant_sets:
+  boolean:
+    on: true
+    off: false
+flags:
+  - key: compare-flag
+    variant_set: boolean
+    default_variant: off
+    environments:
+      prod:
+        rules:
+          - if:
+              eq:
+                - { var: user.country }
+                - JP
+            serve: on
+          - if:
+              ne:
+                - { var: user.plan }
+                - free
+            serve: on
+          - if:
+              gt:
+                - { var: user.age }
+                - 20
+            serve: on
+          - if:
+              gte:
+                - { var: user.score }
+                - 100
+            serve: on
+          - if:
+              lt:
+                - { var: user.rank }
+                - 10
+            serve: on
+          - if:
+              lte:
+                - { var: user.level }
+                - 5
+            serve: on
+        default_action:
+          serve: off

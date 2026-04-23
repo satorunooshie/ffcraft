@@ -1,0 +1,39 @@
+version: v1
+
+variant_sets:
+  boolean:
+    on: true
+    off: false
+
+rules:
+  is_ios:
+    eq:
+      - { var: device.platform }
+      - ios
+  is_new_app:
+    semver_gte:
+      - { var: app.version }
+      - 2.1.0
+  is_ios_and_new_app:
+    all_of:
+      - rule: is_ios
+      - rule: is_new_app
+  eligible_for_feature:
+    any_of:
+      - rule: is_ios_and_new_app
+      - eq:
+          - { var: user.segment }
+          - vip
+
+flags:
+  - key: deep-rule-feature
+    variant_set: boolean
+    default_variant: off
+    environments:
+      prod:
+        rules:
+          - if:
+              rule: eligible_for_feature
+            serve: on
+        default_action:
+          serve: off

@@ -1,0 +1,12 @@
+version: v1
+variant_sets:
+  other:
+    on: true
+    off: false
+flags:
+  - key: missing-variant-set
+    variant_set: boolean
+    default_variant: off
+    environments:
+      prod:
+        serve: off

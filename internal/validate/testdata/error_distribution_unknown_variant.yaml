@@ -1,0 +1,26 @@
+version: v1
+variant_sets:
+  boolean:
+    on: true
+    off: false
+rules:
+  always_on:
+    literal_bool: true
+distributions:
+  rollout:
+    stickiness: user.id
+    allocations:
+      on: 50
+      missing: 50
+flags:
+  - key: feature-a
+    variant_set: boolean
+    default_variant: off
+    environments:
+      prod:
+        rules:
+          - if:
+              rule: always_on
+            distribute: rollout
+        default_action:
+          serve: off

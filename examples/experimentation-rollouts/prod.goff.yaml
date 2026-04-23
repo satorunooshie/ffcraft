@@ -1,0 +1,7 @@
+checkout-experimentation:
+    variations:
+        "off": false
+        "on": true
+    defaultRule:
+        variation: "off"
+

@@ -1,0 +1,21 @@
+version: v1
+
+variant_sets:
+  boolean:
+    on: true
+    off: false
+
+flags:
+  - key: matches-error
+    variant_set: boolean
+    default_variant: off
+    environments:
+      prod:
+        rules:
+          - if:
+              matches:
+                - { var: user.email }
+                - ".*@example.com"
+            serve: on
+        default_action:
+          serve: off

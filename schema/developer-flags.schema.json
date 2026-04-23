@@ -1,0 +1,715 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/satorunooshie/ffcraft/schema/developer-flags.schema.json",
+  "title": "ffcraft Authoring Format v1",
+  "description": "JSON Schema for the ffcraft v1 authoring YAML format.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "flags"],
+  "properties": {
+    "version": {
+      "const": "v1"
+    },
+    "variant_sets": {
+      "type": "object",
+      "propertyNames": {
+        "$ref": "#/$defs/nonEmptyIdentifier"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/variantSet"
+      }
+    },
+    "rules": {
+      "type": "object",
+      "propertyNames": {
+        "$ref": "#/$defs/nonEmptyIdentifier"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/condition"
+      }
+    },
+    "distributions": {
+      "type": "object",
+      "propertyNames": {
+        "$ref": "#/$defs/nonEmptyIdentifier"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/distribution"
+      }
+    },
+    "flags": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/flag"
+      }
+    }
+  },
+  "$defs": {
+    "nonEmptyIdentifier": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "environmentName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[a-z][a-z0-9_-]*$"
+    },
+    "flagKey": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[a-z0-9][a-z0-9._-]*$"
+    },
+    "varPath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[A-Za-z_][A-Za-z0-9_]*(\\.[A-Za-z_][A-Za-z0-9_]*)*$"
+    },
+    "timestamp": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "format": "date-time"
+    },
+    "dateOnly": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "variantName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "variantValue": {
+      "oneOf": [
+        {
+          "type": "string",
+          "maxLength": 1024
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/variantValue"
+          }
+        },
+        {
+          "type": "object"
+        }
+      ]
+    },
+    "valueScalar": {
+      "oneOf": [
+        {
+          "type": "string",
+          "maxLength": 1024
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "varRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["var"],
+      "properties": {
+        "var": {
+          "$ref": "#/$defs/varPath"
+        }
+      }
+    },
+    "value": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/varRef"
+        },
+        {
+          "$ref": "#/$defs/valueScalar"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/value"
+          }
+        }
+      ]
+    },
+    "binaryOperands": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "prefixItems": [
+        {
+          "$ref": "#/$defs/value"
+        },
+        {
+          "$ref": "#/$defs/value"
+        }
+      ]
+    },
+    "valueAndStringOperands": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "prefixItems": [
+        {
+          "$ref": "#/$defs/value"
+        },
+        {
+          "type": "string"
+        }
+      ]
+    },
+    "conditionList": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/condition"
+      }
+    },
+    "condition": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["rule"],
+          "properties": {
+            "rule": {
+              "$ref": "#/$defs/nonEmptyIdentifier"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["literal_bool"],
+          "properties": {
+            "literal_bool": {
+              "type": "boolean"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["all_of"],
+          "properties": {
+            "all_of": {
+              "$ref": "#/$defs/conditionList"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["any_of"],
+          "properties": {
+            "any_of": {
+              "$ref": "#/$defs/conditionList"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["one_of"],
+          "properties": {
+            "one_of": {
+              "$ref": "#/$defs/conditionList"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["not"],
+          "properties": {
+            "not": {
+              "$ref": "#/$defs/condition"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["eq"],
+          "properties": {
+            "eq": {
+              "$ref": "#/$defs/binaryOperands"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["ne"],
+          "properties": {
+            "ne": {
+              "$ref": "#/$defs/binaryOperands"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["gt"],
+          "properties": {
+            "gt": {
+              "$ref": "#/$defs/binaryOperands"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["gte"],
+          "properties": {
+            "gte": {
+              "$ref": "#/$defs/binaryOperands"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["lt"],
+          "properties": {
+            "lt": {
+              "$ref": "#/$defs/binaryOperands"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["lte"],
+          "properties": {
+            "lte": {
+              "$ref": "#/$defs/binaryOperands"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["in"],
+          "properties": {
+            "in": {
+              "$ref": "#/$defs/binaryOperands"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["contains"],
+          "properties": {
+            "contains": {
+              "$ref": "#/$defs/binaryOperands"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["starts_with"],
+          "properties": {
+            "starts_with": {
+              "$ref": "#/$defs/valueAndStringOperands"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["ends_with"],
+          "properties": {
+            "ends_with": {
+              "$ref": "#/$defs/valueAndStringOperands"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["matches"],
+          "properties": {
+            "matches": {
+              "$ref": "#/$defs/valueAndStringOperands"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["semver_gt"],
+          "properties": {
+            "semver_gt": {
+              "$ref": "#/$defs/valueAndStringOperands"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["semver_gte"],
+          "properties": {
+            "semver_gte": {
+              "$ref": "#/$defs/valueAndStringOperands"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["semver_lt"],
+          "properties": {
+            "semver_lt": {
+              "$ref": "#/$defs/valueAndStringOperands"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["semver_lte"],
+          "properties": {
+            "semver_lte": {
+              "$ref": "#/$defs/valueAndStringOperands"
+            }
+          }
+        }
+      ]
+    },
+    "distribution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stickiness", "allocations"],
+      "properties": {
+        "stickiness": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "allocations": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {
+            "$ref": "#/$defs/variantName"
+          },
+          "additionalProperties": {
+            "type": "number",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "progressiveRollout": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["variant", "stickiness", "start", "end", "steps"],
+      "properties": {
+        "variant": {
+          "$ref": "#/$defs/variantName"
+        },
+        "stickiness": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "start": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "end": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "steps": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "experimentation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start", "end"],
+      "properties": {
+        "start": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "end": {
+          "$ref": "#/$defs/timestamp"
+        }
+      }
+    },
+    "serveAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["serve"],
+      "properties": {
+        "serve": {
+          "$ref": "#/$defs/variantName"
+        }
+      }
+    },
+    "distributeAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["distribute"],
+      "properties": {
+        "distribute": {
+          "$ref": "#/$defs/nonEmptyIdentifier"
+        }
+      }
+    },
+    "progressiveAction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["progressive_rollout"],
+      "properties": {
+        "progressive_rollout": {
+          "$ref": "#/$defs/progressiveRollout"
+        }
+      }
+    },
+    "action": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/serveAction"
+        },
+        {
+          "$ref": "#/$defs/distributeAction"
+        },
+        {
+          "$ref": "#/$defs/progressiveAction"
+        }
+      ]
+    },
+    "ruleEntryServe": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["if", "serve"],
+      "properties": {
+        "if": {
+          "$ref": "#/$defs/condition"
+        },
+        "serve": {
+          "$ref": "#/$defs/variantName"
+        }
+      }
+    },
+    "ruleEntryDistribute": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["if", "distribute"],
+      "properties": {
+        "if": {
+          "$ref": "#/$defs/condition"
+        },
+        "distribute": {
+          "$ref": "#/$defs/nonEmptyIdentifier"
+        }
+      }
+    },
+    "ruleEntryProgressive": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["if", "progressive_rollout"],
+      "properties": {
+        "if": {
+          "$ref": "#/$defs/condition"
+        },
+        "progressive_rollout": {
+          "$ref": "#/$defs/progressiveRollout"
+        }
+      }
+    },
+    "ruleEntry": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/ruleEntryServe"
+        },
+        {
+          "$ref": "#/$defs/ruleEntryDistribute"
+        },
+        {
+          "$ref": "#/$defs/ruleEntryProgressive"
+        }
+      ]
+    },
+    "scheduledStep": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["date", "default_action"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 2048
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "date": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "rules": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ruleEntry"
+          }
+        },
+        "default_action": {
+          "$ref": "#/$defs/action"
+        },
+        "experimentation": {
+          "$ref": "#/$defs/experimentation"
+        }
+      }
+    },
+    "ruleEvaluation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "rules": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ruleEntry"
+          }
+        },
+        "default_action": {
+          "$ref": "#/$defs/action"
+        },
+        "experimentation": {
+          "$ref": "#/$defs/experimentation"
+        },
+        "scheduled_rollouts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/scheduledStep"
+          }
+        }
+      },
+      "anyOf": [
+        {
+          "required": ["rules"]
+        },
+        {
+          "required": ["default_action"]
+        },
+        {
+          "required": ["experimentation"]
+        },
+        {
+          "required": ["scheduled_rollouts"]
+        }
+      ]
+    },
+    "fixedServeEnvironment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["serve"],
+      "properties": {
+        "serve": {
+          "$ref": "#/$defs/variantName"
+        }
+      }
+    },
+    "environment": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/fixedServeEnvironment"
+        },
+        {
+          "$ref": "#/$defs/ruleEvaluation"
+        }
+      ]
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "owner": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 2048
+        },
+        "expiry": {
+          "$ref": "#/$defs/dateOnly"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          }
+        }
+      }
+    },
+    "variantSet": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "$ref": "#/$defs/variantName"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/variantValue"
+      }
+    },
+    "flag": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "variant_set", "default_variant", "environments"],
+      "properties": {
+        "key": {
+          "$ref": "#/$defs/flagKey"
+        },
+        "variant_set": {
+          "$ref": "#/$defs/nonEmptyIdentifier"
+        },
+        "default_variant": {
+          "$ref": "#/$defs/variantName"
+        },
+        "metadata": {
+          "$ref": "#/$defs/metadata"
+        },
+        "environments": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {
+            "$ref": "#/$defs/environmentName"
+          },
+          "additionalProperties": {
+            "$ref": "#/$defs/environment"
+          }
+        }
+      }
+    }
+  }
+}

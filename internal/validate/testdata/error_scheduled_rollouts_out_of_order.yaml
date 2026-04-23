@@ -1,0 +1,22 @@
+version: v1
+variant_sets:
+  boolean:
+    on: true
+    off: false
+flags:
+  - key: unordered-step-date
+    variant_set: boolean
+    default_variant: off
+    environments:
+      prod:
+        rules:
+          - if:
+              literal_bool: true
+            serve: on
+        scheduled_rollouts:
+          - date: "2026-05-07T00:00:00Z"
+            default_action:
+              serve: on
+          - date: "2026-05-03T00:00:00Z"
+            default_action:
+              serve: off

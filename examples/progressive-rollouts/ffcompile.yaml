@@ -1,0 +1,30 @@
+version: v1
+
+variant_sets:
+  boolean:
+    on: true
+    off: false
+
+rules:
+  is_internal:
+    eq:
+      - { var: user.type }
+      - internal
+
+flags:
+  - key: checkout-progressive
+    variant_set: boolean
+    default_variant: off
+    environments:
+      prod:
+        rules:
+          - if:
+              rule: is_internal
+            serve: on
+        default_action:
+          progressive_rollout:
+            variant: on
+            stickiness: targetingKey
+            start: "2026-05-01T09:00:00Z"
+            end: "2026-05-22T09:00:00Z"
+            steps: 4

@@ -1,0 +1,58 @@
+version: v1
+
+variant_sets:
+  experiment_variant:
+    control: control
+    treatment: treatment
+  theme_variant:
+    default: default
+    modern: modern
+    high_contrast: high_contrast
+
+rules:
+  is_internal:
+    eq:
+      - { var: user.type }
+      - internal
+  is_japan:
+    eq:
+      - { var: user.country }
+      - JP
+
+distributions:
+  experiment_rollout:
+    stickiness: user.id
+    allocations:
+      control: 67
+      treatment: 33
+  theme_rollout:
+    stickiness: user.id
+    allocations:
+      default: 50
+      modern: 40
+      high_contrast: 10
+
+flags:
+  - key: experiment_rollout
+    variant_set: experiment_variant
+    default_variant: control
+    environments:
+      prod:
+        rules:
+          - if:
+              rule: is_internal
+            distribute: experiment_rollout
+        default_action:
+          serve: control
+
+  - key: homepage_theme
+    variant_set: theme_variant
+    default_variant: default
+    environments:
+      prod:
+        rules:
+          - if:
+              rule: is_japan
+            distribute: theme_rollout
+        default_action:
+          serve: default

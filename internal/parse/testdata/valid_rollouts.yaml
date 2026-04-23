@@ -1,0 +1,54 @@
+version: v1
+variant_sets:
+  boolean:
+    on: true
+    off: false
+distributions:
+  canary:
+    stickiness: user.id
+    allocations:
+      on: 25
+      off: 75
+flags:
+  - key: rollout-flag
+    variant_set: boolean
+    default_variant: off
+    environments:
+      prod:
+        rules:
+          - if:
+              eq:
+                - { var: user.segment }
+                - beta
+            serve: on
+        default_action:
+          progressive_rollout:
+            variant: on
+            stickiness: user.id
+            start: "2026-05-01T00:00:00Z"
+            end: "2026-05-10T00:00:00Z"
+            steps: 3
+        experimentation:
+          start: "2026-05-01T00:00:00Z"
+          end: "2026-05-20T00:00:00Z"
+        scheduled_rollouts:
+          - name: first snapshot
+            description: serve on for everyone
+            date: "2026-05-03T00:00:00Z"
+            default_action:
+              serve: on
+          - name: second snapshot
+            disabled: true
+            date: "2026-05-07T00:00:00Z"
+            default_action:
+              serve: off
+          - name: third snapshot
+            date: "2026-05-09T00:00:00Z"
+            rules:
+              - if:
+                  eq:
+                    - { var: user.country }
+                    - JP
+                serve: on
+            default_action:
+              serve: off

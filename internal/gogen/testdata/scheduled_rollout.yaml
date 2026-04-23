@@ -1,0 +1,45 @@
+version: v1
+
+variant_sets:
+  boolean:
+    on: true
+    off: false
+
+rules:
+  is_internal:
+    eq:
+      - { var: user.type }
+      - internal
+
+distributions:
+  ten_percent_on:
+    stickiness: user.id
+    allocations:
+      on: 10
+      off: 90
+
+flags:
+  - key: scheduled-home
+    variant_set: boolean
+    default_variant: off
+    environments:
+      prod:
+        default_action:
+          serve: off
+        scheduled_rollouts:
+          - name: internal launch
+            date: "2026-05-01T09:00:00Z"
+            rules:
+              - if:
+                  rule: is_internal
+                serve: on
+            default_action:
+              serve: off
+          - name: beta expansion
+            date: "2026-05-08T09:00:00Z"
+            rules:
+              - if:
+                  rule: is_internal
+                serve: on
+            default_action:
+              distribute: ten_percent_on

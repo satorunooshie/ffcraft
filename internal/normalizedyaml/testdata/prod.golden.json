@@ -1,0 +1,108 @@
+{
+  "$schema": "https://flagd.dev/schema/v0/flags.json",
+  "flags": {
+    "checkout-experiment": {
+      "state": "ENABLED",
+      "variants": {
+        "control": "control",
+        "treatment_a": "treatment_a",
+        "treatment_b": "treatment_b"
+      },
+      "defaultVariant": "control",
+      "targeting": {
+        "if": [
+          {
+            "and": [
+              {
+                "==": [
+                  {
+                    "var": "user.plan"
+                  },
+                  "premium"
+                ]
+              },
+              {
+                "==": [
+                  {
+                    "var": "device.platform"
+                  },
+                  "ios"
+                ]
+              }
+            ]
+          },
+          {
+            "fractional": [
+              {
+                "cat": [
+                  {
+                    "var": "$flagd.flagKey"
+                  },
+                  {
+                    "var": "user.id"
+                  }
+                ]
+              },
+              [
+                "control",
+                80
+              ],
+              [
+                "treatment_a",
+                10
+              ],
+              [
+                "treatment_b",
+                10
+              ]
+            ]
+          },
+          "control"
+        ]
+      }
+    },
+    "enable-new-home": {
+      "state": "ENABLED",
+      "variants": {
+        "off": false,
+        "on": true
+      },
+      "defaultVariant": "off",
+      "targeting": {
+        "if": [
+          {
+            "and": [
+              {
+                "==": [
+                  {
+                    "var": "user.type"
+                  },
+                  "internal"
+                ]
+              },
+              {
+                "==": [
+                  {
+                    "var": "device.platform"
+                  },
+                  "ios"
+                ]
+              }
+            ]
+          },
+          "on",
+          "off"
+        ]
+      },
+      "metadata": {
+        "description": "enable the new home experience",
+        "expiry": "2026-12-31",
+        "owner": "checkout-team",
+        "tags": [
+          "homepage",
+          "growth"
+        ]
+      }
+    }
+  }
+}

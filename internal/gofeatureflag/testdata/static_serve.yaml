@@ -1,0 +1,14 @@
+version: v1
+
+variant_sets:
+  boolean:
+    on: true
+    off: false
+
+flags:
+  - key: static-serve
+    variant_set: boolean
+    default_variant: off
+    environments:
+      prod:
+        serve: on

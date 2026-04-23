@@ -1,0 +1,28 @@
+version: v1
+variant_sets:
+  boolean:
+    on: true
+    off: false
+rules:
+  internal_user:
+    eq:
+      - { var: user.type }
+      - internal
+distributions:
+  rollout:
+    stickiness: user.id
+    allocations:
+      on: 50
+      off: 50
+flags:
+  - key: feature-a
+    variant_set: boolean
+    default_variant: off
+    environments:
+      prod:
+        rules:
+          - if:
+              rule: internal_user
+            serve: on
+        default_action:
+          serve: off

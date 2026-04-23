@@ -1,0 +1,21 @@
+version: v1
+variant_sets:
+  mode:
+    control: control
+    treatment: treatment
+distributions:
+  bad_rollout:
+    stickiness: user.id
+    allocations:
+      control: 30
+      treatment: 30
+flags:
+  - key: rollout
+    variant_set: mode
+    default_variant: control
+    environments:
+      prod:
+        rules:
+          - if:
+              literal_bool: true
+            distribute: bad_rollout

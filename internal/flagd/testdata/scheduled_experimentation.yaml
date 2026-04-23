@@ -1,0 +1,36 @@
+version: v1
+variant_sets:
+  boolean:
+    on: true
+    off: false
+rules:
+  is_beta_user:
+    eq:
+      - { var: user.segment }
+      - beta
+distributions:
+  fifty_percent_on:
+    stickiness: user.id
+    allocations:
+      on: 50
+      off: 50
+flags:
+  - key: experiment-checkout
+    variant_set: boolean
+    default_variant: off
+    environments:
+      prod:
+        default_action:
+          serve: off
+        scheduled_rollouts:
+          - name: experiment window
+            date: "2026-05-08T09:00:00Z"
+            experimentation:
+              start: "2026-05-10T09:00:00Z"
+              end: "2026-05-20T09:00:00Z"
+            rules:
+              - if:
+                  rule: is_beta_user
+                serve: on
+            default_action:
+              distribute: fifty_percent_on

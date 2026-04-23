@@ -1,0 +1,14 @@
+version: v1
+variant_sets:
+  boolean:
+    on: true
+    off: false
+flags:
+  - key: invalid-expiry
+    variant_set: boolean
+    default_variant: off
+    metadata:
+      expiry: 2026/12/31
+    environments:
+      prod:
+        serve: on

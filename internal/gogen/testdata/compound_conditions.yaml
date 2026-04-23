@@ -1,0 +1,41 @@
+version: v1
+
+variant_sets:
+  boolean:
+    on: true
+    off: false
+
+rules:
+  in_supported_region:
+    any_of:
+      - eq:
+          - { var: user.region }
+          - jp
+      - eq:
+          - { var: user.region }
+          - us
+
+flags:
+  - key: compound-targeting
+    variant_set: boolean
+    default_variant: off
+    environments:
+      prod:
+        rules:
+          - if:
+              all_of:
+                - rule: in_supported_region
+                - not:
+                    eq:
+                      - { var: device.platform }
+                      - web
+                - any_of:
+                    - eq:
+                        - { var: app.version }
+                        - 2.0.0
+                    - eq:
+                        - { var: app.version }
+                        - 2.1.0
+            serve: on
+        default_action:
+          serve: off

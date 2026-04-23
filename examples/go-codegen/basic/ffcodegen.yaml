@@ -1,0 +1,16 @@
+version: v1
+source: ./ffcompile.yaml
+
+targets:
+  go:
+    package: featureflags
+    output: ./gen/featureflags_gen.go
+    context_type: EvalContext
+    client_type: Client
+    evaluator_type: Evaluator
+    accessors:
+      enable-new-home:
+        name: EnableNewHome
+      checkout-mode:
+        name: CheckoutMode
+        variant_type: CheckoutModeVariant

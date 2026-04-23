@@ -1,0 +1,72 @@
+version: v1
+
+variant_sets:
+  boolean:
+    on: true
+    off: false
+  checkout_mode:
+    control: control
+    treatment_a: treatment_a
+    treatment_b: treatment_b
+
+rules:
+  internal_user:
+    eq:
+      - { var: user.type }
+      - internal
+  ios_user:
+    eq:
+      - { var: device.platform }
+      - ios
+  premium_user:
+    eq:
+      - { var: user.plan }
+      - premium
+  internal_ios:
+    all_of:
+      - rule: internal_user
+      - rule: ios_user
+  premium_ios:
+    all_of:
+      - rule: premium_user
+      - rule: ios_user
+
+distributions:
+  checkout_ab:
+    stickiness: user.id
+    allocations:
+      treatment_a: 10
+      treatment_b: 10
+      control: 80
+
+flags:
+  - key: enable-new-home
+    variant_set: boolean
+    default_variant: off
+    metadata:
+      owner: checkout-team
+      description: enable the new home experience
+      expiry: "2026-12-31"
+      tags: [homepage, growth]
+    environments:
+      local:
+        serve: on
+      prod:
+        rules:
+          - if:
+              rule: internal_ios
+            serve: on
+        default_action:
+          serve: off
+
+  - key: checkout-experiment
+    variant_set: checkout_mode
+    default_variant: control
+    environments:
+      prod:
+        rules:
+          - if:
+              rule: premium_ios
+            distribute: checkout_ab
+        default_action:
+          serve: control

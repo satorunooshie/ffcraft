@@ -1,0 +1,22 @@
+version: normalized/v1
+flags:
+    - key: prod-flag
+      variants:
+        "off": false
+        "on": true
+      default_variant: "off"
+      environments:
+        prod:
+            static_variant: "on"
+            default_action:
+                serve: "on"
+    - key: dev-only-flag
+      variants:
+        "off": false
+        "on": true
+      default_variant: "off"
+      environments:
+        dev:
+            static_variant: "on"
+            default_action:
+                serve: "on"

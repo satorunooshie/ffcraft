@@ -1,0 +1,19 @@
+version: v1
+variant_sets:
+  boolean:
+    on: true
+    off: false
+flags:
+  - key: missing-step-default
+    variant_set: boolean
+    default_variant: off
+    environments:
+      prod:
+        default_action:
+          serve: off
+        scheduled_rollouts:
+          - date: "2026-05-03T00:00:00Z"
+            rules:
+              - if:
+                  literal_bool: true
+                serve: on

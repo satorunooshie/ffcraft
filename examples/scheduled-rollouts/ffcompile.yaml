@@ -1,0 +1,82 @@
+version: v1
+
+variant_sets:
+  boolean:
+    on: true
+    off: false
+
+rules:
+  is_internal:
+    eq:
+      - { var: user.type }
+      - internal
+  is_beta_user:
+    eq:
+      - { var: user.segment }
+      - beta
+
+distributions:
+  ten_percent_on:
+    stickiness: targetingKey
+    allocations:
+      on: 10
+      off: 90
+  fifty_percent_on:
+    stickiness: targetingKey
+    allocations:
+      on: 50
+      off: 50
+
+flags:
+  - key: new-checkout
+    variant_set: boolean
+    default_variant: off
+    environments:
+      prod:
+        default_action:
+          serve: off
+        scheduled_rollouts:
+          - name: internal launch
+            description: enable for internal users
+            date: "2026-05-01T09:00:00Z"
+            rules:
+              - if:
+                  rule: is_internal
+                serve: on
+            default_action:
+              serve: off
+          - name: paused step
+            description: keep the plan but exclude this step
+            disabled: true
+            date: "2026-05-07T09:00:00Z"
+            default_action:
+              serve: on
+          - name: beta expansion
+            description: internal and beta users plus 10 percent
+            date: "2026-05-08T09:00:00Z"
+            rules:
+              - if:
+                  rule: is_internal
+                serve: on
+              - if:
+                  rule: is_beta_user
+                serve: on
+            default_action:
+              distribute: ten_percent_on
+          - name: broad rollout
+            description: internal and beta users plus 50 percent
+            date: "2026-05-15T09:00:00Z"
+            rules:
+              - if:
+                  rule: is_internal
+                serve: on
+              - if:
+                  rule: is_beta_user
+                serve: on
+            default_action:
+              distribute: fifty_percent_on
+          - name: full launch
+            description: enable for everyone
+            date: "2026-05-22T09:00:00Z"
+            default_action:
+              serve: on

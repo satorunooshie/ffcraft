@@ -1,0 +1,53 @@
+{
+  "$schema": "https://flagd.dev/schema/v0/flags.json",
+  "flags": {
+    "onboarding-banner": {
+      "state": "ENABLED",
+      "variants": {
+        "beta": "enabled-beta-banner",
+        "control": "disabled",
+        "vip": "enabled-vip-banner"
+      },
+      "defaultVariant": "control",
+      "targeting": {
+        "if": [
+          {
+            "==": [
+              {
+                "var": "organization.tier"
+              },
+              "vip"
+            ]
+          },
+          "vip",
+          {
+            "if": [
+              {
+                "and": [
+                  {
+                    "==": [
+                      {
+                        "var": "user.country"
+                      },
+                      "JP"
+                    ]
+                  },
+                  {
+                    "in": [
+                      "beta",
+                      {
+                        "var": "user.tags"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "beta",
+              "control"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

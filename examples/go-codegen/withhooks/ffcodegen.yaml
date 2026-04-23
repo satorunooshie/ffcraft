@@ -1,0 +1,13 @@
+version: v1
+source: ./ffcompile.yaml
+
+targets:
+  go:
+    package: featureflags
+    output: ./gen/featureflags_gen.go
+    context_type: EvalContext
+    client_type: Client
+    evaluator_type: Evaluator
+    accessors:
+      show_sample_banner:
+        name: ShowSampleBanner

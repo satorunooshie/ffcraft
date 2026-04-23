@@ -1,0 +1,28 @@
+version: v1
+variant_sets:
+  boolean:
+    on: true
+    off: false
+flags:
+  - key: semver-flag
+    variant_set: boolean
+    default_variant: off
+    environments:
+      prod:
+        rules:
+          - if:
+              all_of:
+                - semver_gte:
+                    - { var: app.version }
+                    - "1.2.3"
+                - any_of:
+                    - eq:
+                        - { var: user.plan }
+                        - premium
+                    - not:
+                        eq:
+                          - { var: user.plan }
+                          - free
+            serve: on
+        default_action:
+          serve: off

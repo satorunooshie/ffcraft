@@ -1,0 +1,34 @@
+version: v1
+variant_sets:
+  boolean:
+    on: true
+    off: false
+flags:
+  - key: collection-flag
+    variant_set: boolean
+    default_variant: off
+    environments:
+      prod:
+        rules:
+          - if:
+              in:
+                - { var: user.country }
+                - [JP, US]
+            serve: on
+          - if:
+              contains:
+                - { var: user.tags }
+                - beta
+            serve: on
+          - if:
+              starts_with:
+                - { var: request.path }
+                - /admin
+            serve: on
+          - if:
+              ends_with:
+                - { var: user.email }
+                - "@example.com"
+            serve: on
+        default_action:
+          serve: off

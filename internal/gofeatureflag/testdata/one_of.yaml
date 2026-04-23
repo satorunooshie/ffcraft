@@ -1,0 +1,28 @@
+version: v1
+
+variant_sets:
+  boolean:
+    on: true
+    off: false
+
+flags:
+  - key: one-of
+    variant_set: boolean
+    default_variant: off
+    environments:
+      prod:
+        rules:
+          - if:
+              one_of:
+                - eq:
+                    - { var: user.tier }
+                    - free
+                - eq:
+                    - { var: user.tier }
+                    - pro
+                - eq:
+                    - { var: user.tier }
+                    - enterprise
+            serve: on
+        default_action:
+          serve: off

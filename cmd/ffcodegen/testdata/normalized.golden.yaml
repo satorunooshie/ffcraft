@@ -1,0 +1,19 @@
+version: normalized/v1
+flags:
+    - key: enable-new-home
+      variants:
+        "off": false
+        "on": true
+      default_variant: "off"
+      environments:
+        prod:
+            default_action:
+                serve: "off"
+            rules:
+                - if:
+                    eq:
+                        - var: user.id
+                        - 1
+                  action:
+                    serve: "on"
+
