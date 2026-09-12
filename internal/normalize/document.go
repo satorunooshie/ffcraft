@@ -23,6 +23,9 @@ func Normalize(doc *ffv1.FeatureFlagDocument) (*ast.Document, error) {
 		}
 		out.Flags = append(out.Flags, value)
 	}
+	if err := validate.ValidateNormalizedIR(out); err != nil {
+		return nil, fmt.Errorf("normalized IR validation failed: %w", err)
+	}
 	return out, nil
 }
 
