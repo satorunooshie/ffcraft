@@ -83,7 +83,7 @@ func normalizeEnvironment(doc *ffv1.FeatureFlagDocument, flag *ffv1.Flag, env *f
 		}
 		out.ScheduledRollouts = append(out.ScheduledRollouts, normalized)
 	}
-	if len(out.Rules) == 0 {
+	if len(out.Rules) == 0 && out.Experimentation == nil && len(out.ScheduledRollouts) == 0 {
 		if serve, ok := out.DefaultAction.(*ast.ServeAction); ok {
 			out.StaticVariant = serve.Variant
 		}
