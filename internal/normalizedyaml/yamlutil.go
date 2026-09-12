@@ -24,9 +24,25 @@ func mapping(node *yaml.Node, path string) (map[string]*yaml.Node, error) {
 		if key.Kind != yaml.ScalarNode {
 			return nil, fmt.Errorf("%s: expected scalar map key", path)
 		}
+		if _, exists := out[key.Value]; exists {
+			return nil, fmt.Errorf("%s.%s: duplicate key", path, key.Value)
+		}
 		out[key.Value] = value
 	}
 	return out, nil
+}
+
+func rejectUnknownFields(fields map[string]*yaml.Node, path string, allowed ...string) error {
+	known := make(map[string]struct{}, len(allowed))
+	for _, key := range allowed {
+		known[key] = struct{}{}
+	}
+	for key := range fields {
+		if _, ok := known[key]; !ok {
+			return fmt.Errorf("%s.%s: unknown field", path, key)
+		}
+	}
+	return nil
 }
 
 func scalarString(node *yaml.Node, path string) (string, error) {

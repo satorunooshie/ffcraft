@@ -1,11 +1,13 @@
 package normalizedyaml
 
 import (
+	"bytes"
 	"fmt"
 
 	"gopkg.in/yaml.v3"
 
 	"github.com/satorunooshie/ffcraft/internal/ast"
+	"github.com/satorunooshie/ffcraft/internal/validate"
 )
 
 const version = "normalized/v1"
@@ -106,10 +108,12 @@ func Marshal(doc *ast.Document) ([]byte, error) {
 
 func Unmarshal(data []byte) (*ast.Document, error) {
 	var file documentFile
-	if err := yaml.Unmarshal(data, &file); err != nil {
+	decoder := yaml.NewDecoder(bytes.NewReader(data))
+	decoder.KnownFields(true)
+	if err := decoder.Decode(&file); err != nil {
 		return nil, err
 	}
-	if file.Version != "" && file.Version != version {
+	if file.Version != version {
 		return nil, fmt.Errorf("unsupported normalized yaml version %q", file.Version)
 	}
 
@@ -124,6 +128,9 @@ func Unmarshal(data []byte) (*ast.Document, error) {
 			Environments:   unwrapEnvironments(flag.Environments),
 			Metadata:       unwrapMetadata(flag.Metadata),
 		})
+	}
+	if err := validate.ValidateNormalizedIR(out); err != nil {
+		return nil, fmt.Errorf("validate normalized yaml: %w", err)
 	}
 	return out, nil
 }

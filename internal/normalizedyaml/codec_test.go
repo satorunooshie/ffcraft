@@ -38,6 +38,25 @@ flags:
 	}
 }
 
+func TestUnmarshalRejectsUnknownFields(t *testing.T) {
+	t.Parallel()
+
+	_, err := normalizedyaml.Unmarshal([]byte(`version: normalized/v1
+flags:
+  - key: feature-a
+    variants:
+      on: true
+    default_variant: on
+    environments:
+      prod:
+        static_variant: on
+        typo: true
+`))
+	if err == nil || !strings.Contains(err.Error(), "field typo not found") {
+		t.Fatalf("expected unknown field error, got %v", err)
+	}
+}
+
 func TestNormalizedNumericIngress(t *testing.T) {
 	t.Parallel()
 
