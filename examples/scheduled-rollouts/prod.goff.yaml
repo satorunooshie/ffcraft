@@ -4,4 +4,35 @@ new-checkout:
         "on": true
     defaultRule:
         variation: "off"
+    bucketingKey: user.id
+    scheduledRollout:
+        - date: "2026-05-01T09:00:00Z"
+          targeting:
+            - query: user.type eq "internal"
+              variation: "on"
+          defaultRule:
+            variation: "off"
+        - date: "2026-05-08T09:00:00Z"
+          targeting:
+            - query: user.type eq "internal"
+              variation: "on"
+            - query: user.segment eq "beta"
+              variation: "on"
+          defaultRule:
+            percentage:
+                "off": 90
+                "on": 10
+        - date: "2026-05-15T09:00:00Z"
+          targeting:
+            - query: user.type eq "internal"
+              variation: "on"
+            - query: user.segment eq "beta"
+              variation: "on"
+          defaultRule:
+            percentage:
+                "off": 50
+                "on": 50
+        - date: "2026-05-22T09:00:00Z"
+          defaultRule:
+            variation: "on"
 

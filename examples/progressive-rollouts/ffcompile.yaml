@@ -24,7 +24,7 @@ flags:
         default_action:
           progressive_rollout:
             variant: on
-            stickiness: targetingKey
+            stickiness: user.id
             start: "2026-05-01T09:00:00Z"
             end: "2026-05-22T09:00:00Z"
             steps: 4

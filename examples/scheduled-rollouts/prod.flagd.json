@@ -15,23 +15,10 @@
               {
                 "var": "$flagd.timestamp"
               },
-              1777626000
+              1779440400
             ]
           },
-          {
-            "if": [
-              {
-                "==": [
-                  {
-                    "var": "user.type"
-                  },
-                  "internal"
-                ]
-              },
-              "on",
-              "off"
-            ]
-          },
+          "on",
           {
             "if": [
               {
@@ -39,7 +26,7 @@
                   {
                     "var": "$flagd.timestamp"
                   },
-                  1778230800
+                  1778835600
                 ]
               },
               {
@@ -72,17 +59,17 @@
                                 "var": "$flagd.flagKey"
                               },
                               {
-                                "var": "targetingKey"
+                                "var": "user.id"
                               }
                             ]
                           },
                           [
                             "off",
-                            90
+                            50
                           ],
                           [
                             "on",
-                            10
+                            50
                           ]
                         ]
                       }
@@ -97,7 +84,7 @@
                       {
                         "var": "$flagd.timestamp"
                       },
-                      1778835600
+                      1778230800
                     ]
                   },
                   {
@@ -130,17 +117,17 @@
                                     "var": "$flagd.flagKey"
                                   },
                                   {
-                                    "var": "targetingKey"
+                                    "var": "user.id"
                                   }
                                 ]
                               },
                               [
                                 "off",
-                                50
+                                90
                               ],
                               [
                                 "on",
-                                50
+                                10
                               ]
                             ]
                           }
@@ -155,10 +142,23 @@
                           {
                             "var": "$flagd.timestamp"
                           },
-                          1779440400
+                          1777626000
                         ]
                       },
-                      "on",
+                      {
+                        "if": [
+                          {
+                            "==": [
+                              {
+                                "var": "user.type"
+                              },
+                              "internal"
+                            ]
+                          },
+                          "on",
+                          "off"
+                        ]
+                      },
                       "off"
                     ]
                   }

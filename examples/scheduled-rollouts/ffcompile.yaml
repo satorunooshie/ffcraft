@@ -17,12 +17,12 @@ rules:
 
 distributions:
   ten_percent_on:
-    stickiness: targetingKey
+    stickiness: user.id
     allocations:
       on: 10
       off: 90
   fifty_percent_on:
-    stickiness: targetingKey
+    stickiness: user.id
     allocations:
       on: 50
       off: 50

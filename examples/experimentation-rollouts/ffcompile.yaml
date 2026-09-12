@@ -17,7 +17,7 @@ rules:
 
 distributions:
   experiment_split:
-    stickiness: targetingKey
+    stickiness: user.id
     allocations:
       on: 50
       off: 50

@@ -11,92 +11,92 @@
       "targeting": {
         "if": [
           {
-            "and": [
+            "\u003e=": [
               {
-                "\u003e=": [
-                  {
-                    "var": "$flagd.timestamp"
-                  },
-                  1778230800
-                ]
+                "var": "$flagd.timestamp"
               },
-              {
-                "\u003e=": [
-                  {
-                    "var": "$flagd.timestamp"
-                  },
-                  1778403600
-                ]
-              },
-              {
-                "\u003c": [
-                  {
-                    "var": "$flagd.timestamp"
-                  },
-                  1779267600
-                ]
-              }
+              1779440400
             ]
           },
+          "on",
           {
             "if": [
               {
-                "==": [
+                "and": [
                   {
-                    "var": "user.type"
+                    "\u003e=": [
+                      {
+                        "var": "$flagd.timestamp"
+                      },
+                      1778230800
+                    ]
                   },
-                  "internal"
+                  {
+                    "\u003e=": [
+                      {
+                        "var": "$flagd.timestamp"
+                      },
+                      1778403600
+                    ]
+                  },
+                  {
+                    "\u003c": [
+                      {
+                        "var": "$flagd.timestamp"
+                      },
+                      1779267600
+                    ]
+                  }
                 ]
               },
-              "on",
               {
                 "if": [
                   {
                     "==": [
                       {
-                        "var": "user.segment"
+                        "var": "user.type"
                       },
-                      "beta"
+                      "internal"
                     ]
                   },
                   "on",
                   {
-                    "fractional": [
+                    "if": [
                       {
-                        "cat": [
+                        "==": [
                           {
-                            "var": "$flagd.flagKey"
+                            "var": "user.segment"
                           },
-                          {
-                            "var": "targetingKey"
-                          }
+                          "beta"
                         ]
                       },
-                      [
-                        "off",
-                        50
-                      ],
-                      [
-                        "on",
-                        50
-                      ]
+                      "on",
+                      {
+                        "fractional": [
+                          {
+                            "cat": [
+                              {
+                                "var": "$flagd.flagKey"
+                              },
+                              {
+                                "var": "user.id"
+                              }
+                            ]
+                          },
+                          [
+                            "off",
+                            50
+                          ],
+                          [
+                            "on",
+                            50
+                          ]
+                        ]
+                      }
                     ]
                   }
                 ]
-              }
-            ]
-          },
-          {
-            "if": [
-              {
-                "\u003e=": [
-                  {
-                    "var": "$flagd.timestamp"
-                  },
-                  1779440400
-                ]
               },
-              "on",
               "off"
             ]
           }

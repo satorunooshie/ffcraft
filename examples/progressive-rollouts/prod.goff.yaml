@@ -15,5 +15,5 @@ checkout-progressive:
     targeting:
         - query: user.type eq "internal"
           variation: "on"
-    bucketingKey: targetingKey
+    bucketingKey: user.id
 
