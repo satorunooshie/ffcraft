@@ -132,3 +132,130 @@ func TestParseYAML(t *testing.T) {
 		})
 	}
 }
+
+func TestParseYAMLNumericDomains(t *testing.T) {
+	t.Parallel()
+
+	const prefix = `version: v1
+variant_sets:
+  values:
+`
+	tests := []struct {
+		name    string
+		value   string
+		wantErr bool
+		assert  func(t *testing.T, doc *ffv1.FeatureFlagDocument)
+	}{
+		{
+			name:  "B0A-OBJECT-INT-SAFE-MAX-001",
+			value: "    object:\n      id: 9007199254740991\n",
+		},
+		{
+			name:  "B0A-OBJECT-INT-SAFE-MIN-001",
+			value: "    object:\n      id: -9007199254740991\n",
+		},
+		{
+			name:    "B0A-OBJECT-INT-UNSAFE-POSITIVE-001",
+			value:   "    object:\n      id: 9007199254740992\n",
+			wantErr: true,
+		},
+		{
+			name:    "B0A-OBJECT-INT-UNSAFE-2P53-001",
+			value:   "    object:\n      id: 9007199254740992\n",
+			wantErr: true,
+		},
+		{
+			name:    "B0A-OBJECT-INT-LOSSY-POSITIVE-001",
+			value:   "    object:\n      id: 9007199254740993\n",
+			wantErr: true,
+		},
+		{
+			name:    "B0A-OBJECT-INT-LOSSY-2P53P1-001",
+			value:   "    object:\n      id: 9007199254740993\n",
+			wantErr: true,
+		},
+		{
+			name:    "B0A-OBJECT-INT-UNSAFE-NEGATIVE-001",
+			value:   "    object:\n      id: -9007199254740992\n",
+			wantErr: true,
+		},
+		{
+			name:    "B0A-DEEP-OBJECT-INT-LOSSY-001",
+			value:   "    object:\n      a:\n        b:\n          value: 9007199254740993\n",
+			wantErr: true,
+		},
+		{
+			name:    "B0A-OBJECT-LIST-INT-LOSSY-001",
+			value:   "    object:\n      users:\n        - id: 9007199254740993\n",
+			wantErr: true,
+		},
+		{
+			name:  "B0A-OBJECT-LIST-INT-SAFE-001",
+			value: "    object:\n      users:\n        - id: 9007199254740991\n",
+		},
+		{
+			name:  "B0A-ROOT-LIST-INT64-001",
+			value: "    list:\n      - 9007199254740993\n",
+			assert: func(t *testing.T, doc *ffv1.FeatureFlagDocument) {
+				t.Helper()
+				list := doc.VariantSets["values"].Variants["list"].GetListValue().GetValues()
+				if len(list) != 1 || list[0].GetIntValue() != 9007199254740993 {
+					t.Fatalf("root list integer was not preserved: %#v", list)
+				}
+			},
+		},
+		{
+			name:  "B0A-ROOT-INT-2P53P1-001",
+			value: "    value: 9007199254740993\n",
+			assert: func(t *testing.T, doc *ffv1.FeatureFlagDocument) {
+				t.Helper()
+				got := doc.VariantSets["values"].Variants["value"].GetIntValue()
+				if got != 9007199254740993 {
+					t.Fatalf("root integer was not preserved: %d", got)
+				}
+			},
+		},
+		{
+			name:  "B0A-ROOT-INT64-MAX-001",
+			value: "    max: 9223372036854775807\n",
+			assert: func(t *testing.T, doc *ffv1.FeatureFlagDocument) {
+				t.Helper()
+				values := doc.VariantSets["values"].Variants
+				if values["max"].GetIntValue() != 9223372036854775807 {
+					t.Fatalf("root int64 max was not preserved: %#v", values)
+				}
+			},
+		},
+		{
+			name:  "B0A-ROOT-INT64-MIN-001",
+			value: "    min: -9223372036854775808\n",
+			assert: func(t *testing.T, doc *ffv1.FeatureFlagDocument) {
+				t.Helper()
+				values := doc.VariantSets["values"].Variants
+				if values["min"].GetIntValue() != -9223372036854775808 {
+					t.Fatalf("root int64 min was not preserved: %#v", values)
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			source := []byte(prefix + tt.value + "flags:\n  - key: test\n    variant_set: values\n    default_variant: value\n    environments:\n      prod:\n        serve: value\n")
+			doc, err := ParseYAML(source)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatal("expected unsafe object integer to be rejected")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("parse failed: %v", err)
+			}
+			if tt.assert != nil {
+				tt.assert(t, doc)
+			}
+		})
+	}
+}
