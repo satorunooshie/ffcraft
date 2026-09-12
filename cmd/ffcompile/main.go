@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/satorunooshie/ffcraft/internal/ast"
 	"github.com/satorunooshie/ffcraft/internal/flagd"
 	"github.com/satorunooshie/ffcraft/internal/gofeatureflag"
 	"github.com/satorunooshie/ffcraft/internal/normalize"
@@ -43,6 +44,48 @@ func run(args []string, stdout, stderr io.Writer) error {
 	}
 }
 
+type compileCommandOptions struct {
+	inPath          string
+	environment     string
+	outPath         string
+	dumpPath        string
+	allowMissingEnv bool
+}
+
+func parseCompileOptions(name string, args []string, withDump bool) (compileCommandOptions, error) {
+	fs := flag.NewFlagSet(name, flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+
+	inPath := fs.String("in", "", "input YAML path")
+	env := fs.String("env", "", "environment name")
+	outPath := fs.String("out", "", "output path; stdout when omitted or '-' else")
+	allowMissingEnv := fs.Bool("allow-missing-env", false, "skip flags that do not define the requested environment and emit warnings")
+	dumpPath := new(string)
+	if withDump {
+		dumpPath = fs.String("dump", "", "write normalized YAML to this path; use '-' for stderr")
+	}
+
+	if err := fs.Parse(args); err != nil {
+		return compileCommandOptions{}, err
+	}
+	if *inPath == "" {
+		return compileCommandOptions{}, errors.New("--in is required")
+	}
+	if *env == "" {
+		return compileCommandOptions{}, errors.New("--env is required")
+	}
+	if fs.NArg() != 0 {
+		return compileCommandOptions{}, fmt.Errorf("unexpected positional arguments: %v", fs.Args())
+	}
+	return compileCommandOptions{
+		inPath:          *inPath,
+		environment:     *env,
+		outPath:         *outPath,
+		dumpPath:        *dumpPath,
+		allowMissingEnv: *allowMissingEnv,
+	}, nil
+}
+
 func runNormalize(args []string, stdout io.Writer) error {
 	fs := flag.NewFlagSet("normalize", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
@@ -60,17 +103,7 @@ func runNormalize(args []string, stdout io.Writer) error {
 		return fmt.Errorf("unexpected positional arguments: %v", fs.Args())
 	}
 
-	input, err := os.ReadFile(*inPath)
-	if err != nil {
-		return fmt.Errorf("read input: %w", err)
-	}
-
-	doc, err := parse.ParseYAML(input)
-	if err != nil {
-		return fmt.Errorf("parse input: %w", err)
-	}
-
-	normalizedDoc, err := normalize.Normalize(doc)
+	normalizedDoc, err := loadAuthoring(*inPath)
 	if err != nil {
 		return fmt.Errorf("normalize input: %w", err)
 	}
@@ -126,60 +159,22 @@ func runCompile(args []string, stdout, stderr io.Writer) error {
 }
 
 func runBuildFlagd(args []string, stdout, stderr io.Writer) error {
-	fs := flag.NewFlagSet("build flagd", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
-
-	inPath := fs.String("in", "", "input authoring YAML path")
-	env := fs.String("env", "", "environment name")
-	outPath := fs.String("out", "", "output JSON path; stdout when omitted or '-'")
-	dumpPath := fs.String("dump", "", "write normalized YAML to this path; use '-' for stderr")
-	allowMissingEnv := fs.Bool("allow-missing-env", false, "skip flags that do not define the requested environment and emit warnings")
-
-	if err := fs.Parse(args); err != nil {
+	opts, err := parseCompileOptions("build flagd", args, true)
+	if err != nil {
 		return err
 	}
-	if *inPath == "" {
-		return errors.New("--in is required")
-	}
-	if *env == "" {
-		return errors.New("--env is required")
-	}
-	if fs.NArg() != 0 {
-		return fmt.Errorf("unexpected positional arguments: %v", fs.Args())
-	}
 
-	input, err := os.ReadFile(*inPath)
-	if err != nil {
-		return fmt.Errorf("read input: %w", err)
-	}
-
-	doc, err := parse.ParseYAML(input)
-	if err != nil {
-		return fmt.Errorf("parse input: %w", err)
-	}
-
-	normalizedDoc, err := normalize.Normalize(doc)
+	normalizedDoc, err := loadAuthoring(opts.inPath)
 	if err != nil {
 		return fmt.Errorf("normalize input: %w", err)
 	}
 
-	if *dumpPath != "" {
-		dump, err := normalizedyaml.Marshal(normalizedDoc)
-		if err != nil {
-			return fmt.Errorf("marshal normalized yaml: %w", err)
-		}
-		dump = append(dump, '\n')
-		if *dumpPath == "-" {
-			if _, err := stderr.Write(dump); err != nil {
-				return err
-			}
-		} else if err := os.WriteFile(*dumpPath, dump, 0o644); err != nil {
-			return fmt.Errorf("write dump: %w", err)
-		}
+	if err := writeNormalizedDump(stderr, opts.dumpPath, normalizedDoc); err != nil {
+		return err
 	}
 
-	output, warnings, err := flagd.CompileJSONWithOptions(normalizedDoc, *env, flagd.CompileOptions{
-		AllowMissingEnvironment: *allowMissingEnv,
+	output, warnings, err := flagd.CompileJSONWithOptions(normalizedDoc, opts.environment, flagd.CompileOptions{
+		AllowMissingEnvironment: opts.allowMissingEnv,
 	})
 	if err != nil {
 		return fmt.Errorf("compile flagd json: %w", err)
@@ -188,43 +183,22 @@ func runBuildFlagd(args []string, stdout, stderr io.Writer) error {
 		return err
 	}
 	output = append(output, '\n')
-	return writeOutput(stdout, *outPath, output)
+	return writeOutput(stdout, opts.outPath, output)
 }
 
 func runCompileFlagd(args []string, stdout, stderr io.Writer) error {
-	fs := flag.NewFlagSet("compile flagd", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
-
-	inPath := fs.String("in", "", "input normalized YAML path")
-	env := fs.String("env", "", "environment name")
-	outPath := fs.String("out", "", "output JSON path; stdout when omitted or '-'")
-	allowMissingEnv := fs.Bool("allow-missing-env", false, "skip flags that do not define the requested environment and emit warnings")
-
-	if err := fs.Parse(args); err != nil {
+	opts, err := parseCompileOptions("compile flagd", args, false)
+	if err != nil {
 		return err
 	}
-	if *inPath == "" {
-		return errors.New("--in is required")
-	}
-	if *env == "" {
-		return errors.New("--env is required")
-	}
-	if fs.NArg() != 0 {
-		return fmt.Errorf("unexpected positional arguments: %v", fs.Args())
-	}
 
-	input, err := os.ReadFile(*inPath)
+	doc, err := loadNormalized(opts.inPath)
 	if err != nil {
-		return fmt.Errorf("read input: %w", err)
+		return err
 	}
 
-	doc, err := normalizedyaml.Unmarshal(input)
-	if err != nil {
-		return fmt.Errorf("read normalized yaml: %w", err)
-	}
-
-	output, warnings, err := flagd.CompileJSONWithOptions(doc, *env, flagd.CompileOptions{
-		AllowMissingEnvironment: *allowMissingEnv,
+	output, warnings, err := flagd.CompileJSONWithOptions(doc, opts.environment, flagd.CompileOptions{
+		AllowMissingEnvironment: opts.allowMissingEnv,
 	})
 	if err != nil {
 		return fmt.Errorf("compile flagd json: %w", err)
@@ -233,64 +207,26 @@ func runCompileFlagd(args []string, stdout, stderr io.Writer) error {
 		return err
 	}
 	output = append(output, '\n')
-	return writeOutput(stdout, *outPath, output)
+	return writeOutput(stdout, opts.outPath, output)
 }
 
 func runBuildGOFeatureFlag(args []string, stdout, stderr io.Writer) error {
-	fs := flag.NewFlagSet("build gofeatureflag", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
-
-	inPath := fs.String("in", "", "input authoring YAML path")
-	env := fs.String("env", "", "environment name")
-	outPath := fs.String("out", "", "output YAML path; stdout when omitted or '-'")
-	dumpPath := fs.String("dump", "", "write normalized YAML to this path; use '-' for stderr")
-	allowMissingEnv := fs.Bool("allow-missing-env", false, "skip flags that do not define the requested environment and emit warnings")
-
-	if err := fs.Parse(args); err != nil {
+	opts, err := parseCompileOptions("build gofeatureflag", args, true)
+	if err != nil {
 		return err
 	}
-	if *inPath == "" {
-		return errors.New("--in is required")
-	}
-	if *env == "" {
-		return errors.New("--env is required")
-	}
-	if fs.NArg() != 0 {
-		return fmt.Errorf("unexpected positional arguments: %v", fs.Args())
-	}
 
-	input, err := os.ReadFile(*inPath)
-	if err != nil {
-		return fmt.Errorf("read input: %w", err)
-	}
-
-	doc, err := parse.ParseYAML(input)
-	if err != nil {
-		return fmt.Errorf("parse input: %w", err)
-	}
-
-	normalizedDoc, err := normalize.Normalize(doc)
+	normalizedDoc, err := loadAuthoring(opts.inPath)
 	if err != nil {
 		return fmt.Errorf("normalize input: %w", err)
 	}
 
-	if *dumpPath != "" {
-		dump, err := normalizedyaml.Marshal(normalizedDoc)
-		if err != nil {
-			return fmt.Errorf("marshal normalized yaml: %w", err)
-		}
-		dump = append(dump, '\n')
-		if *dumpPath == "-" {
-			if _, err := stderr.Write(dump); err != nil {
-				return err
-			}
-		} else if err := os.WriteFile(*dumpPath, dump, 0o644); err != nil {
-			return fmt.Errorf("write dump: %w", err)
-		}
+	if err := writeNormalizedDump(stderr, opts.dumpPath, normalizedDoc); err != nil {
+		return err
 	}
 
-	output, warnings, err := gofeatureflag.CompileYAMLWithOptions(normalizedDoc, *env, gofeatureflag.CompileOptions{
-		AllowMissingEnvironment: *allowMissingEnv,
+	output, warnings, err := gofeatureflag.CompileYAMLWithOptions(normalizedDoc, opts.environment, gofeatureflag.CompileOptions{
+		AllowMissingEnvironment: opts.allowMissingEnv,
 	})
 	if err != nil {
 		return fmt.Errorf("compile gofeatureflag yaml: %w", err)
@@ -299,43 +235,21 @@ func runBuildGOFeatureFlag(args []string, stdout, stderr io.Writer) error {
 		return err
 	}
 	output = append(output, '\n')
-	return writeOutput(stdout, *outPath, output)
+	return writeOutput(stdout, opts.outPath, output)
 }
 
 func runCompileGOFeatureFlag(args []string, stdout, stderr io.Writer) error {
-	fs := flag.NewFlagSet("compile gofeatureflag", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
-
-	inPath := fs.String("in", "", "input normalized YAML path")
-	env := fs.String("env", "", "environment name")
-	outPath := fs.String("out", "", "output YAML path; stdout when omitted or '-'")
-	allowMissingEnv := fs.Bool("allow-missing-env", false, "skip flags that do not define the requested environment and emit warnings")
-
-	if err := fs.Parse(args); err != nil {
+	opts, err := parseCompileOptions("compile gofeatureflag", args, false)
+	if err != nil {
 		return err
 	}
-	if *inPath == "" {
-		return errors.New("--in is required")
-	}
-	if *env == "" {
-		return errors.New("--env is required")
-	}
-	if fs.NArg() != 0 {
-		return fmt.Errorf("unexpected positional arguments: %v", fs.Args())
-	}
-
-	input, err := os.ReadFile(*inPath)
+	doc, err := loadNormalized(opts.inPath)
 	if err != nil {
-		return fmt.Errorf("read input: %w", err)
+		return err
 	}
 
-	doc, err := normalizedyaml.Unmarshal(input)
-	if err != nil {
-		return fmt.Errorf("read normalized yaml: %w", err)
-	}
-
-	output, warnings, err := gofeatureflag.CompileYAMLWithOptions(doc, *env, gofeatureflag.CompileOptions{
-		AllowMissingEnvironment: *allowMissingEnv,
+	output, warnings, err := gofeatureflag.CompileYAMLWithOptions(doc, opts.environment, gofeatureflag.CompileOptions{
+		AllowMissingEnvironment: opts.allowMissingEnv,
 	})
 	if err != nil {
 		return fmt.Errorf("compile gofeatureflag yaml: %w", err)
@@ -344,7 +258,7 @@ func runCompileGOFeatureFlag(args []string, stdout, stderr io.Writer) error {
 		return err
 	}
 	output = append(output, '\n')
-	return writeOutput(stdout, *outPath, output)
+	return writeOutput(stdout, opts.outPath, output)
 }
 
 func writeOutput(stdout io.Writer, outPath string, output []byte) error {
@@ -354,6 +268,53 @@ func writeOutput(stdout io.Writer, outPath string, output []byte) error {
 	}
 	if err := os.WriteFile(outPath, output, 0o644); err != nil {
 		return fmt.Errorf("write output: %w", err)
+	}
+	return nil
+}
+
+func loadAuthoring(path string) (*ast.Document, error) {
+	input, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read input: %w", err)
+	}
+	doc, err := parse.ParseYAML(input)
+	if err != nil {
+		return nil, fmt.Errorf("parse input: %w", err)
+	}
+	normalized, err := normalize.Normalize(doc)
+	if err != nil {
+		return nil, fmt.Errorf("normalize input: %w", err)
+	}
+	return normalized, nil
+}
+
+func loadNormalized(path string) (*ast.Document, error) {
+	input, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read input: %w", err)
+	}
+	doc, err := normalizedyaml.Unmarshal(input)
+	if err != nil {
+		return nil, fmt.Errorf("read normalized yaml: %w", err)
+	}
+	return doc, nil
+}
+
+func writeNormalizedDump(stderr io.Writer, path string, doc *ast.Document) error {
+	if path == "" {
+		return nil
+	}
+	dump, err := normalizedyaml.Marshal(doc)
+	if err != nil {
+		return fmt.Errorf("marshal normalized yaml: %w", err)
+	}
+	dump = append(dump, '\n')
+	if path == "-" {
+		_, err = stderr.Write(dump)
+		return err
+	}
+	if err := os.WriteFile(path, dump, 0o644); err != nil {
+		return fmt.Errorf("write dump: %w", err)
 	}
 	return nil
 }
