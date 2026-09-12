@@ -1,0 +1,50 @@
+version: v1
+
+variant_sets:
+  badges:
+    empty: []
+    starter:
+      - new
+      - vip
+  theme_config:
+    default:
+      primary: blue
+      nested:
+        enabled: true
+  numeric_object:
+    object_safe:
+      id: 9007199254740991
+  numeric_object_list:
+    object_list_safe:
+      ids:
+        - 9007199254740991
+
+flags:
+  - key: starter-badges
+    variant_set: badges
+    default_variant: empty
+    environments:
+      prod:
+        default_action:
+          serve: starter
+  - key: theme-config
+    variant_set: theme_config
+    default_variant: default
+    environments:
+      prod:
+        default_action:
+          serve: default
+  - key: numeric-object-safe
+    variant_set: numeric_object
+    default_variant: object_safe
+    environments:
+      prod:
+        default_action:
+          serve: object_safe
+  - key: numeric-object-list-safe
+    variant_set: numeric_object_list
+    default_variant: object_list_safe
+    environments:
+      prod:
+        default_action:
+          serve: object_list_safe

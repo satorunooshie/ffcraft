@@ -1,0 +1,7 @@
+version: v1
+source: ./ffcompile.yaml
+
+targets:
+  go:
+    package: featureflags
+    output: ./gen/featureflags_gen.go

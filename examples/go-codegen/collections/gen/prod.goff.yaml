@@ -1,0 +1,29 @@
+numeric-object-list-safe:
+    variations:
+        object_list_safe:
+            ids:
+                - 9.007199254740991e+15
+    defaultRule:
+        variation: object_list_safe
+numeric-object-safe:
+    variations:
+        object_safe:
+            id: 9.007199254740991e+15
+    defaultRule:
+        variation: object_safe
+starter-badges:
+    variations:
+        empty: []
+        starter:
+            - new
+            - vip
+    defaultRule:
+        variation: starter
+theme-config:
+    variations:
+        default:
+            nested:
+                enabled: true
+            primary: blue
+    defaultRule:
+        variation: default
