@@ -6,6 +6,8 @@ import (
 	"strconv"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/satorunooshie/ffcraft/internal/numeric"
 )
 
 func mapping(node *yaml.Node, path string) (map[string]*yaml.Node, error) {
@@ -128,7 +130,13 @@ func nodeToAny(node *yaml.Node, path string) (any, error) {
 			return value, nil
 		}
 		if value, ok := parseIntScalar(node); ok {
+			if !numeric.IsSafeJSONInteger(value) {
+				return nil, fmt.Errorf("%s: integer %d is outside the safe JSON integer range [%d, %d]", path, value, numeric.SafeJSONIntegerMin, numeric.SafeJSONIntegerMax)
+			}
 			return float64(value), nil
+		}
+		if node.Tag == "!!int" {
+			return nil, fmt.Errorf("%s: integer %q cannot be represented as int64", path, node.Value)
 		}
 		if value, ok := parseFloatScalar(node); ok {
 			return value, nil
