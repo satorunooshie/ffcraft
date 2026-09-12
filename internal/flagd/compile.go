@@ -3,6 +3,7 @@ package flagd
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 	"sort"
 	"time"
 
@@ -194,12 +195,12 @@ func compileRuleChain(rules []*ast.Rule, defaultAction ast.Action) (any, error) 
 	}
 
 	next := defaultResult
-	for i := len(rules) - 1; i >= 0; i-- {
-		cond, err := compileCondition(rules[i].Condition)
+	for _, rule := range slices.Backward(rules) {
+		cond, err := compileCondition(rule.Condition)
 		if err != nil {
 			return nil, err
 		}
-		action, err := compileAction(rules[i].Action)
+		action, err := compileAction(rule.Action)
 		if err != nil {
 			return nil, err
 		}
