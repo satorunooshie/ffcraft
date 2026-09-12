@@ -220,6 +220,33 @@ func TestCompileJSONStructuredCases(t *testing.T) {
 				}
 			},
 		},
+		{
+			name:    "progressive and scheduled rollouts are ordered by date",
+			fixture: "testdata/progressive_and_scheduled.yaml",
+			validate: func(t *testing.T, _ []byte, decoded map[string]any) {
+				t.Helper()
+
+				flags := decoded["flags"].(map[string]any)
+				targeting := flags["mixed-rollout"].(map[string]any)["targeting"].(map[string]any)
+				thresholds := make([]float64, 0, 3)
+				current := any(targeting)
+				for len(thresholds) < 3 {
+					chain := current.(map[string]any)["if"].([]any)
+					thresholds = append(thresholds, chain[0].(map[string]any)[">="].([]any)[1].(float64))
+					current = chain[2]
+				}
+
+				want := []float64{1779235200, 1778371200, 1777593600}
+				for i := range want {
+					if thresholds[i] != want[i] {
+						t.Fatalf("unexpected threshold order: got %v want %v", thresholds, want)
+					}
+				}
+				if got := current; got != "off" {
+					t.Fatalf("unexpected final fallback: %#v", got)
+				}
+			},
+		},
 	}
 
 	for _, tt := range tests {

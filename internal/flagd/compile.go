@@ -118,6 +118,11 @@ func compileEnvironment(env *ast.Environment, defaultVariant string) (any, error
 	allSteps := make([]*ast.ScheduledStep, 0, len(progressiveSteps)+len(env.ScheduledRollouts))
 	allSteps = append(allSteps, progressiveSteps...)
 	allSteps = append(allSteps, env.ScheduledRollouts...)
+	sort.SliceStable(allSteps, func(i, j int) bool {
+		left, _ := time.Parse(time.RFC3339Nano, allSteps[i].Date)
+		right, _ := time.Parse(time.RFC3339Nano, allSteps[j].Date)
+		return left.Before(right)
+	})
 	if len(allSteps) == 0 {
 		return base, nil
 	}
