@@ -9,6 +9,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	ffv1 "github.com/satorunooshie/ffcraft/gen/ffcraft/v1"
+	"github.com/satorunooshie/ffcraft/internal/numeric"
 )
 
 func parseBinaryValueOperands(node *yaml.Node, path string) (*ffv1.Value, *ffv1.Value, error) {
@@ -213,7 +214,13 @@ func nodeToAny(node *yaml.Node, path string) (any, error) {
 			return value, nil
 		}
 		if value, ok := parseIntScalar(node); ok {
+			if !numeric.IsSafeJSONInteger(value) {
+				return nil, fmt.Errorf("%s: integer %d is outside the safe JSON integer range [%d, %d]", path, value, numeric.SafeJSONIntegerMin, numeric.SafeJSONIntegerMax)
+			}
 			return float64(value), nil
+		}
+		if node.Tag == "!!int" {
+			return nil, fmt.Errorf("%s: integer %q cannot be represented as int64", path, node.Value)
 		}
 		if value, ok := parseFloatScalar(node); ok {
 			return value, nil
