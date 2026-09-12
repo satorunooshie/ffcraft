@@ -115,4 +115,3 @@ func (e Evaluator) EnableNewHome(ctx context.Context, ec EvalContext) (bool, err
 	attrs := ec.toAttributes()
 	return e.client.BooleanValue(ctx, FlagEnableNewHome, false, newEvaluationContext(attrs))
 }
-

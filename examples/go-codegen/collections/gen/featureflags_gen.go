@@ -11,6 +11,7 @@ type EvaluationContext struct {
 	TargetingKey string
 	Attributes   map[string]any
 }
+
 type Client interface {
 	BooleanValue(ctx context.Context, key string, defaultValue bool, evalCtx EvaluationContext) (bool, error)
 	StringValue(ctx context.Context, key string, defaultValue string, evalCtx EvaluationContext) (string, error)

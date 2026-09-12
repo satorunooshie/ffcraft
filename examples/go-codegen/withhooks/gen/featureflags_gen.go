@@ -49,4 +49,3 @@ func (e Evaluator) ShowSampleBanner(ctx context.Context) (bool, error) {
 	var attrs map[string]any
 	return e.client.BooleanValue(ctx, FlagShowSampleBanner, false, newEvaluationContext(attrs))
 }
-

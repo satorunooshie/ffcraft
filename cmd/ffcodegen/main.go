@@ -116,7 +116,6 @@ func runGo(args []string, stdout, stderr io.Writer) error {
 		return fmt.Errorf("compile go code: %w", err)
 	}
 
-	output = append(output, '\n')
 	return writeOutput(stdout, *outPath, output)
 }
 
