@@ -39,9 +39,6 @@ func CompileJSONWithOptions(doc *ast.Document, environment string, opts CompileO
 		Flags:  map[string]*flag{},
 	}
 	warnings := make([]string, 0)
-	if err := ValidateDocument(doc); err != nil {
-		return nil, nil, err
-	}
 
 	for _, src := range doc.Flags {
 		env, ok := src.Environments[environment]
@@ -51,6 +48,9 @@ func CompileJSONWithOptions(doc *ast.Document, environment string, opts CompileO
 				continue
 			}
 			return nil, nil, fmt.Errorf("flag %q: environment %q not found", src.Key, environment)
+		}
+		if err := ValidateFlag(src); err != nil {
+			return nil, nil, fmt.Errorf("flag %q: %w", src.Key, err)
 		}
 		compiled := &flag{
 			State:          "ENABLED",
