@@ -3,6 +3,7 @@ package normalizedyaml_test
 import (
 	"bytes"
 	"embed"
+	"strings"
 	"testing"
 
 	"github.com/satorunooshie/ffcraft/internal/ast"
@@ -12,6 +13,55 @@ import (
 	"github.com/satorunooshie/ffcraft/internal/normalizedyaml"
 	"github.com/satorunooshie/ffcraft/internal/parse"
 )
+
+func TestUnmarshalRejectsUnsafeObjectIntegerBeforeFloatConversion(t *testing.T) {
+	t.Parallel()
+
+	input := []byte(`version: normalized/v1
+flags:
+  - key: test
+    variants:
+      value:
+        users:
+          - id: 9007199254740993
+    default_variant: value
+    environments:
+      prod:
+        static_variant: value
+`)
+	_, err := normalizedyaml.Unmarshal(input)
+	if err == nil {
+		t.Fatal("expected unsafe object integer to be rejected")
+	}
+	if !strings.Contains(err.Error(), "safe JSON integer range") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestNormalizedNumericIngress(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		value   string
+		wantErr bool
+	}{
+		{name: "B0N-OBJECT-INT-SAFE-MAX-001", value: "9007199254740991"},
+		{name: "B0N-OBJECT-INT-LOSSY-001", value: "9007199254740993", wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			input := []byte("version: normalized/v1\nflags:\n  - key: test\n    variants:\n      value:\n        id: " + tt.value + "\n    default_variant: value\n    environments:\n      prod:\n        static_variant: value\n")
+			_, err := normalizedyaml.Unmarshal(input)
+			if tt.wantErr && err == nil {
+				t.Fatal("expected unsafe object integer to be rejected")
+			}
+			if !tt.wantErr && err != nil {
+				t.Fatalf("safe object integer was rejected: %v", err)
+			}
+		})
+	}
+}
 
 //go:embed testdata/*
 var testdataFS embed.FS
