@@ -87,6 +87,16 @@ func TestCompileYAML(t *testing.T) {
 			},
 		},
 		{
+			name: "object and list variants compile",
+			file: "testdata/collection_variants.yaml",
+			wantContains: []string{
+				`providers:`,
+				`- anonymous`,
+				`- google`,
+				`settings:`,
+			},
+		},
+		{
 			name: "rollout strategies",
 			file: "testdata/rollouts.yaml",
 			wantContains: []string{

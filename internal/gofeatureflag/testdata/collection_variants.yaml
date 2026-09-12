@@ -1,0 +1,26 @@
+version: v1
+variant_sets:
+  providers:
+    all:
+      - anonymous
+      - google
+  settings:
+    default:
+      providers:
+        - anonymous
+        - google
+flags:
+  - key: provider-list
+    variant_set: providers
+    default_variant: all
+    environments:
+      prod:
+        default_action:
+          serve: all
+  - key: provider-settings
+    variant_set: settings
+    default_variant: default
+    environments:
+      prod:
+        default_action:
+          serve: default
