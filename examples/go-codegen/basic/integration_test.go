@@ -18,11 +18,13 @@ import (
 	"buf.build/gen/go/open-feature/flagd/connectrpc/go/flagd/evaluation/v2/evaluationv2connect"
 	evaluation "buf.build/gen/go/open-feature/flagd/protocolbuffers/go/flagd/evaluation/v2"
 	"connectrpc.com/connect"
+	"github.com/fsnotify/fsnotify"
 	flagdservice "github.com/open-feature/flagd/core/pkg/service"
 	flagsync "github.com/open-feature/flagd/core/pkg/sync"
 	flagd "github.com/open-feature/go-sdk-contrib/providers/flagd/pkg"
 	gofeatureflag "github.com/open-feature/go-sdk-contrib/providers/go-feature-flag/pkg"
 	"github.com/open-feature/go-sdk/openfeature"
+	"github.com/satorunooshie/backoff"
 	"go.yaml.in/yaml/v3"
 	"google.golang.org/protobuf/types/known/structpb"
 
@@ -164,10 +166,7 @@ func TestB8FlagdFileHotReloadAndB9GeneratedAccessor(t *testing.T) {
 		t.Fatalf("initial generated evaluation = %v, %v; want false, nil", got, err)
 	}
 
-	if err := os.WriteFile(path, []byte("{invalid json"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	time.Sleep(100 * time.Millisecond)
+	writeFileAndWaitForWrite(t, path, []byte("{invalid json"))
 	if got, err := evaluator.EnableNewHome(ctx, featureflags.EvalContext{DevicePlatform: "ios"}); err != nil || got {
 		t.Fatalf("evaluation after invalid update = %v, %v; want previous false, nil", got, err)
 	}
@@ -258,7 +257,7 @@ func TestB8GoffRemoteAndB9GeneratedAccessor(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/ofrep/v1/evaluate/flags/enable-new-home" {
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = w.Write(ofrepResponse(enabled.Load()))
@@ -275,10 +274,9 @@ func TestB8GoffRemoteAndB9GeneratedAccessor(t *testing.T) {
 		}
 		http.NotFound(w, r)
 	}))
-	defer server.Close()
-
 	provider, err := gofeatureflag.NewProviderWithContext(context.Background(), gofeatureflag.ProviderOptions{
 		Endpoint:              server.URL,
+		HTTPClient:            server.Client(),
 		EvaluationType:        gofeatureflag.EvaluationTypeRemote,
 		DataCollectorDisabled: true,
 	})
@@ -308,7 +306,7 @@ func TestB8GoffRemoteDisconnectReconnect001(t *testing.T) {
 	var enabled atomic.Bool
 	var available atomic.Bool
 	available.Store(true)
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/ofrep/v1/evaluate/flags/enable-new-home" {
 			http.NotFound(w, r)
 			return
@@ -320,10 +318,9 @@ func TestB8GoffRemoteDisconnectReconnect001(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write(ofrepResponse(enabled.Load()))
 	}))
-	defer server.Close()
-
 	provider, err := gofeatureflag.NewProviderWithContext(context.Background(), gofeatureflag.ProviderOptions{
 		Endpoint:              server.URL,
+		HTTPClient:            server.Client(),
 		EvaluationType:        gofeatureflag.EvaluationTypeRemote,
 		DataCollectorDisabled: true,
 	})
@@ -356,7 +353,7 @@ func TestB8GoffRemoteDisconnectReconnect001(t *testing.T) {
 // Evidence: B8-GOFF-INPROCESS-HOTRELOAD-001.
 func TestB8GoffInProcessHotReloadAndB9GeneratedAccessor(t *testing.T) {
 	var enabled atomic.Bool
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/v1/flag/configuration" {
 			http.NotFound(w, r)
 			return
@@ -364,10 +361,9 @@ func TestB8GoffInProcessHotReloadAndB9GeneratedAccessor(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write(goffConfig(enabled.Load()))
 	}))
-	defer server.Close()
-
 	provider, err := gofeatureflag.NewProviderWithContext(context.Background(), gofeatureflag.ProviderOptions{
 		Endpoint:                  server.URL,
+		HTTPClient:                server.Client(),
 		FlagChangePollingInterval: 25 * time.Millisecond,
 		DataCollectorDisabled:     true,
 	})
@@ -396,7 +392,7 @@ func TestB8GoffInProcessHotReloadAndB9GeneratedAccessor(t *testing.T) {
 // Evidence: B8-GOFF-INPROCESS-RECOVERY-001.
 func TestB8GoffInProcessInitialFailureRecovery(t *testing.T) {
 	var available atomic.Bool
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/v1/flag/configuration" {
 			http.NotFound(w, r)
 			return
@@ -408,10 +404,9 @@ func TestB8GoffInProcessInitialFailureRecovery(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write(goffConfig(false))
 	}))
-	defer server.Close()
-
 	provider, err := gofeatureflag.NewProviderWithContext(context.Background(), gofeatureflag.ProviderOptions{
 		Endpoint:                  server.URL,
+		HTTPClient:                server.Client(),
 		FlagChangePollingInterval: 25 * time.Millisecond,
 		DataCollectorDisabled:     true,
 	})
@@ -547,16 +542,62 @@ func writeJSON(t *testing.T, path string, value any) {
 	}
 }
 
+func writeFileAndWaitForWrite(t *testing.T, path string, data []byte) {
+	t.Helper()
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = watcher.Close() })
+	if err := watcher.Add(filepath.Dir(path)); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	timer := time.NewTimer(2 * time.Second)
+	defer timer.Stop()
+	for {
+		select {
+		case event, ok := <-watcher.Events:
+			if !ok {
+				t.Fatal("file watcher events channel closed before write event")
+			}
+			if filepath.Clean(event.Name) == filepath.Clean(path) && event.Op&fsnotify.Write != 0 {
+				return
+			}
+		case err, ok := <-watcher.Errors:
+			if !ok {
+				t.Fatal("file watcher errors channel closed before write event")
+			}
+			t.Fatalf("file watcher error: %v", err)
+		case <-timer.C:
+			t.Fatalf("file write event for %q was not observed", path)
+		}
+	}
+}
+
 func waitFor(t *testing.T, timeout time.Duration, condition func() bool) {
 	t.Helper()
-	deadline := time.Now().Add(timeout)
-	for time.Now().Before(deadline) {
-		if condition() {
-			return
-		}
-		time.Sleep(25 * time.Millisecond)
+	policy := backoff.Policy{
+		Schedule: backoff.Schedule{
+			Base:   25 * time.Millisecond,
+			Max:    25 * time.Millisecond,
+			Factor: 1,
+			Jitter: backoff.JitterNone,
+		},
+		Budget: backoff.Budget{MaxElapsed: timeout},
 	}
-	t.Fatal("condition was not met before timeout")
+	_, err := policy.Do(context.Background(), func(context.Context, backoff.Attempt) (struct{}, error) {
+		if condition() {
+			return struct{}{}, nil
+		}
+		return struct{}{}, errors.New("condition was not met")
+	})
+	if err != nil {
+		t.Fatalf("condition was not met before timeout: %v", err)
+	}
 }
 
 type flagdRPCServer struct {

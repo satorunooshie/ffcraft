@@ -72,6 +72,8 @@ github.com/rogpeppe/go-internal v1.14.1 h1:UQB4HGPB6osV0SQTLymcB4TgvyWu6ZyliaW0t
 github.com/rogpeppe/go-internal v1.14.1/go.mod h1:MaRKkUm5W0goXpeCfT7UZI6fk/L7L7so1lCWt35ZSgc=
 github.com/santhosh-tekuri/jsonschema/v6 v6.0.2 h1:KRzFb2m7YtdldCEkzs6KqmJw4nqEVZGK7IN2kJkjTuQ=
 github.com/santhosh-tekuri/jsonschema/v6 v6.0.2/go.mod h1:JXeL+ps8p7/KNMjDQk3TCwPpBy0wYklyWTfbkIzdIFU=
+github.com/satorunooshie/backoff v0.0.1 h1:BML42/LkZQYhu0OP0lno0gp91M5o8MHD1UE5sUGArBU=
+github.com/satorunooshie/backoff v0.0.1/go.mod h1:DY166wseyiS67lvL6VI+fhVoklCsi3sfepCJoCnSpqk=
 github.com/stretchr/testify v1.11.1 h1:7s2iGBzp5EwR7/aIZr8ao5+dra3wiQyKjjFuvgVKu7U=
 github.com/stretchr/testify v1.11.1/go.mod h1:wZwfW3scLgRK+23gO65QZefKpKQRnfz6sD981Nm4B6U=
 github.com/thomaspoignant/go-feature-flag/modules/core v0.6.1 h1:9+SSjY/i4EXgNlGHqiNYXjPYB4q7SwWROvCtVwPvv2w=

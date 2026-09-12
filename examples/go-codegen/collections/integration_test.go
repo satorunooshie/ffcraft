@@ -35,7 +35,7 @@ func TestB9GoffStructuredValuesKeepListAndObjectShapes(t *testing.T) {
 			},
 		},
 	}
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/v1/flag/configuration" {
 			http.NotFound(w, r)
 			return
@@ -43,10 +43,9 @@ func TestB9GoffStructuredValuesKeepListAndObjectShapes(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(response)
 	}))
-	defer server.Close()
-
 	provider, err := gofeatureflag.NewProviderWithContext(context.Background(), gofeatureflag.ProviderOptions{
 		Endpoint:              server.URL,
+		HTTPClient:            server.Client(),
 		DataCollectorDisabled: true,
 	})
 	if err != nil {
