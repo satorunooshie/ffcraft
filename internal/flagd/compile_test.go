@@ -86,6 +86,20 @@ func TestCompileJSON(t *testing.T) {
 			},
 		},
 		{
+			name:    "top-level array variant is unsupported",
+			file:    "testdata/list_variant.yaml",
+			wantErr: "flagd does not support top-level array variant value",
+		},
+		{
+			name: "object variant supports nested arrays",
+			file: "testdata/object_variant.yaml",
+			wantContains: []string{
+				`"providers"`,
+				`"anonymous"`,
+				`"google"`,
+			},
+		},
+		{
 			name: "scheduled rollouts compile to descending timestamp chain",
 			file: "testdata/scheduled_rollouts.yaml",
 			wantContains: []string{

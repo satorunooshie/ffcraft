@@ -1,0 +1,14 @@
+version: v1
+variant_sets:
+  providers:
+    all:
+      - anonymous
+      - google
+flags:
+  - key: providers
+    variant_set: providers
+    default_variant: all
+    environments:
+      prod:
+        default_action:
+          serve: all

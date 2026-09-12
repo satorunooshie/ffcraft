@@ -116,6 +116,17 @@ List:
 [JP, US]
 ```
 
+For the `flagd` target, a variant value whose top-level value is a list is not
+supported because flagd resolves object values through `google.protobuf.Struct`.
+Use an object when the value contains arrays:
+
+```yaml
+all:
+  providers:
+    - anonymous
+    - google
+```
+
 ## distributions
 
 ```yaml

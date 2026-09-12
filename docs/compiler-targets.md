@@ -15,6 +15,7 @@ This document describes how `ffcraft` maps the normalized authoring model to eac
 - `scheduled_rollouts` compile to nested `if` expressions ordered by descending effective date
 - `progressive_rollout` is expanded during compilation into synthetic scheduled steps
 - `scheduled_rollouts[].experimentation` is compiled as an additional time-window guard
+- top-level array variant values are not supported by the flagd compiler
 
 ### Scheduled Rollout Semantics
 
@@ -40,6 +41,11 @@ This is intentionally different from a persistent snapshot.
 - `default_action` is required for rule-evaluation environments
 - `default_action.progressive_rollout` is accepted only as an environment `default_action`
 - `matches` currently returns a compile error
+
+`flagd` object values are backed by `google.protobuf.Struct` at runtime and
+therefore must be top-level objects. Object fields may still contain arrays.
+For example, `all: [anonymous, google]` is not supported for flagd, while
+`all: {providers: [anonymous, google]}` is supported.
 
 ## GO Feature Flag
 
