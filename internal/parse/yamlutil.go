@@ -27,6 +27,30 @@ func mapping(node *yaml.Node, path string) (map[string]*yaml.Node, error) {
 	return out, nil
 }
 
+func strictMapping(node *yaml.Node, path string, allowed ...string) (map[string]*yaml.Node, error) {
+	fields, err := mapping(node, path)
+	if err != nil {
+		return nil, err
+	}
+	if err := rejectUnknownFields(fields, path, allowed...); err != nil {
+		return nil, err
+	}
+	return fields, nil
+}
+
+func rejectUnknownFields(fields map[string]*yaml.Node, path string, allowed ...string) error {
+	known := make(map[string]struct{}, len(allowed))
+	for _, key := range allowed {
+		known[key] = struct{}{}
+	}
+	for key := range fields {
+		if _, ok := known[key]; !ok {
+			return fmt.Errorf("%s.%s: unknown field", path, key)
+		}
+	}
+	return nil
+}
+
 func expectMapping(node *yaml.Node, path string) error {
 	if node.Kind == yaml.AliasNode {
 		return fmt.Errorf("%s: yaml aliases are not supported", path)

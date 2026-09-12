@@ -133,6 +133,26 @@ func TestParseYAML(t *testing.T) {
 	}
 }
 
+func TestParseYAMLRejectsUnknownFields(t *testing.T) {
+	t.Parallel()
+
+	_, err := ParseYAML([]byte(`version: v1
+variant_sets:
+  boolean:
+    on: true
+flags:
+  - key: feature-a
+    variant_set: boolean
+    default_variatn: on
+    environments:
+      prod:
+        serve: on
+`))
+	if err == nil || !strings.Contains(err.Error(), "unknown field") {
+		t.Fatalf("expected unknown field error, got %v", err)
+	}
+}
+
 func TestParseYAMLNumericDomains(t *testing.T) {
 	t.Parallel()
 

@@ -19,7 +19,7 @@ func parseRootDocument(node *yaml.Node, path string) (*ffv1.FeatureFlagDocument,
 		Distributions: map[string]*ffv1.Distribution{},
 	}
 
-	fields, err := mapping(node, path)
+	fields, err := strictMapping(node, path, "version", "variant_sets", "rules", "distributions", "flags")
 	if err != nil {
 		return nil, err
 	}
@@ -56,7 +56,7 @@ func parseNamedVariantSets(node *yaml.Node, path string) (map[string]*ffv1.Varia
 	if node == nil {
 		return map[string]*ffv1.VariantSet{}, nil
 	}
-	fields, err := mapping(node, path)
+	fields, err := mapping(node, path) // named variant keys are user-defined
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +75,7 @@ func parseNamedConditions(node *yaml.Node, path string) (map[string]*ffv1.Condit
 	if node == nil {
 		return map[string]*ffv1.Condition{}, nil
 	}
-	fields, err := mapping(node, path)
+	fields, err := mapping(node, path) // named rule keys are user-defined
 	if err != nil {
 		return nil, err
 	}
@@ -94,7 +94,7 @@ func parseNamedDistributions(node *yaml.Node, path string) (map[string]*ffv1.Dis
 	if node == nil {
 		return map[string]*ffv1.Distribution{}, nil
 	}
-	fields, err := mapping(node, path)
+	fields, err := mapping(node, path) // named distribution keys are user-defined
 	if err != nil {
 		return nil, err
 	}
@@ -126,7 +126,7 @@ func parseVariantSet(node *yaml.Node, path string) (*ffv1.VariantSet, error) {
 }
 
 func parseDistribution(node *yaml.Node, path string) (*ffv1.Distribution, error) {
-	fields, err := mapping(node, path)
+	fields, err := strictMapping(node, path, "stickiness", "allocations")
 	if err != nil {
 		return nil, err
 	}
@@ -169,7 +169,7 @@ func parseFlags(node *yaml.Node, path string) ([]*ffv1.Flag, error) {
 }
 
 func parseFlag(node *yaml.Node, path string) (*ffv1.Flag, error) {
-	fields, err := mapping(node, path)
+	fields, err := strictMapping(node, path, "key", "variant_set", "default_variant", "metadata", "environments")
 	if err != nil {
 		return nil, err
 	}
@@ -209,7 +209,7 @@ func parseFlag(node *yaml.Node, path string) (*ffv1.Flag, error) {
 }
 
 func parseMetadata(node *yaml.Node, path string) (*ffv1.Metadata, error) {
-	fields, err := mapping(node, path)
+	fields, err := strictMapping(node, path, "owner", "description", "expiry", "tags")
 	if err != nil {
 		return nil, err
 	}
@@ -242,7 +242,7 @@ func parseMetadata(node *yaml.Node, path string) (*ffv1.Metadata, error) {
 }
 
 func parseEnvironments(node *yaml.Node, path string) (map[string]*ffv1.Environment, error) {
-	fields, err := mapping(node, path)
+	fields, err := mapping(node, path) // environment names are user-defined
 	if err != nil {
 		return nil, err
 	}
@@ -258,7 +258,7 @@ func parseEnvironments(node *yaml.Node, path string) (map[string]*ffv1.Environme
 }
 
 func parseEnvironment(node *yaml.Node, path string) (*ffv1.Environment, error) {
-	fields, err := mapping(node, path)
+	fields, err := strictMapping(node, path, "serve", "rules", "default_action", "experimentation", "scheduled_rollouts")
 	if err != nil {
 		return nil, err
 	}
@@ -332,7 +332,7 @@ func parseRuleEntries(node *yaml.Node, path string) ([]*ffv1.RuleEntry, error) {
 }
 
 func parseRuleEntry(node *yaml.Node, path string) (*ffv1.RuleEntry, error) {
-	fields, err := mapping(node, path)
+	fields, err := strictMapping(node, path, "if", "serve", "distribute", "progressive_rollout")
 	if err != nil {
 		return nil, err
 	}
@@ -356,7 +356,7 @@ func parseAction(fields map[string]*yaml.Node, path string) (*ffv1.Action, error
 }
 
 func parseActionNode(node *yaml.Node, path string) (*ffv1.Action, error) {
-	fields, err := mapping(node, path)
+	fields, err := strictMapping(node, path, "serve", "distribute", "progressive_rollout")
 	if err != nil {
 		return nil, err
 	}
@@ -389,7 +389,7 @@ func parseActionMap(fields map[string]*yaml.Node, path string) (*ffv1.Action, er
 }
 
 func parseProgressiveRollout(node *yaml.Node, path string) (*ffv1.ProgressiveRollout, error) {
-	fields, err := mapping(node, path)
+	fields, err := strictMapping(node, path, "variant", "stickiness", "start", "end", "steps")
 	if err != nil {
 		return nil, err
 	}
@@ -429,7 +429,7 @@ func parseProgressiveRollout(node *yaml.Node, path string) (*ffv1.ProgressiveRol
 }
 
 func parseExperimentation(node *yaml.Node, path string) (*ffv1.Experimentation, error) {
-	fields, err := mapping(node, path)
+	fields, err := strictMapping(node, path, "start", "end")
 	if err != nil {
 		return nil, err
 	}
@@ -465,7 +465,7 @@ func parseScheduledSteps(node *yaml.Node, path string) ([]*ffv1.ScheduledStep, e
 }
 
 func parseScheduledStep(node *yaml.Node, path string) (*ffv1.ScheduledStep, error) {
-	fields, err := mapping(node, path)
+	fields, err := strictMapping(node, path, "name", "description", "disabled", "date", "default_action", "experimentation", "rules")
 	if err != nil {
 		return nil, err
 	}
