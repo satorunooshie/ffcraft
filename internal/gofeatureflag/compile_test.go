@@ -16,6 +16,20 @@ import (
 //go:embed testdata/*.yaml
 var testdataFS embed.FS
 
+func TestCompileYAMLRejectsUnsafeRootIntegerTransport(t *testing.T) {
+	doc := &ast.Document{Flags: []*ast.Flag{{
+		Key:            "large",
+		DefaultVariant: "value",
+		Variants:       map[string]ast.VariantValue{"value": {Kind: ast.VariantValueKindInt, Int: 9007199254740993}},
+		Environments:   map[string]*ast.Environment{"prod": {DefaultAction: &ast.ServeAction{Variant: "value"}}},
+	}}}
+	if _, err := gofeatureflag.CompileYAML(doc, "prod"); err == nil {
+		t.Fatal("expected GOFF unsafe root integer transport to be rejected")
+	} else if !strings.Contains(err.Error(), "cannot preserve int64") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestCompileYAML(t *testing.T) {
 	t.Parallel()
 
