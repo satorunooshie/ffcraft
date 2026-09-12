@@ -39,6 +39,9 @@ func CompileJSONWithOptions(doc *ast.Document, environment string, opts CompileO
 		Flags:  map[string]*flag{},
 	}
 	warnings := make([]string, 0)
+	if err := ValidateDocument(doc); err != nil {
+		return nil, nil, err
+	}
 
 	for _, src := range doc.Flags {
 		env, ok := src.Environments[environment]
@@ -49,10 +52,6 @@ func CompileJSONWithOptions(doc *ast.Document, environment string, opts CompileO
 			}
 			return nil, nil, fmt.Errorf("flag %q: environment %q not found", src.Key, environment)
 		}
-		if err := validateVariants(src.Variants); err != nil {
-			return nil, nil, fmt.Errorf("flag %q: %w", src.Key, err)
-		}
-
 		compiled := &flag{
 			State:          "ENABLED",
 			Variants:       compileVariants(src.Variants),
@@ -93,15 +92,6 @@ func CompileJSONWithOptions(doc *ast.Document, environment string, opts CompileO
 		return nil, nil, err
 	}
 	return output, warnings, nil
-}
-
-func validateVariants(variants map[string]ast.VariantValue) error {
-	for name, value := range variants {
-		if value.Kind == ast.VariantValueKindList {
-			return fmt.Errorf("flagd does not support top-level array variant value %q; use an object with array fields instead", name)
-		}
-	}
-	return nil
 }
 
 func defaultServeVariant(action ast.Action) (string, error) {
