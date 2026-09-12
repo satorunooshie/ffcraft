@@ -81,6 +81,9 @@ func validateReferences(doc *ffv1.FeatureFlagDocument) error {
 				errs = append(errs, fmt.Errorf("flag %q env %q: rule_evaluation must define rules, default_action, experimentation, or scheduled_rollouts", flag.Key, envName))
 				continue
 			}
+			if eval.DefaultAction == nil {
+				errs = append(errs, fmt.Errorf("flag %q env %q: default_action is required", flag.Key, envName))
+			}
 
 			if eval.DefaultAction != nil {
 				if err := validateActionRefs(doc, vs, eval.DefaultAction, true); err != nil {

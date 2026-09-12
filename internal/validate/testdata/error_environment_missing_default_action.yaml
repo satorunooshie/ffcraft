@@ -1,0 +1,15 @@
+version: v1
+variant_sets:
+  boolean:
+    on: true
+    off: false
+flags:
+  - key: feature-a
+    variant_set: boolean
+    default_variant: off
+    environments:
+      prod:
+        scheduled_rollouts:
+          - date: "2026-05-01T00:00:00Z"
+            default_action:
+              serve: on
