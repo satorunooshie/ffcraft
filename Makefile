@@ -31,6 +31,8 @@ update-go-example:
 	$(GO) run ./cmd/ffcompile build flagd --in examples/go-codegen/withhooks/ffcompile.yaml --env prod --out examples/go-codegen/withhooks/gen/prod.flagd.json
 	$(GO) run ./cmd/ffcompile build gofeatureflag --in examples/go-codegen/withhooks/ffcompile.yaml --env prod --out examples/go-codegen/withhooks/gen/prod.goff.yaml
 	$(GO) run ./cmd/ffcodegen go --in examples/go-codegen/withhooks/ffcompile.yaml --config examples/go-codegen/withhooks/ffcodegen.yaml --out examples/go-codegen/withhooks/gen/featureflags_gen.go
+	$(GO) run ./cmd/ffcompile build gofeatureflag --in examples/go-codegen/collections/ffcompile.yaml --env prod --out examples/go-codegen/collections/gen/prod.goff.yaml
+	$(GO) run ./cmd/ffcodegen go --in examples/go-codegen/collections/ffcompile.yaml --config examples/go-codegen/collections/ffcodegen.yaml --out examples/go-codegen/collections/gen/featureflags_gen.go
 
 .PHONY: tidy
 tidy:
