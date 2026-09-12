@@ -60,8 +60,12 @@ func normalizeEnvironment(doc *ffv1.FeatureFlagDocument, flag *ffv1.Flag, env *f
 		return nil, fmt.Errorf("environment must define fixed_serve or rule_evaluation")
 	}
 
+	defaultAction, err := normalizeDefaultAction(doc, eval, flag)
+	if err != nil {
+		return nil, fmt.Errorf("normalize default action: %w", err)
+	}
 	out := &ast.Environment{
-		DefaultAction:     normalizeDefaultAction(doc, eval, flag),
+		DefaultAction:     defaultAction,
 		Experimentation:   normalizeExperimentation(eval.Experimentation),
 		ScheduledRollouts: make([]*ast.ScheduledStep, 0, len(eval.ScheduledRollouts)),
 		Rules:             make([]*ast.Rule, 0, len(eval.Rules)),
@@ -94,14 +98,15 @@ func normalizeEnvironment(doc *ffv1.FeatureFlagDocument, flag *ffv1.Flag, env *f
 	return out, nil
 }
 
-func normalizeDefaultAction(doc *ffv1.FeatureFlagDocument, eval *ffv1.RuleEvaluation, flag *ffv1.Flag) ast.Action {
+func normalizeDefaultAction(doc *ffv1.FeatureFlagDocument, eval *ffv1.RuleEvaluation, flag *ffv1.Flag) (ast.Action, error) {
 	if eval.GetDefaultAction() != nil {
 		action, err := normalizeAction(doc, eval.GetDefaultAction())
-		if err == nil {
-			return action
+		if err != nil {
+			return nil, err
 		}
+		return action, nil
 	}
-	return &ast.ServeAction{Variant: flag.DefaultVariant}
+	return &ast.ServeAction{Variant: flag.DefaultVariant}, nil
 }
 
 func normalizeRuleEntry(doc *ffv1.FeatureFlagDocument, entry *ffv1.RuleEntry) (*ast.Rule, bool, error) {
