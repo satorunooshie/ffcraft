@@ -13,6 +13,7 @@ proto:
 .PHONY: test
 test:
 	$(GO) test ./...
+	cd examples/go-codegen && $(GO) test ./...
 
 .PHONY: update-go-golden
 update-go-golden:
