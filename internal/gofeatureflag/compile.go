@@ -9,6 +9,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/satorunooshie/ffcraft/internal/ast"
+	"github.com/satorunooshie/ffcraft/internal/numeric"
 )
 
 type CompileOptions struct {
@@ -78,6 +79,9 @@ func CompileYAMLWithOptions(doc *ast.Document, environment string, opts CompileO
 			}
 			return nil, nil, fmt.Errorf("flag %q: environment %q not found", src.Key, environment)
 		}
+		if err := validateNumericTransport(src.Variants); err != nil {
+			return nil, nil, fmt.Errorf("flag %q: %w", src.Key, err)
+		}
 
 		compiled := flagFile{
 			Variations: compileVariants(src.Variants),
@@ -114,7 +118,97 @@ func CompileYAMLWithOptions(doc *ast.Document, environment string, opts CompileO
 		flags[src.Key] = compiled
 	}
 
-	return marshalDocument(flags), warnings, nil
+	output, err := marshalDocument(flags)
+	if err != nil {
+		return nil, nil, err
+	}
+	return output, warnings, nil
+}
+
+func validateNumericTransport(variants map[string]ast.VariantValue) error {
+	for name, value := range variants {
+		if err := validateNumericVariant(value); err != nil {
+			return fmt.Errorf("variant %q: %w", name, err)
+		}
+	}
+	return nil
+}
+
+func validateNumericVariant(value ast.VariantValue) error {
+	switch value.Kind {
+	case ast.VariantValueKindInt:
+		if !numeric.IsSafeJSONInteger(value.Int) {
+			return fmt.Errorf("GO Feature Flag transport cannot preserve int64 value %d; value is outside the safe JSON integer range", value.Int)
+		}
+	case ast.VariantValueKindList:
+		for _, child := range value.List {
+			if err := validateNumericVariant(child); err != nil {
+				return err
+			}
+		}
+	case ast.VariantValueKindObject:
+		if err := validateNumericObject(value.Object); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateNumericObject(value map[string]any) error {
+	for key, child := range value {
+		switch child := child.(type) {
+		default:
+			if integer, ok := signedInteger(child); ok && !numeric.IsSafeJSONInteger(integer) {
+				return fmt.Errorf("GO Feature Flag transport cannot preserve object integer field %q", key)
+			}
+		case []any:
+			if err := validateNumericObjectList(child); err != nil {
+				return err
+			}
+		case map[string]any:
+			if err := validateNumericObject(child); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func validateNumericObjectList(value []any) error {
+	for _, child := range value {
+		switch child := child.(type) {
+		default:
+			if integer, ok := signedInteger(child); ok && !numeric.IsSafeJSONInteger(integer) {
+				return fmt.Errorf("GO Feature Flag transport cannot preserve an object-list integer")
+			}
+		case []any:
+			if err := validateNumericObjectList(child); err != nil {
+				return err
+			}
+		case map[string]any:
+			if err := validateNumericObject(child); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func signedInteger(value any) (int64, bool) {
+	switch value := value.(type) {
+	case int:
+		return int64(value), true
+	case int8:
+		return int64(value), true
+	case int16:
+		return int64(value), true
+	case int32:
+		return int64(value), true
+	case int64:
+		return value, true
+	default:
+		return 0, false
+	}
 }
 
 func compileDefaultRule(defaultVariant string, action ast.Action) (ruleResult, string, error) {
@@ -444,7 +538,7 @@ func sortedAllocations(in map[string]float64) map[string]float64 {
 	return out
 }
 
-func marshalDocument(flags map[string]flagFile) []byte {
+func marshalDocument(flags map[string]flagFile) ([]byte, error) {
 	keys := make([]string, 0, len(flags))
 	for key := range flags {
 		keys = append(keys, key)
@@ -455,12 +549,12 @@ func marshalDocument(flags map[string]flagFile) []byte {
 	for _, key := range keys {
 		value, err := yaml.Marshal(flags[key])
 		if err != nil {
-			panic(err)
+			return nil, fmt.Errorf("marshal flag %q: %w", key, err)
 		}
 
 		var node yaml.Node
 		if err := yaml.Unmarshal(value, &node); err != nil {
-			panic(err)
+			return nil, fmt.Errorf("unmarshal flag %q: %w", key, err)
 		}
 
 		root.Content = append(root.Content,
@@ -471,7 +565,7 @@ func marshalDocument(flags map[string]flagFile) []byte {
 
 	out, err := yaml.Marshal(root)
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("marshal document: %w", err)
 	}
-	return out
+	return out, nil
 }
