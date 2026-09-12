@@ -98,6 +98,16 @@ func TestCompileYAML(t *testing.T) {
 			},
 		},
 		{
+			name:         "scheduled distribution contributes bucketing key",
+			file:         "testdata/scheduled_bucketing_key.yaml",
+			wantContains: []string{"bucketingKey: user.id"},
+		},
+		{
+			name:    "scheduled distribution rejects bucketing key mismatch",
+			file:    "testdata/scheduled_bucketing_key_mismatch.yaml",
+			wantErr: "multiple distribute stickiness values are not supported",
+		},
+		{
 			name:    "matches returns error",
 			file:    "testdata/matches_error.yaml",
 			wantErr: "matches is not compiled",

@@ -1,0 +1,28 @@
+version: v1
+variant_sets:
+  boolean:
+    on: true
+    off: false
+distributions:
+  by_id:
+    stickiness: user.id
+    allocations:
+      on: 50
+      off: 50
+  by_email:
+    stickiness: user.email
+    allocations:
+      on: 50
+      off: 50
+flags:
+  - key: scheduled-distribution
+    variant_set: boolean
+    default_variant: off
+    environments:
+      prod:
+        default_action:
+          distribute: by_id
+        scheduled_rollouts:
+          - date: "2026-05-01T00:00:00Z"
+            default_action:
+              distribute: by_email

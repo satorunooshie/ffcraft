@@ -101,8 +101,11 @@ func CompileYAMLWithOptions(doc *ast.Document, environment string, opts CompileO
 				return nil, nil, fmt.Errorf("flag %q: %w", src.Key, err)
 			}
 			compiled.Experimentation = compileExperimentation(env.Experimentation)
-			scheduled, err := compileScheduledRollout(src.DefaultVariant, env.ScheduledRollouts)
+			scheduled, scheduledBucketingKey, err := compileScheduledRollout(src.DefaultVariant, env.ScheduledRollouts)
 			if err != nil {
+				return nil, nil, fmt.Errorf("flag %q: %w", src.Key, err)
+			}
+			if compiled.BucketingKey, err = mergeBucketingKeys(compiled.BucketingKey, scheduledBucketingKey); err != nil {
 				return nil, nil, fmt.Errorf("flag %q: %w", src.Key, err)
 			}
 			compiled.ScheduledRollout = scheduled
@@ -194,8 +197,9 @@ func compileExperimentation(exp *ast.Experimentation) *experimentation {
 	return &experimentation{Start: exp.Start, End: exp.End}
 }
 
-func compileScheduledRollout(defaultVariant string, steps []*ast.ScheduledStep) ([]scheduledStepOut, error) {
+func compileScheduledRollout(defaultVariant string, steps []*ast.ScheduledStep) ([]scheduledStepOut, string, error) {
 	out := make([]scheduledStepOut, 0, len(steps))
+	bucketingKey := ""
 	for _, step := range steps {
 		if step.Disabled {
 			continue
@@ -205,22 +209,28 @@ func compileScheduledRollout(defaultVariant string, steps []*ast.ScheduledStep) 
 			Experimentation: compileExperimentation(step.Experimentation),
 		}
 		if len(step.Rules) > 0 {
-			targeting, _, err := compileRules(step.Rules)
+			targeting, ruleBucketingKey, err := compileRules(step.Rules)
 			if err != nil {
-				return nil, err
+				return nil, "", err
+			}
+			if bucketingKey, err = mergeBucketingKeys(bucketingKey, ruleBucketingKey); err != nil {
+				return nil, "", err
 			}
 			compiled.Targeting = targeting
 		}
 		if step.DefaultAction != nil {
-			defaultRule, _, err := compileDefaultRule(defaultVariant, step.DefaultAction)
+			defaultRule, defaultBucketingKey, err := compileDefaultRule(defaultVariant, step.DefaultAction)
 			if err != nil {
-				return nil, err
+				return nil, "", err
+			}
+			if bucketingKey, err = mergeBucketingKeys(bucketingKey, defaultBucketingKey); err != nil {
+				return nil, "", err
 			}
 			compiled.DefaultRule = &defaultRule
 		}
 		out = append(out, compiled)
 	}
-	return out, nil
+	return out, bucketingKey, nil
 }
 
 func mergeBucketingKeys(left, right string) (string, error) {
