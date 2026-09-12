@@ -184,16 +184,16 @@ func TestCompileJSONStructuredCases(t *testing.T) {
 				targeting := flags["new-checkout"].(map[string]any)["targeting"].(map[string]any)
 
 				outer := targeting["if"].([]any)
-				assertUnixThreshold(t, outer[0], 1777626000)
+				assertUnixThreshold(t, outer[0], 1779440400)
 
 				second := outer[2].(map[string]any)["if"].([]any)
-				assertUnixThreshold(t, second[0], 1778230800)
+				assertUnixThreshold(t, second[0], 1778835600)
 
 				third := second[2].(map[string]any)["if"].([]any)
-				assertUnixThreshold(t, third[0], 1778835600)
+				assertUnixThreshold(t, third[0], 1778230800)
 
 				fourth := third[2].(map[string]any)["if"].([]any)
-				assertUnixThreshold(t, fourth[0], 1779440400)
+				assertUnixThreshold(t, fourth[0], 1777626000)
 
 				if got := fourth[2]; got != "off" {
 					t.Fatalf("unexpected final fallback: %#v", got)

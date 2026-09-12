@@ -123,7 +123,10 @@ func compileEnvironment(env *ast.Environment, defaultVariant string) (any, error
 	}
 
 	active := base
-	for i := len(allSteps) - 1; i >= 0; i-- {
+	// Authoring validation requires scheduled steps to be sorted in ascending
+	// date order. Build the chain in that order so each later step wraps the
+	// previous one and becomes the outermost (highest-priority) condition.
+	for i := 0; i < len(allSteps); i++ {
 		step := allSteps[i]
 		if step.Disabled {
 			continue
