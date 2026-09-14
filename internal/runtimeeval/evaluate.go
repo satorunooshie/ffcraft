@@ -27,9 +27,15 @@ func Evaluate(condition *irv1.Condition, context Context) bool {
 	case *irv1.Condition_Constant:
 		return kind.Constant
 	case *irv1.Condition_Equality:
+		if kind.Equality == nil {
+			return false
+		}
 		value, ok := lookup(context, kind.Equality.Attribute)
 		return ok && equal(value, kind.Equality.Literal)
 	case *irv1.Condition_NumericComparison:
+		if kind.NumericComparison == nil {
+			return false
+		}
 		value, ok := lookup(context, kind.NumericComparison.Attribute)
 		left, leftOK := number(value)
 		right, rightOK := numericValue(kind.NumericComparison.Literal)
@@ -38,6 +44,9 @@ func Evaluate(condition *irv1.Condition, context Context) bool {
 		}
 		return compareNumbers(left, right, kind.NumericComparison.Operator)
 	case *irv1.Condition_Membership:
+		if kind.Membership == nil || kind.Membership.Literals == nil {
+			return false
+		}
 		value, ok := lookup(context, kind.Membership.Attribute)
 		if !ok {
 			return false
@@ -49,6 +58,9 @@ func Evaluate(condition *irv1.Condition, context Context) bool {
 		}
 		return false
 	case *irv1.Condition_StringMatch:
+		if kind.StringMatch == nil {
+			return false
+		}
 		value, ok := lookup(context, kind.StringMatch.Attribute)
 		text, textOK := value.(string)
 		if !ok || !textOK {
@@ -65,6 +77,9 @@ func Evaluate(condition *irv1.Condition, context Context) bool {
 			return false
 		}
 	case *irv1.Condition_SemverComparison:
+		if kind.SemverComparison == nil {
+			return false
+		}
 		value, ok := lookup(context, kind.SemverComparison.Attribute)
 		left, leftOK := value.(string)
 		right, rightOK := parseSemver(kind.SemverComparison.Semver)
@@ -77,6 +92,9 @@ func Evaluate(condition *irv1.Condition, context Context) bool {
 		}
 		return compareSemver(actual, right, kind.SemverComparison.Operator)
 	case *irv1.Condition_Presence:
+		if kind.Presence == nil {
+			return false
+		}
 		_, ok := lookup(context, kind.Presence.Attribute)
 		return ok
 	case *irv1.Condition_Logical:
