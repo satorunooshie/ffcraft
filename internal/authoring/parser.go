@@ -29,7 +29,7 @@ func validateYAMLTree(node *yaml.Node, path string) error {
 	if node.Kind == yaml.AliasNode {
 		return fmt.Errorf("%s: yaml aliases are not supported", path)
 	}
-	if node.Style&yaml.TaggedStyle != 0 {
+	if node.Style&yaml.TaggedStyle != 0 && !isCoreYAMLTag(node.Tag) {
 		return fmt.Errorf("%s: custom YAML tags are not supported", path)
 	}
 	if node.Kind == yaml.ScalarNode && node.Tag == "!!float" && !yamlFloatPattern.MatchString(node.Value) {
@@ -41,4 +41,13 @@ func validateYAMLTree(node *yaml.Node, path string) error {
 		}
 	}
 	return nil
+}
+
+func isCoreYAMLTag(tag string) bool {
+	switch tag {
+	case "!!map", "!!seq", "!!str", "!!bool", "!!int", "!!float", "!!null":
+		return true
+	default:
+		return false
+	}
 }

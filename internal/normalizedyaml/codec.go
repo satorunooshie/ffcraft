@@ -202,7 +202,7 @@ func validateYAMLNode(node *yaml.Node) error {
 	if node.Kind == yaml.AliasNode {
 		return fmt.Errorf("YAML aliases are not supported")
 	}
-	if node.Style&yaml.TaggedStyle != 0 || node.Tag != "" && len(node.Tag) > 0 && node.Tag[0] == '!' && node.Tag != "!!map" && node.Tag != "!!seq" && node.Tag != "!!str" && node.Tag != "!!bool" && node.Tag != "!!int" && node.Tag != "!!float" && node.Tag != "!!null" {
+	if node.Style&yaml.TaggedStyle != 0 && !isCoreYAMLTag(node.Tag) || node.Tag != "" && len(node.Tag) > 0 && node.Tag[0] == '!' && !isCoreYAMLTag(node.Tag) {
 		return fmt.Errorf("custom YAML tags are not supported")
 	}
 	if node.Kind == yaml.MappingNode {
@@ -224,6 +224,15 @@ func validateYAMLNode(node *yaml.Node) error {
 		}
 	}
 	return nil
+}
+
+func isCoreYAMLTag(tag string) bool {
+	switch tag {
+	case "!!map", "!!seq", "!!str", "!!bool", "!!int", "!!float", "!!null":
+		return true
+	default:
+		return false
+	}
 }
 
 var (
