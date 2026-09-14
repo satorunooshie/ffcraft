@@ -361,7 +361,17 @@ make update-go-example
 
 Reference fixtures:
 
-- [internal/flagd/testdata/example.yaml](internal/flagd/testdata/example.yaml)
-- [internal/flagd/testdata/prod.golden.json](internal/flagd/testdata/prod.golden.json)
-- [internal/gofeatureflag/testdata/example.yaml](internal/gofeatureflag/testdata/example.yaml)
-- [internal/gofeatureflag/testdata/prod.golden.yaml](internal/gofeatureflag/testdata/prod.golden.yaml)
+- [internal/compiler/flagd/testdata/example.yaml](internal/compiler/flagd/testdata/example.yaml)
+- [internal/compiler/flagd/testdata/prod.golden.json](internal/compiler/flagd/testdata/prod.golden.json)
+- [internal/compiler/gofeatureflag/testdata/example.yaml](internal/compiler/gofeatureflag/testdata/example.yaml)
+- [internal/compiler/gofeatureflag/testdata/prod.golden.yaml](internal/compiler/gofeatureflag/testdata/prod.golden.yaml)
+
+Package boundaries:
+
+- `internal/authoring`: authoring YAML to authoring protobuf
+- `internal/normalize`: authoring protobuf to normalized IR
+- `internal/ir`: IR validation, canonicalization, and semantic checks
+- `internal/normalizedyaml`: normalized IR and deterministic normalized YAML
+- `internal/compiler/flagd`: normalized IR to flagd configuration
+- `internal/compiler/gofeatureflag`: normalized IR to GO Feature Flag configuration
+- `internal/codegen`: normalized IR to Go source
