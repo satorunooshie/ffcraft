@@ -1,0 +1,411 @@
+syntax = "proto3";
+
+package ffcraft.ir.v1;
+
+// v1 is a compatibility-preserving semantic family. Additive core constructs
+// may be introduced within v1. Consumers that do not understand an unknown
+// core field, enum value, or oneof variant MUST fail closed; unknown extension
+// namespaces are permitted and may be ignored by core compilers.
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/satorunooshie/ffcraft/gen/ffcraft/ir/v1;ffcraftirv1";
+
+// Document is the normative, fully-normalized ffcraft IR document. The IR
+// contains target-independent feature-flag semantics only; target-native
+// configuration formats, optimizations, and capability metadata belong to
+// target compilers and are not represented here.
+//
+// Normalization invariants:
+//   - all authoring references are resolved;
+//   - flag identity is the key of flags;
+//   - variant-set, named-rule, and named-distribution identities do not appear;
+//   - every environment has an explicit base evaluation;
+//   - scheduled evaluations are full snapshots, sorted by effective_at ascending,
+//     with unique effective_at values;
+//   - authoring-only disabled schedule entries are absent;
+//   - authoring-only progressive rollouts, experimentation, and scheduled
+//     rollouts are lowered to explicit ScheduledEvaluation snapshots and
+//     Distribution actions;
+//   - ExtensionValue-representable payloads are preserved losslessly at
+//     document, flag, and environment scope.
+message Document {
+  // Keyed by the globally unique flag key.
+  map<string, Flag> flags = 1 [
+    (buf.validate.field).map = {
+      min_pairs: 1
+      max_pairs: 10000
+    },
+    (buf.validate.field).map.keys.string = {
+      min_len: 1
+      max_bytes: 128
+      pattern: "^[a-z0-9][a-z0-9._-]*$"
+    }
+  ];
+
+  map<string, ExtensionValue> extensions = 2 [(buf.validate.field).map.keys.string = {
+    min_len: 1
+    max_bytes: 128
+  }];
+}
+
+// Flag contains only semantics that remain after authoring normalization.
+message Flag {
+  // Keyed by variant name. Variant names are semantic identifiers.
+  map<string, VariantValue> variants = 1 [
+    (buf.validate.field).map = {
+      min_pairs: 1
+      max_pairs: 256
+    },
+    (buf.validate.field).map.keys.string = {
+      min_len: 1
+      max_bytes: 128
+    }
+  ];
+
+  // Keyed by environment name. Environment names are case-sensitive and opaque
+  // to ffcraft core.
+  map<string, Environment> environments = 2 [
+    (buf.validate.field).map = {
+      min_pairs: 1
+      max_pairs: 256
+    },
+    (buf.validate.field).map.keys.string = {
+      min_len: 1
+      max_bytes: 128
+    }
+  ];
+
+  map<string, ExtensionValue> extensions = 3 [(buf.validate.field).map.keys.string = {
+    min_len: 1
+    max_bytes: 128
+  }];
+}
+
+// Environment is a named compilation and evaluation boundary. The name is the
+// key in Flag.environments and is intentionally not duplicated here.
+message Environment {
+  // Base evaluation used before the first schedule entry, or permanently when
+  // schedule is empty. Fixed serving is represented by an Evaluation with no
+  // rules and a serve default_action. An empty rules list means that the
+  // default_action is executed unconditionally.
+  Evaluation base = 1 [(buf.validate.field).required = true];
+
+  // Full evaluation snapshots. Entries MUST be strictly ordered by effective_at
+  // ascending and effective_at values MUST be unique. The core limit is 1024.
+  repeated ScheduledEvaluation schedule = 2 [(buf.validate.field).repeated.max_items = 1024];
+
+  map<string, ExtensionValue> extensions = 3 [(buf.validate.field).map.keys.string = {
+    min_len: 1
+    max_bytes: 128
+  }];
+}
+
+// Evaluation is a complete evaluation state.
+// Rules are evaluated in order; the first matching rule wins. default_action is
+// used when no rule matches.
+message Evaluation {
+  repeated Rule rules = 1 [(buf.validate.field).repeated.max_items = 1024];
+  Action default_action = 2 [(buf.validate.field).required = true];
+}
+
+// ScheduledEvaluation replaces the entire effective Evaluation at effective_at.
+// It is a semantic snapshot, not an authoring plan node; authoring metadata such
+// as name, description, and disabled is intentionally absent.
+message ScheduledEvaluation {
+  // An absolute instant, not a timezone-bearing display value. Authoring
+  // RFC3339 offsets are normalized to this instant; fractional seconds may
+  // have at most 9 digits and are never rounded.
+  google.protobuf.Timestamp effective_at = 1 [(buf.validate.field).required = true];
+  Evaluation evaluation = 2 [(buf.validate.field).required = true];
+}
+
+message Rule {
+  Condition condition = 1 [(buf.validate.field).required = true];
+  Action action = 2 [(buf.validate.field).required = true];
+}
+
+// Action is the result of a rule or default evaluation.
+message Action {
+  oneof kind {
+    option (buf.validate.oneof).required = true;
+
+    // Variant name. MUST exist in the containing Flag.variants map.
+    string serve = 1 [(buf.validate.field).string = {
+      min_len: 1
+      max_bytes: 128
+    }];
+
+    Distribution distribute = 2;
+  }
+}
+
+// Distribution selects a variant by stable weighted bucketing.
+//
+// weights are relative positive integer weights, not percentages. The normalizer
+// MUST canonicalize them by dividing all weights by their greatest common divisor.
+// Every key MUST name a variant in the containing Flag.variants map.
+//
+// Bucketing is scoped by the containing flag identity. Cross-provider bucket
+// identity is not implied unless a target specification explicitly guarantees it.
+// If allocation_key is missing, null, or not a string in runtime context, the
+// action is unresolved. For a rule action, the first matching rule remains
+// selected and evaluation reports an error; for default_action, the evaluation
+// is likewise unresolved/error.
+message Distribution {
+  // Context attribute used to produce the required stable allocation.
+  // A target compiler that cannot represent this semantics MUST fail.
+  AttributePath allocation_key = 1 [(buf.validate.field).required = true];
+
+  map<string, uint32> weights = 2 [
+    (buf.validate.field).map.min_pairs = 2,
+    (buf.validate.field).map.keys.string = {
+      min_len: 1
+      max_bytes: 128
+    },
+    (buf.validate.field).map.values.uint32.gt = 0
+  ];
+}
+
+// Condition is a normalized boolean expression. Runtime evaluation always
+// yields TRUE or FALSE. Missing attributes and runtime type mismatch yield
+// FALSE; only TRUE matches a Rule. Equality treats int64 and double as one
+// numeric domain and compares them losslessly. Named
+// authoring-rule references never appear in IR; they are expanded during
+// normalization.
+message Condition {
+  oneof kind {
+    option (buf.validate.oneof).required = true;
+
+    bool constant = 1;
+    EqualityCondition equality = 2;
+    NumericComparisonCondition numeric_comparison = 3;
+    MembershipCondition membership = 4;
+    StringMatchCondition string_match = 5;
+    SemVerComparisonCondition semver_comparison = 6;
+    PresenceCondition presence = 7;
+    LogicalCondition logical = 8;
+    Condition negation = 9;
+  }
+}
+
+// PresenceCondition is true when the context attribute exists, including when
+// its value is explicitly null. A missing attribute evaluates to false.
+message PresenceCondition {
+  AttributePath attribute = 1 [(buf.validate.field).required = true];
+}
+
+enum EqualityOperator {
+  EQUALITY_OPERATOR_UNSPECIFIED = 0;
+  EQUALITY_OPERATOR_EQ = 1;
+  EQUALITY_OPERATOR_NE = 2;
+}
+
+message EqualityCondition {
+  EqualityOperator operator = 1 [
+    (buf.validate.field).enum.defined_only = true,
+    (buf.validate.field).enum.not_in = 0
+  ];
+  AttributePath attribute = 2 [(buf.validate.field).required = true];
+  ScalarValue literal = 3 [(buf.validate.field).required = true];
+}
+
+enum NumericComparisonOperator {
+  NUMERIC_COMPARISON_OPERATOR_UNSPECIFIED = 0;
+  NUMERIC_COMPARISON_OPERATOR_GT = 1;
+  NUMERIC_COMPARISON_OPERATOR_GTE = 2;
+  NUMERIC_COMPARISON_OPERATOR_LT = 3;
+  NUMERIC_COMPARISON_OPERATOR_LTE = 4;
+}
+
+message NumericComparisonCondition {
+  NumericComparisonOperator operator = 1 [
+    (buf.validate.field).enum.defined_only = true,
+    (buf.validate.field).enum.not_in = 0
+  ];
+  AttributePath attribute = 2 [(buf.validate.field).required = true];
+  NumericValue literal = 3 [(buf.validate.field).required = true];
+}
+
+message NumericValue {
+  oneof kind {
+    option (buf.validate.oneof).required = true;
+
+    int64 int_value = 1;
+    double double_value = 2 [(buf.validate.field).double.finite = true];
+  }
+}
+
+message MembershipCondition {
+  // The only operation is attribute IN literals. Reverse membership and
+  // list-vs-list membership are not part of the v1 semantics.
+  AttributePath attribute = 1 [(buf.validate.field).required = true];
+  ScalarList literals = 2 [(buf.validate.field).required = true];
+}
+
+enum StringMatchOperator {
+  STRING_MATCH_OPERATOR_UNSPECIFIED = 0;
+  STRING_MATCH_OPERATOR_CONTAINS = 1;
+  STRING_MATCH_OPERATOR_STARTS_WITH = 2;
+  STRING_MATCH_OPERATOR_ENDS_WITH = 3;
+}
+
+message StringMatchCondition {
+  StringMatchOperator operator = 1 [
+    (buf.validate.field).enum.defined_only = true,
+    (buf.validate.field).enum.not_in = 0
+  ];
+  AttributePath attribute = 2 [(buf.validate.field).required = true];
+  string literal = 3 [(buf.validate.field).string.max_bytes = 256];
+}
+
+enum SemVerComparisonOperator {
+  SEM_VER_COMPARISON_OPERATOR_UNSPECIFIED = 0;
+  SEM_VER_COMPARISON_OPERATOR_GT = 1;
+  SEM_VER_COMPARISON_OPERATOR_GTE = 2;
+  SEM_VER_COMPARISON_OPERATOR_LT = 3;
+  SEM_VER_COMPARISON_OPERATOR_LTE = 4;
+}
+
+message SemVerComparisonCondition {
+  SemVerComparisonOperator operator = 1 [
+    (buf.validate.field).enum.defined_only = true,
+    (buf.validate.field).enum.not_in = 0
+  ];
+  AttributePath attribute = 2 [(buf.validate.field).required = true];
+  // MUST be a valid Semantic Versioning 2.0.0 string. An invalid runtime
+  // attribute value evaluates the condition as FALSE.
+  string semver = 3 [(buf.validate.field).string = {
+    min_len: 1
+    max_bytes: 256
+  }];
+}
+
+enum LogicalOperator {
+  LOGICAL_OPERATOR_UNSPECIFIED = 0;
+  LOGICAL_OPERATOR_ALL = 1;
+  LOGICAL_OPERATOR_ANY = 2;
+  LOGICAL_OPERATOR_EXACTLY_ONE = 3;
+}
+
+message LogicalCondition {
+  LogicalOperator operator = 1 [
+    (buf.validate.field).enum.defined_only = true,
+    (buf.validate.field).enum.not_in = 0
+  ];
+
+  // MUST contain at least two and at most 256 conditions. ALL/ANY with one
+  // child and NOT(constant) are eliminated by normalization.
+  repeated Condition conditions = 2 [(buf.validate.field).repeated = {
+    min_items: 2
+    max_items: 256
+  }];
+}
+
+// AttributePath is structural in IR so path semantics do not depend on string
+// escaping or delimiter parsing. Authoring dotted paths normalize to segments.
+// Segments are opaque non-empty UTF-8 strings; punctuation such as '.' and '-'
+// is allowed inside a segment.
+message AttributePath {
+  repeated string segments = 1 [
+    (buf.validate.field).repeated = {
+      min_items: 1
+      max_items: 32
+    },
+    (buf.validate.field).repeated.items.string = {
+      min_len: 1
+      max_bytes: 256
+    }
+  ];
+}
+
+message ScalarValue {
+  oneof kind {
+    option (buf.validate.oneof).required = true;
+
+    string string_value = 1 [(buf.validate.field).string.max_bytes = 256];
+    bool bool_value = 2;
+    int64 int_value = 3;
+    double double_value = 4 [(buf.validate.field).double.finite = true];
+    ScalarNull null_value = 5;
+  }
+}
+
+message ScalarList {
+  // Values MUST be homogeneous by scalar domain; int64 and double share the
+  // numeric domain. The core limit is 256 values.
+  repeated ScalarValue values = 1 [(buf.validate.field).repeated = {
+    min_items: 1
+    max_items: 256
+  }];
+}
+
+message ScalarNull {}
+
+// VariantValue preserves integer/double identity and recursively represents the
+// JSON/YAML-compatible value domain used by feature flag variants. All variants
+// of one Flag MUST have the same top-level kind; int64 and double are distinct
+// kinds for this invariant.
+message VariantValue {
+  oneof kind {
+    option (buf.validate.oneof).required = true;
+
+    bool bool_value = 1;
+    string string_value = 2 [(buf.validate.field).string.max_bytes = 256];
+    int64 int_value = 3;
+    double double_value = 4 [(buf.validate.field).double.finite = true];
+    VariantObject object_value = 5;
+    VariantList list_value = 6;
+    VariantNull null_value = 7;
+  }
+}
+
+message VariantObject {
+  map<string, VariantValue> fields = 1 [
+    (buf.validate.field).map.max_pairs = 256,
+    (buf.validate.field).map.keys.string = {
+      min_len: 1
+      max_bytes: 256
+    }
+  ];
+}
+
+message VariantList {
+  repeated VariantValue values = 1 [(buf.validate.field).repeated.max_items = 256];
+}
+
+message VariantNull {}
+
+// ExtensionValue is intentionally distinct from VariantValue. Extensions are an
+// opaque transport boundary owned by namespace owners and may evolve independently
+// of feature-flag variant semantics.
+message ExtensionValue {
+  oneof kind {
+    option (buf.validate.oneof).required = true;
+
+    bool bool_value = 1;
+    string string_value = 2 [(buf.validate.field).string.max_bytes = 256];
+    int64 int_value = 3;
+    double double_value = 4 [(buf.validate.field).double.finite = true];
+    ExtensionObject object_value = 5;
+    ExtensionList list_value = 6;
+    ExtensionNull null_value = 7;
+  }
+}
+
+message ExtensionObject {
+  map<string, ExtensionValue> fields = 1 [
+    (buf.validate.field).map.max_pairs = 256,
+    (buf.validate.field).map.keys.string = {
+      min_len: 1
+      max_bytes: 256
+    }
+  ];
+}
+
+message ExtensionList {
+  repeated ExtensionValue values = 1 [(buf.validate.field).repeated.max_items = 256];
+}
+
+message ExtensionNull {}
