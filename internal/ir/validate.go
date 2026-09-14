@@ -4,14 +4,29 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"sync"
 
+	"buf.build/go/protovalidate"
 	irv1 "github.com/satorunooshie/ffcraft/gen/ffcraft/ir/v1"
+)
+
+var (
+	validatorOnce sync.Once
+	validator     protovalidate.Validator
+	validatorErr  error
 )
 
 // Validate checks only target-independent IR invariants.
 func Validate(doc *irv1.Document) error {
 	if doc == nil {
 		return fmt.Errorf("IR document is nil")
+	}
+	validatorOnce.Do(func() { validator, validatorErr = protovalidate.New() })
+	if validatorErr != nil {
+		return validatorErr
+	}
+	if err := validator.Validate(doc); err != nil {
+		return err
 	}
 	if len(doc.Flags) == 0 {
 		return fmt.Errorf("IR document has no flags")
