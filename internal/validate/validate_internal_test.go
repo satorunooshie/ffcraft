@@ -104,6 +104,9 @@ func TestValidateNormalizedIRShapeTable(t *testing.T) {
 			}
 		})
 	}
+	if err := ValidateCompileTarget(CompileTarget("unknown"), cloneValidationDocument(base)); err == nil || !strings.Contains(err.Error(), "unsupported compile target") {
+		t.Fatalf("ValidateCompileTarget(unknown) = %v", err)
+	}
 }
 
 func cloneValidationDocument(doc *ast.Document) *ast.Document {

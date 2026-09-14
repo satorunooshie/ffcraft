@@ -77,4 +77,21 @@ func TestProtocolAndBoundaryEvidenceContracts(t *testing.T) {
 	if err := ValidateBoundaryEvidence(evidence); err == nil || !strings.Contains(err.Error(), "omitted") {
 		t.Fatalf("omitted boundary error = %v", err)
 	}
+	for _, test := range []struct {
+		name   string
+		mutate func(*BoundaryEvidence)
+		want   string
+	}{
+		{"empty boundary", func(value *BoundaryEvidence) { value.Boundary = "" }, "incomplete"},
+		{"empty status", func(value *BoundaryEvidence) { value.Status = "" }, "incomplete"},
+		{"supported no evidence", func(value *BoundaryEvidence) { value.Status = StatusSupported }, "no evidence"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			candidate := DefaultBoundaryEvidence()
+			test.mutate(&candidate[0])
+			if err := ValidateBoundaryEvidence(candidate); err == nil || !strings.Contains(err.Error(), test.want) {
+				t.Fatalf("ValidateBoundaryEvidence() = %v, want %q", err, test.want)
+			}
+		})
+	}
 }
