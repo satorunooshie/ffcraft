@@ -1,0 +1,50 @@
+version: conformance/v1
+cases:
+  - name: duplicate_mapping_key
+    input: |
+      flags:
+        example:
+          variants:
+            on:
+              bool_value: true
+            on:
+              bool_value: false
+          environments:
+            prod:
+              base:
+                default_action:
+                  serve: on
+      version: normalized/v1
+  - name: custom_yaml_tag
+    input: |
+      flags:
+        example:
+          variants:
+            on:
+              bool_value: !custom true
+          environments:
+            prod:
+              base:
+                default_action:
+                  serve: on
+      version: normalized/v1
+  - name: unsupported_version
+    input: |
+      flags: {}
+      version: normalized/v0
+  - name: empty_extension_namespace
+    input: |
+      flags:
+        example:
+          variants:
+            on:
+              bool_value: true
+          environments:
+            prod:
+              base:
+                default_action:
+                  serve: on
+      extensions:
+        "":
+          string_value: invalid
+      version: normalized/v1

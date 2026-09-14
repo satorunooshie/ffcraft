@@ -5,9 +5,21 @@ flags:
         base:
           default_action:
             serve: on
+        extensions:
+          conformance:
+            object_value:
+              fields:
+                environment:
+                  string_value: prod
     variants:
       on:
         bool_value: true
+    extensions:
+      conformance:
+        object_value:
+          fields:
+            flag_scope:
+              bool_value: true
 extensions:
   conformance:
     object_value:
@@ -26,4 +38,9 @@ extensions:
               - string_value: nested
               - object_value:
                   fields: {}
+        empty_map:
+          object_value:
+            fields: {}
+        root_string:
+          string_value: all-extension-kinds
 version: normalized/v1
