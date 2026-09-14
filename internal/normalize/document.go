@@ -8,7 +8,7 @@ import (
 	"github.com/satorunooshie/ffcraft/internal/validate"
 )
 
-func Normalize(doc *ffv1.FeatureFlagDocument) (*ast.Document, error) {
+func NormalizeAST(doc *ffv1.FeatureFlagDocument) (*ast.Document, error) {
 	if err := validate.Validate(doc); err != nil {
 		return nil, err
 	}

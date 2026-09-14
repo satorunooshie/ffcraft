@@ -11,8 +11,8 @@ import (
 	"github.com/satorunooshie/ffcraft/internal/authoring"
 	"github.com/satorunooshie/ffcraft/internal/compiler/flagd"
 	"github.com/satorunooshie/ffcraft/internal/compiler/gofeatureflag"
-	"github.com/satorunooshie/ffcraft/internal/normalizeir"
-	"github.com/satorunooshie/ffcraft/internal/normalizeiryaml"
+	"github.com/satorunooshie/ffcraft/internal/normalize"
+	"github.com/satorunooshie/ffcraft/internal/normalizedyaml"
 )
 
 func main() {
@@ -108,7 +108,7 @@ func runNormalize(args []string, stdout io.Writer) error {
 		return fmt.Errorf("normalize input: %w", err)
 	}
 
-	output, err := normalizeiryaml.Marshal(normalizedDoc)
+	output, err := normalizedyaml.Marshal(normalizedDoc)
 	if err != nil {
 		return fmt.Errorf("marshal normalized yaml: %w", err)
 	}
@@ -281,7 +281,7 @@ func loadAuthoring(path string) (*irv1.Document, error) {
 	if err != nil {
 		return nil, fmt.Errorf("parse input: %w", err)
 	}
-	normalized, err := normalizeir.Normalize(doc)
+	normalized, err := normalize.Normalize(doc)
 	if err != nil {
 		return nil, fmt.Errorf("normalize input: %w", err)
 	}
@@ -293,7 +293,7 @@ func loadNormalized(path string) (*irv1.Document, error) {
 	if err != nil {
 		return nil, fmt.Errorf("read input: %w", err)
 	}
-	doc, err := normalizeiryaml.Unmarshal(input)
+	doc, err := normalizedyaml.Unmarshal(input)
 	if err != nil {
 		return nil, fmt.Errorf("read normalized yaml: %w", err)
 	}
@@ -304,7 +304,7 @@ func writeNormalizedDump(stderr io.Writer, path string, doc *irv1.Document) erro
 	if path == "" {
 		return nil
 	}
-	dump, err := normalizeiryaml.Marshal(doc)
+	dump, err := normalizedyaml.Marshal(doc)
 	if err != nil {
 		return fmt.Errorf("marshal normalized yaml: %w", err)
 	}

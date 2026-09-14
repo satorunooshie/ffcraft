@@ -10,8 +10,8 @@ import (
 	irv1 "github.com/satorunooshie/ffcraft/gen/ffcraft/ir/v1"
 	"github.com/satorunooshie/ffcraft/internal/authoring"
 	"github.com/satorunooshie/ffcraft/internal/codegen"
-	"github.com/satorunooshie/ffcraft/internal/normalizeir"
-	"github.com/satorunooshie/ffcraft/internal/normalizeiryaml"
+	"github.com/satorunooshie/ffcraft/internal/normalize"
+	"github.com/satorunooshie/ffcraft/internal/normalizedyaml"
 )
 
 func main() {
@@ -88,7 +88,7 @@ func runGo(args []string, stdout, stderr io.Writer) error {
 	}
 
 	if wasAuthoring && *dumpPath != "" {
-		dump, err := normalizeiryaml.Marshal(doc.IR)
+		dump, err := normalizedyaml.Marshal(doc.IR)
 		if err != nil {
 			return fmt.Errorf("marshal normalized yaml: %w", err)
 		}
@@ -125,7 +125,7 @@ type loadedDocument struct {
 func loadInput(input []byte, formatName string) (*loadedDocument, bool, error) {
 	switch formatName {
 	case "auto":
-		doc, err := normalizeiryaml.Unmarshal(input)
+		doc, err := normalizedyaml.Unmarshal(input)
 		if err == nil {
 			return &loadedDocument{IR: doc}, false, nil
 		}
@@ -133,7 +133,7 @@ func loadInput(input []byte, formatName string) (*loadedDocument, bool, error) {
 	case "authoring":
 		return loadAuthoring(input)
 	case "normalized":
-		doc, err := normalizeiryaml.Unmarshal(input)
+		doc, err := normalizedyaml.Unmarshal(input)
 		if err == nil {
 			return &loadedDocument{IR: doc}, false, nil
 		}
@@ -148,7 +148,7 @@ func loadAuthoring(input []byte) (*loadedDocument, bool, error) {
 	if err != nil {
 		return nil, false, fmt.Errorf("parse input: %w", err)
 	}
-	normalizedDoc, err := normalizeir.Normalize(doc)
+	normalizedDoc, err := normalize.Normalize(doc)
 	if err != nil {
 		return nil, false, fmt.Errorf("normalize input: %w", err)
 	}

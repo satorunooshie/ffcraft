@@ -1,825 +1,284 @@
+// Package normalizedyaml is the deterministic human-readable adapter for
+// ffcraft.ir.v1. It serializes the protobuf JSON mapping, not an internal Go
+// model, so oneof and numeric domains remain owned by the IR contract.
 package normalizedyaml
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
+	"math"
+	"regexp"
+	"strconv"
+	"strings"
 
+	irv1 "github.com/satorunooshie/ffcraft/gen/ffcraft/ir/v1"
+	"github.com/satorunooshie/ffcraft/internal/ir"
+	"google.golang.org/protobuf/encoding/protojson"
 	"gopkg.in/yaml.v3"
-
-	"github.com/satorunooshie/ffcraft/internal/ast"
-	"github.com/satorunooshie/ffcraft/internal/validate"
 )
 
 const version = "normalized/v1"
 
-type documentFile struct {
-	Version    string                   `yaml:"version"`
-	Flags      []flagFile               `yaml:"flags"`
-	Extensions map[string]extensionYAML `yaml:"extensions,omitempty"`
-}
+var jsonOptions = protojson.MarshalOptions{UseProtoNames: true, EmitUnpopulated: false}
 
-type flagFile struct {
-	Key            string                      `yaml:"key"`
-	Variants       map[string]variantValueYAML `yaml:"variants"`
-	DefaultVariant string                      `yaml:"default_variant"`
-	Environments   map[string]environmentFile  `yaml:"environments"`
-	Metadata       *metadataFile               `yaml:"metadata,omitempty"`
-	Extensions     map[string]extensionYAML    `yaml:"extensions,omitempty"`
-}
-
-type metadataFile struct {
-	Owner       string   `yaml:"owner,omitempty"`
-	Description string   `yaml:"description,omitempty"`
-	Expiry      string   `yaml:"expiry,omitempty"`
-	Tags        []string `yaml:"tags,omitempty"`
-}
-
-type environmentFile struct {
-	StaticVariant     string                   `yaml:"static_variant,omitempty"`
-	DefaultAction     *actionYAML              `yaml:"default_action,omitempty"`
-	Experimentation   *experimentationFile     `yaml:"experimentation,omitempty"`
-	ScheduledRollouts []scheduledStepFile      `yaml:"scheduled_rollouts,omitempty"`
-	Rules             []ruleFile               `yaml:"rules,omitempty"`
-	Extensions        map[string]extensionYAML `yaml:"extensions,omitempty"`
-}
-
-type ruleFile struct {
-	If     conditionYAML `yaml:"if"`
-	Action actionYAML    `yaml:"action"`
-}
-
-type actionYAML struct {
-	Value ast.Action
-}
-
-type distributionActionFile struct {
-	Stickiness  string             `yaml:"stickiness"`
-	Allocations map[string]float64 `yaml:"allocations"`
-}
-
-type progressiveRolloutFile struct {
-	Variant    string `yaml:"variant"`
-	Stickiness string `yaml:"stickiness"`
-	Start      string `yaml:"start"`
-	End        string `yaml:"end"`
-	Steps      uint32 `yaml:"steps"`
-}
-
-type experimentationFile struct {
-	Start string `yaml:"start"`
-	End   string `yaml:"end"`
-}
-
-type scheduledStepFile struct {
-	Name            string               `yaml:"name,omitempty"`
-	Description     string               `yaml:"description,omitempty"`
-	Disabled        bool                 `yaml:"disabled,omitempty"`
-	Date            string               `yaml:"date"`
-	DefaultAction   *actionYAML          `yaml:"default_action,omitempty"`
-	Experimentation *experimentationFile `yaml:"experimentation,omitempty"`
-	Rules           []ruleFile           `yaml:"rules,omitempty"`
-}
-
-type conditionYAML struct {
-	Value ast.Condition
-}
-
-type valueYAML struct {
-	Value ast.Value
-}
-
-type variantValueYAML struct {
-	Value ast.VariantValue
-}
-
-func Marshal(doc *ast.Document) ([]byte, error) {
-	file := documentFile{
-		Version:    version,
-		Flags:      make([]flagFile, 0, len(doc.Flags)),
-		Extensions: wrapExtensions(doc.Extensions),
-	}
-	for _, flag := range doc.Flags {
-		file.Flags = append(file.Flags, flagFile{
-			Key:            flag.Key,
-			Variants:       wrapVariantValues(flag.Variants),
-			DefaultVariant: flag.DefaultVariant,
-			Environments:   wrapEnvironments(flag.Environments),
-			Metadata:       wrapMetadata(flag.Metadata),
-			Extensions:     wrapExtensions(flag.Extensions),
-		})
-	}
-	return yaml.Marshal(file)
-}
-
-func Unmarshal(data []byte) (*ast.Document, error) {
-	var file documentFile
-	decoder := yaml.NewDecoder(bytes.NewReader(data))
-	decoder.KnownFields(true)
-	if err := decoder.Decode(&file); err != nil {
+func Marshal(doc *irv1.Document) ([]byte, error) {
+	if err := ir.Validate(doc); err != nil {
 		return nil, err
 	}
-	if file.Version != version {
-		return nil, fmt.Errorf("unsupported normalized yaml version %q", file.Version)
+	if err := rejectUnrepresentableExtensionFields(doc); err != nil {
+		return nil, err
 	}
-
-	out := &ast.Document{
-		Flags:      make([]*ast.Flag, 0, len(file.Flags)),
-		Extensions: unwrapExtensions(file.Extensions),
-	}
-	for _, flag := range file.Flags {
-		out.Flags = append(out.Flags, &ast.Flag{
-			Key:            flag.Key,
-			Variants:       unwrapVariantValues(flag.Variants),
-			DefaultVariant: flag.DefaultVariant,
-			Environments:   unwrapEnvironments(flag.Environments),
-			Metadata:       unwrapMetadata(flag.Metadata),
-			Extensions:     unwrapExtensions(flag.Extensions),
-			// environment extensions are restored below with the environment map.
-		})
-	}
-	if err := validate.ValidateNormalizedIR(out); err != nil {
-		return nil, fmt.Errorf("validate normalized yaml: %w", err)
-	}
-	return out, nil
-}
-
-func (a actionYAML) MarshalYAML() (any, error) {
-	return marshalAction(a.Value)
-}
-
-func (a *actionYAML) UnmarshalYAML(node *yaml.Node) error {
-	value, err := parseActionNode(node)
+	payload, err := jsonOptions.Marshal(doc)
 	if err != nil {
+		return nil, err
+	}
+	var value map[string]any
+	if err := json.Unmarshal(payload, &value); err != nil {
+		return nil, err
+	}
+	normalizeNumericLexemes(value)
+	value["version"] = version
+	encoded, err := yaml.Marshal(value)
+	if err != nil {
+		return nil, err
+	}
+	return preserveDoubleLexemes(encoded)
+}
+
+// YAML has no portable representation for protobuf unknown fields. Refuse to
+// serialize such an extension instead of silently losing opaque namespace data.
+func rejectUnrepresentableExtensionFields(doc *irv1.Document) error {
+	check := func(scope string, values map[string]*irv1.ExtensionValue) error {
+		for namespace, value := range values {
+			if extensionHasUnknown(value) {
+				return fmt.Errorf("%s extension %q contains unknown protobuf fields that normalized YAML cannot preserve", scope, namespace)
+			}
+		}
+		return nil
+	}
+	if err := check("document", doc.Extensions); err != nil {
 		return err
 	}
-	a.Value = value
+	for flagKey, flag := range doc.Flags {
+		if err := check("flag "+flagKey, flag.Extensions); err != nil {
+			return err
+		}
+		for environment, env := range flag.Environments {
+			if err := check("environment "+flagKey+"/"+environment, env.Extensions); err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 }
 
-func (c conditionYAML) MarshalYAML() (any, error) {
-	return marshalCondition(c.Value)
-}
-
-func (c *conditionYAML) UnmarshalYAML(node *yaml.Node) error {
-	value, err := parseConditionNode(node)
-	if err != nil {
-		return err
+func extensionHasUnknown(value *irv1.ExtensionValue) bool {
+	if value == nil {
+		return false
 	}
-	c.Value = value
-	return nil
-}
-
-func (v valueYAML) MarshalYAML() (any, error) {
-	return marshalValue(v.Value)
-}
-
-func (v *valueYAML) UnmarshalYAML(node *yaml.Node) error {
-	value, err := parseValueNode(node)
-	if err != nil {
-		return err
+	if len(value.ProtoReflect().GetUnknown()) != 0 {
+		return true
 	}
-	v.Value = value
-	return nil
-}
-
-func (v variantValueYAML) MarshalYAML() (any, error) {
-	return marshalVariantValue(v.Value), nil
-}
-
-func (v *variantValueYAML) UnmarshalYAML(node *yaml.Node) error {
-	value, err := parseVariantValueNode(node)
-	if err != nil {
-		return err
-	}
-	v.Value = value
-	return nil
-}
-
-func wrapVariantValues(values map[string]ast.VariantValue) map[string]variantValueYAML {
-	out := make(map[string]variantValueYAML, len(values))
-	for key, value := range values {
-		out[key] = variantValueYAML{Value: value}
-	}
-	return out
-}
-
-func unwrapVariantValues(values map[string]variantValueYAML) map[string]ast.VariantValue {
-	out := make(map[string]ast.VariantValue, len(values))
-	for key, value := range values {
-		out[key] = value.Value
-	}
-	return out
-}
-
-func wrapEnvironments(values map[string]*ast.Environment) map[string]environmentFile {
-	out := make(map[string]environmentFile, len(values))
-	for key, value := range values {
-		out[key] = environmentFile{
-			StaticVariant:     value.StaticVariant,
-			DefaultAction:     wrapOptionalAction(value.DefaultAction),
-			Experimentation:   wrapExperimentation(value.Experimentation),
-			ScheduledRollouts: wrapScheduledSteps(value.ScheduledRollouts),
-			Rules:             wrapRules(value.Rules),
-			Extensions:        wrapExtensions(value.Extensions),
+	switch kind := value.GetKind().(type) {
+	case *irv1.ExtensionValue_ObjectValue:
+		if kind.ObjectValue == nil || len(kind.ObjectValue.ProtoReflect().GetUnknown()) != 0 {
+			return true
 		}
-	}
-	return out
-}
-
-func unwrapEnvironments(values map[string]environmentFile) map[string]*ast.Environment {
-	out := make(map[string]*ast.Environment, len(values))
-	for key, value := range values {
-		out[key] = &ast.Environment{
-			StaticVariant:     value.StaticVariant,
-			DefaultAction:     unwrapOptionalAction(value.DefaultAction),
-			Experimentation:   unwrapExperimentation(value.Experimentation),
-			ScheduledRollouts: unwrapScheduledSteps(value.ScheduledRollouts),
-			Rules:             unwrapRules(value.Rules),
-			Extensions:        unwrapExtensions(value.Extensions),
-		}
-	}
-	return out
-}
-
-func wrapRules(rules []*ast.Rule) []ruleFile {
-	out := make([]ruleFile, 0, len(rules))
-	for _, rule := range rules {
-		out = append(out, ruleFile{
-			If:     conditionYAML{Value: rule.Condition},
-			Action: actionYAML{Value: rule.Action},
-		})
-	}
-	return out
-}
-
-func unwrapRules(rules []ruleFile) []*ast.Rule {
-	out := make([]*ast.Rule, 0, len(rules))
-	for _, rule := range rules {
-		out = append(out, &ast.Rule{
-			Condition: rule.If.Value,
-			Action:    rule.Action.Value,
-		})
-	}
-	return out
-}
-
-func wrapOptionalAction(action ast.Action) *actionYAML {
-	if action == nil {
-		return nil
-	}
-	return &actionYAML{Value: action}
-}
-
-func unwrapOptionalAction(action *actionYAML) ast.Action {
-	if action == nil {
-		return nil
-	}
-	return action.Value
-}
-
-func wrapExperimentation(exp *ast.Experimentation) *experimentationFile {
-	if exp == nil {
-		return nil
-	}
-	return &experimentationFile{Start: exp.Start, End: exp.End}
-}
-
-func unwrapExperimentation(exp *experimentationFile) *ast.Experimentation {
-	if exp == nil {
-		return nil
-	}
-	return &ast.Experimentation{Start: exp.Start, End: exp.End}
-}
-
-func wrapScheduledSteps(steps []*ast.ScheduledStep) []scheduledStepFile {
-	out := make([]scheduledStepFile, 0, len(steps))
-	for _, step := range steps {
-		out = append(out, scheduledStepFile{
-			Name:            step.Name,
-			Description:     step.Description,
-			Disabled:        step.Disabled,
-			Date:            step.Date,
-			DefaultAction:   wrapOptionalAction(step.DefaultAction),
-			Experimentation: wrapExperimentation(step.Experimentation),
-			Rules:           wrapRules(step.Rules),
-		})
-	}
-	return out
-}
-
-func unwrapScheduledSteps(steps []scheduledStepFile) []*ast.ScheduledStep {
-	out := make([]*ast.ScheduledStep, 0, len(steps))
-	for _, step := range steps {
-		out = append(out, &ast.ScheduledStep{
-			Name:            step.Name,
-			Description:     step.Description,
-			Disabled:        step.Disabled,
-			Date:            step.Date,
-			DefaultAction:   unwrapOptionalAction(step.DefaultAction),
-			Experimentation: unwrapExperimentation(step.Experimentation),
-			Rules:           unwrapRules(step.Rules),
-		})
-	}
-	return out
-}
-
-func wrapMetadata(meta *ast.Metadata) *metadataFile {
-	if meta == nil {
-		return nil
-	}
-	return &metadataFile{
-		Owner:       meta.Owner,
-		Description: meta.Description,
-		Expiry:      meta.Expiry,
-		Tags:        append([]string(nil), meta.Tags...),
-	}
-}
-
-func unwrapMetadata(meta *metadataFile) *ast.Metadata {
-	if meta == nil {
-		return nil
-	}
-	return &ast.Metadata{
-		Owner:       meta.Owner,
-		Description: meta.Description,
-		Expiry:      meta.Expiry,
-		Tags:        append([]string(nil), meta.Tags...),
-	}
-}
-
-func marshalAction(action ast.Action) (any, error) {
-	switch value := action.(type) {
-	case *ast.ServeAction:
-		return map[string]any{"serve": value.Variant}, nil
-	case *ast.DistributeAction:
-		return map[string]any{"distribute": distributionActionFile{
-			Stickiness:  value.Stickiness,
-			Allocations: value.Allocations,
-		}}, nil
-	case *ast.ProgressiveRolloutAction:
-		return map[string]any{"progressive_rollout": progressiveRolloutFile{
-			Variant:    value.Variant,
-			Stickiness: value.Stickiness,
-			Start:      value.Start,
-			End:        value.End,
-			Steps:      value.Steps,
-		}}, nil
-	default:
-		return nil, fmt.Errorf("unsupported action type %T", action)
-	}
-}
-
-func parseActionNode(node *yaml.Node) (ast.Action, error) {
-	fields, err := mapping(node, "$action")
-	if err != nil {
-		return nil, err
-	}
-	if len(fields) != 1 {
-		return nil, fmt.Errorf("$action: expected exactly one action")
-	}
-	if value, ok := fields["serve"]; ok {
-		variant, err := scalarString(value, "$action.serve")
-		if err != nil {
-			return nil, err
-		}
-		return &ast.ServeAction{Variant: variant}, nil
-	}
-	if value, ok := fields["distribute"]; ok {
-		distFields, err := mapping(value, "$action.distribute")
-		if err != nil {
-			return nil, err
-		}
-		stickiness, err := scalarString(distFields["stickiness"], "$action.distribute.stickiness")
-		if err != nil {
-			return nil, err
-		}
-		allocations := map[string]float64{}
-		allocNode := distFields["allocations"]
-		allocFields, err := mapping(allocNode, "$action.distribute.allocations")
-		if err != nil {
-			return nil, err
-		}
-		for key, valueNode := range allocFields {
-			value, err := scalarFloat(valueNode, "$action.distribute.allocations."+key)
-			if err != nil {
-				return nil, err
+		for _, child := range kind.ObjectValue.Fields {
+			if extensionHasUnknown(child) {
+				return true
 			}
-			allocations[key] = value
 		}
-		return &ast.DistributeAction{Stickiness: stickiness, Allocations: allocations}, nil
-	}
-	if value, ok := fields["progressive_rollout"]; ok {
-		rolloutFields, err := mapping(value, "$action.progressive_rollout")
-		if err != nil {
-			return nil, err
+	case *irv1.ExtensionValue_ListValue:
+		if kind.ListValue == nil || len(kind.ListValue.ProtoReflect().GetUnknown()) != 0 {
+			return true
 		}
-		steps, err := scalarInt(rolloutFields["steps"], "$action.progressive_rollout.steps")
-		if err != nil {
-			return nil, err
-		}
-		variant, err := scalarString(rolloutFields["variant"], "$action.progressive_rollout.variant")
-		if err != nil {
-			return nil, err
-		}
-		stickiness, err := scalarString(rolloutFields["stickiness"], "$action.progressive_rollout.stickiness")
-		if err != nil {
-			return nil, err
-		}
-		start, err := scalarString(rolloutFields["start"], "$action.progressive_rollout.start")
-		if err != nil {
-			return nil, err
-		}
-		end, err := scalarString(rolloutFields["end"], "$action.progressive_rollout.end")
-		if err != nil {
-			return nil, err
-		}
-		return &ast.ProgressiveRolloutAction{
-			Variant:    variant,
-			Stickiness: stickiness,
-			Start:      start,
-			End:        end,
-			Steps:      uint32(steps),
-		}, nil
-	}
-	return nil, fmt.Errorf("$action: unsupported action")
-}
-
-func marshalCondition(cond ast.Condition) (any, error) {
-	switch value := cond.(type) {
-	case *ast.LiteralBool:
-		return map[string]any{"literal_bool": value.Value}, nil
-	case *ast.Eq:
-		return marshalBinaryCondition("eq", value.Left, value.Right)
-	case *ast.Ne:
-		return marshalBinaryCondition("ne", value.Left, value.Right)
-	case *ast.Gt:
-		return marshalBinaryCondition("gt", value.Left, value.Right)
-	case *ast.Gte:
-		return marshalBinaryCondition("gte", value.Left, value.Right)
-	case *ast.Lt:
-		return marshalBinaryCondition("lt", value.Left, value.Right)
-	case *ast.Lte:
-		return marshalBinaryCondition("lte", value.Left, value.Right)
-	case *ast.In:
-		return marshalBinaryCondition("in", value.Target, value.Candidate)
-	case *ast.Contains:
-		return marshalBinaryCondition("contains", value.Container, value.Value)
-	case *ast.StartsWith:
-		return marshalValueStringCondition("starts_with", value.Target, value.Prefix)
-	case *ast.EndsWith:
-		return marshalValueStringCondition("ends_with", value.Target, value.Suffix)
-	case *ast.Matches:
-		return marshalValueStringCondition("matches", value.Target, value.Pattern)
-	case *ast.SemverGt:
-		return marshalValueStringCondition("semver_gt", value.Left, value.Right)
-	case *ast.SemverGte:
-		return marshalValueStringCondition("semver_gte", value.Left, value.Right)
-	case *ast.SemverLt:
-		return marshalValueStringCondition("semver_lt", value.Left, value.Right)
-	case *ast.SemverLte:
-		return marshalValueStringCondition("semver_lte", value.Left, value.Right)
-	case *ast.AllOf:
-		return marshalConditionList("all_of", value.Conditions)
-	case *ast.AnyOf:
-		return marshalConditionList("any_of", value.Conditions)
-	case *ast.OneOf:
-		return marshalConditionList("one_of", value.Conditions)
-	case *ast.Not:
-		child, err := marshalCondition(value.Condition)
-		if err != nil {
-			return nil, err
-		}
-		return map[string]any{"not": child}, nil
-	default:
-		return nil, fmt.Errorf("unsupported condition type %T", cond)
-	}
-}
-
-func parseConditionNode(node *yaml.Node) (ast.Condition, error) {
-	fields, err := mapping(node, "$condition")
-	if err != nil {
-		return nil, err
-	}
-	if len(fields) != 1 {
-		return nil, fmt.Errorf("$condition: expected exactly one operator")
-	}
-	for operator, value := range fields {
-		switch operator {
-		case "literal_bool":
-			literal, err := scalarBool(value, "$condition.literal_bool")
-			if err != nil {
-				return nil, err
+		for _, child := range kind.ListValue.Values {
+			if extensionHasUnknown(child) {
+				return true
 			}
-			return &ast.LiteralBool{Value: literal}, nil
-		case "eq":
-			return parseBinaryConditionNode(value, "$condition.eq", func(left, right ast.Value) ast.Condition {
-				return &ast.Eq{Left: left, Right: right}
-			})
-		case "ne":
-			return parseBinaryConditionNode(value, "$condition.ne", func(left, right ast.Value) ast.Condition {
-				return &ast.Ne{Left: left, Right: right}
-			})
-		case "gt":
-			return parseBinaryConditionNode(value, "$condition.gt", func(left, right ast.Value) ast.Condition {
-				return &ast.Gt{Left: left, Right: right}
-			})
-		case "gte":
-			return parseBinaryConditionNode(value, "$condition.gte", func(left, right ast.Value) ast.Condition {
-				return &ast.Gte{Left: left, Right: right}
-			})
-		case "lt":
-			return parseBinaryConditionNode(value, "$condition.lt", func(left, right ast.Value) ast.Condition {
-				return &ast.Lt{Left: left, Right: right}
-			})
-		case "lte":
-			return parseBinaryConditionNode(value, "$condition.lte", func(left, right ast.Value) ast.Condition {
-				return &ast.Lte{Left: left, Right: right}
-			})
-		case "in":
-			return parseBinaryConditionNode(value, "$condition.in", func(left, right ast.Value) ast.Condition {
-				return &ast.In{Target: left, Candidate: right}
-			})
-		case "contains":
-			return parseBinaryConditionNode(value, "$condition.contains", func(left, right ast.Value) ast.Condition {
-				return &ast.Contains{Container: left, Value: right}
-			})
-		case "starts_with":
-			return parseValueStringConditionNode(value, "$condition.starts_with", func(target ast.Value, literal string) ast.Condition {
-				return &ast.StartsWith{Target: target, Prefix: literal}
-			})
-		case "ends_with":
-			return parseValueStringConditionNode(value, "$condition.ends_with", func(target ast.Value, literal string) ast.Condition {
-				return &ast.EndsWith{Target: target, Suffix: literal}
-			})
-		case "matches":
-			return parseValueStringConditionNode(value, "$condition.matches", func(target ast.Value, literal string) ast.Condition {
-				return &ast.Matches{Target: target, Pattern: literal}
-			})
-		case "semver_gt":
-			return parseValueStringConditionNode(value, "$condition.semver_gt", func(target ast.Value, literal string) ast.Condition {
-				return &ast.SemverGt{Left: target, Right: literal}
-			})
-		case "semver_gte":
-			return parseValueStringConditionNode(value, "$condition.semver_gte", func(target ast.Value, literal string) ast.Condition {
-				return &ast.SemverGte{Left: target, Right: literal}
-			})
-		case "semver_lt":
-			return parseValueStringConditionNode(value, "$condition.semver_lt", func(target ast.Value, literal string) ast.Condition {
-				return &ast.SemverLt{Left: target, Right: literal}
-			})
-		case "semver_lte":
-			return parseValueStringConditionNode(value, "$condition.semver_lte", func(target ast.Value, literal string) ast.Condition {
-				return &ast.SemverLte{Left: target, Right: literal}
-			})
-		case "all_of":
-			return parseConditionListNode(value, "$condition.all_of", func(items []ast.Condition) ast.Condition {
-				return &ast.AllOf{Conditions: items}
-			})
-		case "any_of":
-			return parseConditionListNode(value, "$condition.any_of", func(items []ast.Condition) ast.Condition {
-				return &ast.AnyOf{Conditions: items}
-			})
-		case "one_of":
-			return parseConditionListNode(value, "$condition.one_of", func(items []ast.Condition) ast.Condition {
-				return &ast.OneOf{Conditions: items}
-			})
-		case "not":
-			child, err := parseConditionNode(value)
-			if err != nil {
-				return nil, err
-			}
-			return &ast.Not{Condition: child}, nil
-		default:
-			return nil, fmt.Errorf("$condition: unsupported operator %q", operator)
 		}
+	case *irv1.ExtensionValue_NullValue:
+		return kind.NullValue != nil && len(kind.NullValue.ProtoReflect().GetUnknown()) != 0
 	}
-	return nil, fmt.Errorf("$condition: empty condition")
+	return false
 }
 
-func marshalBinaryCondition(operator string, left, right ast.Value) (any, error) {
-	l, err := marshalValue(left)
-	if err != nil {
-		return nil, err
-	}
-	r, err := marshalValue(right)
-	if err != nil {
-		return nil, err
-	}
-	return map[string]any{operator: []any{l, r}}, nil
-}
-
-func marshalValueStringCondition(operator string, left ast.Value, right string) (any, error) {
-	l, err := marshalValue(left)
-	if err != nil {
-		return nil, err
-	}
-	return map[string]any{operator: []any{l, right}}, nil
-}
-
-func marshalConditionList(operator string, conditions []ast.Condition) (any, error) {
-	out := make([]any, 0, len(conditions))
-	for _, condition := range conditions {
-		value, err := marshalCondition(condition)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, value)
-	}
-	return map[string]any{operator: out}, nil
-}
-
-func marshalValue(value ast.Value) (any, error) {
-	switch v := value.(type) {
-	case *ast.Var:
-		return map[string]any{"var": v.Path}, nil
-	case *ast.Scalar:
-		switch v.Kind {
-		case ast.ScalarKindString:
-			return v.String, nil
-		case ast.ScalarKindBool:
-			return v.Bool, nil
-		case ast.ScalarKindInt:
-			return v.Int, nil
-		case ast.ScalarKindDouble:
-			return v.Double, nil
-		case ast.ScalarKindNull:
-			return nil, nil
-		default:
-			return nil, fmt.Errorf("unsupported scalar kind %v", v.Kind)
-		}
-	case *ast.List:
-		out := make([]any, 0, len(v.Values))
-		for _, item := range v.Values {
-			value, err := marshalValue(item)
-			if err != nil {
-				return nil, err
-			}
-			out = append(out, value)
-		}
-		return out, nil
-	default:
-		return nil, fmt.Errorf("unsupported value type %T", value)
-	}
-}
-
-func parseValueNode(node *yaml.Node) (ast.Value, error) {
-	switch node.Kind {
-	case yaml.MappingNode:
-		fields, err := mapping(node, "$value")
-		if err != nil {
-			return nil, err
-		}
-		if len(fields) == 1 {
-			if value, ok := fields["var"]; ok {
-				path, err := scalarString(value, "$value.var")
-				if err != nil {
-					return nil, err
+func normalizeNumericLexemes(value any) {
+	switch value := value.(type) {
+	case map[string]any:
+		for key, child := range value {
+			if key == "int_value" {
+				if text, ok := child.(string); ok {
+					if integer, err := strconv.ParseInt(text, 10, 64); err == nil {
+						value[key] = integer
+						continue
+					}
 				}
-				return &ast.Var{Path: path}, nil
+			}
+			normalizeNumericLexemes(child)
+		}
+	case []any:
+		for _, child := range value {
+			normalizeNumericLexemes(child)
+		}
+	}
+}
+
+func preserveDoubleLexemes(data []byte) ([]byte, error) {
+	var root yaml.Node
+	if err := yaml.Unmarshal(data, &root); err != nil {
+		return nil, err
+	}
+	var visit func(*yaml.Node)
+	visit = func(node *yaml.Node) {
+		if node.Kind == yaml.MappingNode {
+			for index := 0; index+1 < len(node.Content); index += 2 {
+				key, value := node.Content[index], node.Content[index+1]
+				if key.Value == "double_value" && value.Kind == yaml.ScalarNode {
+					if _, err := strconv.ParseFloat(value.Value, 64); err == nil && !strings.ContainsAny(value.Value, ".eE") {
+						value.Value += ".0"
+					}
+					value.Tag = "!!float"
+				}
+				visit(value)
+			}
+		} else {
+			for _, child := range node.Content {
+				visit(child)
 			}
 		}
-		return nil, fmt.Errorf("$value: object values only support {var: ...}")
-	case yaml.SequenceNode:
-		out := make([]ast.Value, 0, len(node.Content))
-		for _, child := range node.Content {
-			value, err := parseValueNode(child)
-			if err != nil {
-				return nil, err
+	}
+	visit(&root)
+	return yaml.Marshal(&root)
+}
+
+func Unmarshal(data []byte) (*irv1.Document, error) {
+	decoder := yaml.NewDecoder(bytes.NewReader(data))
+	var document yaml.Node
+	if err := decoder.Decode(&document); err != nil {
+		return nil, err
+	}
+	if err := validateYAMLNode(&document); err != nil {
+		return nil, err
+	}
+	if len(document.Content) != 1 || document.Content[0].Kind != yaml.MappingNode {
+		return nil, fmt.Errorf("normalized YAML root must be a mapping")
+	}
+	data, err := yaml.Marshal(document.Content[0])
+	if err != nil {
+		return nil, err
+	}
+	var value any
+	if err := decodeYAMLValue(document.Content[0], &value); err != nil {
+		return nil, err
+	}
+	root, ok := value.(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("normalized YAML root must be a mapping")
+	}
+	value = root
+	valueMap := value.(map[string]any)
+	if valueMap["version"] != version {
+		return nil, fmt.Errorf("unsupported normalized yaml version %q", valueMap["version"])
+	}
+	delete(valueMap, "version")
+	payload, err := json.Marshal(value)
+	if err != nil {
+		return nil, err
+	}
+	doc := new(irv1.Document)
+	if err := (protojson.UnmarshalOptions{DiscardUnknown: false}).Unmarshal(payload, doc); err != nil {
+		return nil, err
+	}
+	if err := ir.Validate(doc); err != nil {
+		return nil, err
+	}
+	return doc, nil
+}
+
+func validateYAMLNode(node *yaml.Node) error {
+	if node.Kind == yaml.AliasNode {
+		return fmt.Errorf("YAML aliases are not supported")
+	}
+	if node.Style&yaml.TaggedStyle != 0 || node.Tag != "" && len(node.Tag) > 0 && node.Tag[0] == '!' && node.Tag != "!!map" && node.Tag != "!!seq" && node.Tag != "!!str" && node.Tag != "!!bool" && node.Tag != "!!int" && node.Tag != "!!float" && node.Tag != "!!null" {
+		return fmt.Errorf("custom YAML tags are not supported")
+	}
+	if node.Kind == yaml.MappingNode {
+		seen := make(map[string]struct{}, len(node.Content)/2)
+		for i := 0; i+1 < len(node.Content); i += 2 {
+			key := node.Content[i]
+			if key.Kind != yaml.ScalarNode {
+				return fmt.Errorf("normalized YAML mapping keys must be scalars")
 			}
-			out = append(out, value)
+			if _, exists := seen[key.Value]; exists {
+				return fmt.Errorf("duplicate normalized YAML mapping key %q", key.Value)
+			}
+			seen[key.Value] = struct{}{}
 		}
-		return &ast.List{Values: out}, nil
-	case yaml.ScalarNode:
-		return parseScalarNode(node), nil
-	case yaml.AliasNode:
-		return nil, fmt.Errorf("$value: yaml aliases are not supported")
-	default:
-		return nil, fmt.Errorf("$value: unsupported yaml node kind %v", node.Kind)
 	}
-}
-
-func parseScalarNode(node *yaml.Node) *ast.Scalar {
-	if node.Tag == "!!null" || node.Value == "null" {
-		return &ast.Scalar{Kind: ast.ScalarKindNull}
-	}
-	if value, ok := parseBoolScalar(node); ok {
-		return &ast.Scalar{Kind: ast.ScalarKindBool, Bool: value}
-	}
-	if value, ok := parseIntScalar(node); ok {
-		return &ast.Scalar{Kind: ast.ScalarKindInt, Int: value}
-	}
-	if value, ok := parseFloatScalar(node); ok {
-		return &ast.Scalar{Kind: ast.ScalarKindDouble, Double: value}
-	}
-	return &ast.Scalar{Kind: ast.ScalarKindString, String: node.Value}
-}
-
-func marshalVariantValue(value ast.VariantValue) any {
-	switch value.Kind {
-	case ast.VariantValueKindBool:
-		return value.Bool
-	case ast.VariantValueKindString:
-		return value.String
-	case ast.VariantValueKindInt:
-		return value.Int
-	case ast.VariantValueKindDouble:
-		return value.Double
-	case ast.VariantValueKindObject:
-		return value.Object
-	case ast.VariantValueKindList:
-		out := make([]any, 0, len(value.List))
-		for _, item := range value.List {
-			out = append(out, marshalVariantValue(item))
+	for _, child := range node.Content {
+		if err := validateYAMLNode(child); err != nil {
+			return err
 		}
-		return out
-	case ast.VariantValueKindNull:
-		return nil
-	default:
-		return nil
 	}
+	return nil
 }
 
-func parseVariantValueNode(node *yaml.Node) (ast.VariantValue, error) {
+var (
+	normalizedIntegerPattern = regexp.MustCompile(`^-?(0|[1-9][0-9]*)$`)
+	normalizedFloatPattern   = regexp.MustCompile(`^-?(0|[1-9][0-9]*)(\.[0-9]+|[eE][+-]?[0-9]+|\.[0-9]+[eE][+-]?[0-9]+)$`)
+)
+
+func decodeYAMLValue(node *yaml.Node, out *any) error {
 	switch node.Kind {
 	case yaml.MappingNode:
-		value, err := nodeToAny(node, "$variant")
-		if err != nil {
-			return ast.VariantValue{}, err
-		}
-		object, _ := value.(map[string]any)
-		return ast.VariantValue{Kind: ast.VariantValueKindObject, Object: object}, nil
-	case yaml.SequenceNode:
-		out := make([]ast.VariantValue, 0, len(node.Content))
-		for _, child := range node.Content {
-			value, err := parseVariantValueNode(child)
-			if err != nil {
-				return ast.VariantValue{}, err
+		value := make(map[string]any, len(node.Content)/2)
+		for i := 0; i < len(node.Content); i += 2 {
+			key := node.Content[i]
+			var child any
+			if err := decodeYAMLValue(node.Content[i+1], &child); err != nil {
+				return err
 			}
-			out = append(out, value)
+			value[key.Value] = child
 		}
-		return ast.VariantValue{Kind: ast.VariantValueKindList, List: out}, nil
+		*out = value
+	case yaml.SequenceNode:
+		value := make([]any, len(node.Content))
+		for i, child := range node.Content {
+			if err := decodeYAMLValue(child, &value[i]); err != nil {
+				return err
+			}
+		}
+		*out = value
 	case yaml.ScalarNode:
-		if node.Tag == "!!null" || node.Value == "null" {
-			return ast.VariantValue{Kind: ast.VariantValueKindNull}, nil
+		if node.Style != 0 {
+			*out = node.Value
+			return nil
 		}
-		if value, ok := parseBoolScalar(node); ok {
-			return ast.VariantValue{Kind: ast.VariantValueKindBool, Bool: value}, nil
+		switch {
+		case node.Tag == "!!null" && node.Value == "null":
+			*out = nil
+		case node.Tag == "!!bool" && (node.Value == "true" || node.Value == "false"):
+			*out = node.Value == "true"
+		case normalizedIntegerPattern.MatchString(node.Value):
+			value, err := strconv.ParseInt(node.Value, 10, 64)
+			if err != nil {
+				return fmt.Errorf("integer %q cannot be represented as int64", node.Value)
+			}
+			*out = value
+		case normalizedFloatPattern.MatchString(node.Value):
+			value, err := strconv.ParseFloat(node.Value, 64)
+			if err != nil || math.IsNaN(value) || math.IsInf(value, 0) {
+				return fmt.Errorf("floating-point value %q must be finite", node.Value)
+			}
+			*out = value
+		default:
+			*out = node.Value
 		}
-		if value, ok := parseIntScalar(node); ok {
-			return ast.VariantValue{Kind: ast.VariantValueKindInt, Int: value}, nil
-		}
-		if value, ok := parseFloatScalar(node); ok {
-			return ast.VariantValue{Kind: ast.VariantValueKindDouble, Double: value}, nil
-		}
-		return ast.VariantValue{Kind: ast.VariantValueKindString, String: node.Value}, nil
-	case yaml.AliasNode:
-		return ast.VariantValue{}, fmt.Errorf("$variant: yaml aliases are not supported")
 	default:
-		return ast.VariantValue{}, fmt.Errorf("$variant: unsupported yaml node kind %v", node.Kind)
+		return fmt.Errorf("unsupported normalized YAML node kind %v", node.Kind)
 	}
-}
-
-func parseBinaryConditionNode(node *yaml.Node, path string, build func(left, right ast.Value) ast.Condition) (ast.Condition, error) {
-	if node.Kind != yaml.SequenceNode || len(node.Content) != 2 {
-		return nil, fmt.Errorf("%s: expected a two-item sequence", path)
-	}
-	left, err := parseValueNode(node.Content[0])
-	if err != nil {
-		return nil, err
-	}
-	right, err := parseValueNode(node.Content[1])
-	if err != nil {
-		return nil, err
-	}
-	return build(left, right), nil
-}
-
-func parseValueStringConditionNode(node *yaml.Node, path string, build func(left ast.Value, right string) ast.Condition) (ast.Condition, error) {
-	if node.Kind != yaml.SequenceNode || len(node.Content) != 2 {
-		return nil, fmt.Errorf("%s: expected a two-item sequence", path)
-	}
-	left, err := parseValueNode(node.Content[0])
-	if err != nil {
-		return nil, err
-	}
-	right, err := scalarString(node.Content[1], path+"[1]")
-	if err != nil {
-		return nil, err
-	}
-	return build(left, right), nil
-}
-
-func parseConditionListNode(node *yaml.Node, path string, build func(items []ast.Condition) ast.Condition) (ast.Condition, error) {
-	if node.Kind != yaml.SequenceNode {
-		return nil, fmt.Errorf("%s: expected sequence", path)
-	}
-	out := make([]ast.Condition, 0, len(node.Content))
-	for _, child := range node.Content {
-		value, err := parseConditionNode(child)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, value)
-	}
-	return build(out), nil
+	return nil
 }
