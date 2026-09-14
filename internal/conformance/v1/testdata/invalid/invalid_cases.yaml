@@ -48,3 +48,108 @@ cases:
         "":
           string_value: invalid
       version: normalized/v1
+  - name: invalid_scalar_hex_for_int64
+    input: |
+      version: normalized/v1
+      flags:
+        example:
+          variants:
+            value:
+              int_value: 0x10
+          environments:
+            prod:
+              base:
+                default_action:
+                  serve: value
+  - name: invalid_scalar_leading_zero_for_int64
+    input: |
+      version: normalized/v1
+      flags:
+        example:
+          variants:
+            value:
+              int_value: 01
+          environments:
+            prod:
+              base:
+                default_action:
+                  serve: value
+  - name: invalid_scalar_yes_for_bool
+    input: |
+      version: normalized/v1
+      flags:
+        example:
+          variants:
+            value:
+              bool_value: yes
+          environments:
+            prod:
+              base:
+                default_action:
+                  serve: value
+  - name: invalid_empty_object_field_name
+    input: |
+      version: normalized/v1
+      flags:
+        example:
+          variants:
+            value:
+              object_value:
+                "":
+                  string_value: invalid
+          environments:
+            prod:
+              base:
+                default_action:
+                  serve: value
+  - name: invalid_missing_condition_oneof
+    input: |
+      version: normalized/v1
+      flags:
+        example:
+          variants:
+            value:
+              bool_value: true
+          environments:
+            prod:
+              base:
+                rules:
+                  - condition: {}
+                    action:
+                      serve: value
+                default_action:
+                  serve: value
+  - name: invalid_distribution_unknown_variant
+    input: |
+      version: normalized/v1
+      flags:
+        example:
+          variants:
+            value:
+              bool_value: true
+          environments:
+            prod:
+              base:
+                default_action:
+                  distribute:
+                    allocation_key:
+                      segments: [user, id]
+                    weights:
+                      missing: 1
+  - name: invalid_distribution_single_entry
+    input: |
+      version: normalized/v1
+      flags:
+        example:
+          variants:
+            value:
+              bool_value: true
+          environments:
+            prod:
+              base:
+                default_action:
+                  distribute:
+                    allocation_key:
+                      segments: [user, id]
+                    weights:
+                      value: 1
