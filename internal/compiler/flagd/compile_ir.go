@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	irv1 "github.com/satorunooshie/ffcraft/gen/ffcraft/ir/v1"
+	"github.com/satorunooshie/ffcraft/internal/capability"
 	"github.com/satorunooshie/ffcraft/internal/ir"
 )
 
@@ -182,7 +183,7 @@ func compileIRCondition(condition *irv1.Condition) (any, error) {
 		}[kind.SemverComparison.Operator]
 		return map[string]any{"sem_ver": []any{compileIRVar(kind.SemverComparison.Attribute), operator, kind.SemverComparison.Semver}}, nil
 	case *irv1.Condition_Presence:
-		return nil, fmt.Errorf("presence condition is not representable by flagd target")
+		return nil, &capability.UnsupportedConditionError{Target: capability.TargetFlagd, Condition: capability.ConditionPresence}
 	case *irv1.Condition_Logical:
 		operator := map[irv1.LogicalOperator]string{
 			irv1.LogicalOperator_LOGICAL_OPERATOR_ALL: "and",

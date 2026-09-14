@@ -3,9 +3,11 @@ package v1_test
 import (
 	"bytes"
 	"embed"
+	"errors"
 	"io/fs"
 	"testing"
 
+	"github.com/satorunooshie/ffcraft/internal/capability"
 	"github.com/satorunooshie/ffcraft/internal/compiler/flagd"
 	"github.com/satorunooshie/ffcraft/internal/compiler/gofeatureflag"
 	"github.com/satorunooshie/ffcraft/internal/ir"
@@ -131,7 +133,15 @@ func TestV1TargetCompilersFailClosedForUnrepresentablePresence(t *testing.T) {
 		},
 	} {
 		t.Run(target.name, func(t *testing.T) {
-			if err := target.call(doc); err == nil {
+			err := target.call(doc)
+			var capabilityError *capability.UnsupportedConditionError
+			if !errors.As(err, &capabilityError) {
+				t.Fatalf("error = %v, want UnsupportedConditionError", err)
+			}
+			if capabilityError.Code() != capability.UnsupportedConditionCode {
+				t.Fatalf("diagnostic code = %q, want %q", capabilityError.Code(), capability.UnsupportedConditionCode)
+			}
+			if err == nil {
 				t.Fatal("expected unsupported presence condition to fail closed")
 			}
 		})

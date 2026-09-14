@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	irv1 "github.com/satorunooshie/ffcraft/gen/ffcraft/ir/v1"
+	"github.com/satorunooshie/ffcraft/internal/capability"
 	"github.com/satorunooshie/ffcraft/internal/ir"
 	"github.com/satorunooshie/ffcraft/internal/numeric"
 )
@@ -195,7 +196,7 @@ func compileIRCondition(condition *irv1.Condition) (string, error) {
 		}[kind.SemverComparison.Operator]
 		return fmt.Sprintf("%s %s %s", compileIRVar(kind.SemverComparison.Attribute), operator, kind.SemverComparison.Semver), nil
 	case *irv1.Condition_Presence:
-		return "", fmt.Errorf("presence condition is not representable by GO Feature Flag target")
+		return "", &capability.UnsupportedConditionError{Target: capability.TargetGOFeatureFlag, Condition: capability.ConditionPresence}
 	case *irv1.Condition_Logical:
 		operator := "AND"
 		if kind.Logical.Operator == irv1.LogicalOperator_LOGICAL_OPERATOR_ANY {
