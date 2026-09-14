@@ -3,6 +3,8 @@ package normalizedyaml
 import (
 	"strings"
 	"testing"
+
+	"gopkg.in/yaml.v3"
 )
 
 func TestUnmarshalRejectsYAMLBoundaryForms(t *testing.T) {
@@ -40,5 +42,38 @@ func TestNormalizeNumericLexemesRecurses(t *testing.T) {
 	nested := value["nested"].([]any)[0].(map[string]any)
 	if _, ok := nested["int_value"].(int64); !ok {
 		t.Fatalf("nested integer type = %T", nested["int_value"])
+	}
+}
+
+func TestNormalizedYAMLScalarContracts(t *testing.T) {
+	tests := []struct {
+		name   string
+		source string
+		want   any
+	}{
+		{"quoted scalar", "value: '001'\n", "001"},
+		{"boolean", "value: true\n", true},
+		{"null", "value: null\n", nil},
+		{"integer", "value: -42\n", int64(-42)},
+		{"float", "value: 1.25e2\n", float64(125)},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var root yaml.Node
+			if err := yaml.Unmarshal([]byte(test.source), &root); err != nil {
+				t.Fatal(err)
+			}
+			var value any
+			if err := decodeYAMLValue(root.Content[0].Content[1], &value); err != nil {
+				t.Fatal(err)
+			}
+			if value != test.want {
+				t.Fatalf("decodeYAMLValue() = %#v (%T), want %#v (%T)", value, value, test.want, test.want)
+			}
+		})
+	}
+	encoded, err := preserveDoubleLexemes([]byte("double_value: 1\nitems:\n  - double_value: 2e1\n"))
+	if err != nil || !strings.Contains(string(encoded), "double_value: 1.0") || !strings.Contains(string(encoded), "double_value: 2e1") {
+		t.Fatalf("preserveDoubleLexemes() = %v, %s", err, encoded)
 	}
 }
