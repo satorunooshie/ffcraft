@@ -3,8 +3,10 @@ package gofeatureflag
 import (
 	"strings"
 	"testing"
+	"time"
 
 	irv1 "github.com/satorunooshie/ffcraft/gen/ffcraft/ir/v1"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func TestCompileIRConditionExpressionTable(t *testing.T) {
@@ -74,5 +76,46 @@ func TestCompileIRVariantAndTransportContracts(t *testing.T) {
 				t.Fatalf("validateIRNumericTransport() error = %v, want %q", err, test.want)
 			}
 		})
+	}
+}
+
+func TestCompileIRScheduleAndBucketingContracts(t *testing.T) {
+	serve := func(variant string) *irv1.Action { return &irv1.Action{Kind: &irv1.Action_Serve{Serve: variant}} }
+	distribute := func(path string) *irv1.Action {
+		return &irv1.Action{Kind: &irv1.Action_Distribute{Distribute: &irv1.Distribution{AllocationKey: &irv1.AttributePath{Segments: []string{path}}, Weights: map[string]uint32{"on": 1, "off": 1}}}}
+	}
+	steps, key, err := compileIRSchedule([]*irv1.ScheduledEvaluation{{
+		EffectiveAt: timestamppb.New(time.Date(2028, 1, 1, 0, 0, 0, 123, time.UTC)),
+		Evaluation:  &irv1.Evaluation{DefaultAction: distribute("user.id")},
+	}, {
+		EffectiveAt: timestamppb.New(time.Date(2028, 1, 2, 0, 0, 0, 0, time.UTC)),
+		Evaluation:  &irv1.Evaluation{DefaultAction: serve("on")},
+	}})
+	if err != nil || len(steps) != 2 || key != "user.id" || steps[0].Date != "2028-01-01T00:00:00.000000123Z" || steps[1].DefaultRule.Variation != "on" {
+		t.Fatalf("compileIRSchedule() = %#v, %q, %v", steps, key, err)
+	}
+	if _, _, err := compileIRSchedule([]*irv1.ScheduledEvaluation{{}}); err == nil || !strings.Contains(err.Error(), "schedule[0] is incomplete") {
+		t.Fatalf("incomplete schedule error = %v", err)
+	}
+	if _, _, err := compileIRSchedule([]*irv1.ScheduledEvaluation{{EffectiveAt: timestamppb.Now(), Evaluation: &irv1.Evaluation{}}}); err == nil || !strings.Contains(err.Error(), "default_action is required") {
+		t.Fatalf("invalid schedule evaluation error = %v", err)
+	}
+	if got, err := mergeBucketingKeys("", "user.id"); err != nil || got != "user.id" {
+		t.Fatalf("mergeBucketingKeys(empty) = %q, %v", got, err)
+	}
+	if _, err := mergeBucketingKeys("user.id", "device.id"); err == nil || !strings.Contains(err.Error(), "multiple distribute") {
+		t.Fatalf("mergeBucketingKeys(conflict) = %v", err)
+	}
+}
+
+func TestCompileIRDefaultRuleContracts(t *testing.T) {
+	if rule, key, err := compileIRDefaultRule(&irv1.Action{Kind: &irv1.Action_Serve{Serve: "on"}}); err != nil || rule.Variation != "on" || key != "" {
+		t.Fatalf("serve default rule = %#v, %q, %v", rule, key, err)
+	}
+	if _, _, err := compileIRDefaultRule(nil); err == nil || !strings.Contains(err.Error(), "default_action is required") {
+		t.Fatalf("nil default rule error = %v", err)
+	}
+	if _, _, err := compileIRDefaultRule(&irv1.Action{Kind: &irv1.Action_Distribute{Distribute: &irv1.Distribution{}}}); err == nil || !strings.Contains(err.Error(), "allocation_key") {
+		t.Fatalf("invalid distribution default error = %v", err)
 	}
 }
