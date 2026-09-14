@@ -8,9 +8,9 @@ import (
 	"testing"
 
 	"github.com/satorunooshie/ffcraft/internal/ast"
+	"github.com/satorunooshie/ffcraft/internal/authoring"
 	"github.com/satorunooshie/ffcraft/internal/flagd"
 	"github.com/satorunooshie/ffcraft/internal/normalize"
-	"github.com/satorunooshie/ffcraft/internal/parse"
 )
 
 //go:embed testdata/*.yaml testdata/*.json
@@ -296,7 +296,7 @@ func mustNormalizedDoc(t *testing.T, path string) *ast.Document {
 	if err != nil {
 		t.Fatalf("read fixture %s: %v", path, err)
 	}
-	doc, err := parse.ParseYAML(data)
+	doc, err := authoring.ParseYAML(data)
 	if err != nil {
 		t.Fatalf("parse failed: %v", err)
 	}

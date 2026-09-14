@@ -7,14 +7,14 @@ import (
 	"google.golang.org/protobuf/testing/protocmp"
 
 	irv1 "github.com/satorunooshie/ffcraft/gen/ffcraft/ir/v1"
+	"github.com/satorunooshie/ffcraft/internal/authoring"
 	"github.com/satorunooshie/ffcraft/internal/ir"
 	"github.com/satorunooshie/ffcraft/internal/normalizeir"
-	"github.com/satorunooshie/ffcraft/internal/parse"
 )
 
 func TestNormalizeAndProtoRoundTrip(t *testing.T) {
 	t.Parallel()
-	doc, err := parse.ParseYAML([]byte(`version: v1
+	doc, err := authoring.ParseYAML([]byte(`version: v1
 variant_sets:
   boolean:
     on: true

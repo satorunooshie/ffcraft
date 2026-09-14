@@ -8,11 +8,11 @@ import (
 	"os"
 
 	irv1 "github.com/satorunooshie/ffcraft/gen/ffcraft/ir/v1"
+	"github.com/satorunooshie/ffcraft/internal/authoring"
 	"github.com/satorunooshie/ffcraft/internal/codegen"
 	"github.com/satorunooshie/ffcraft/internal/gogen"
 	"github.com/satorunooshie/ffcraft/internal/normalizeir"
 	"github.com/satorunooshie/ffcraft/internal/normalizeiryaml"
-	"github.com/satorunooshie/ffcraft/internal/parse"
 )
 
 func main() {
@@ -145,7 +145,7 @@ func loadInput(input []byte, formatName string) (*loadedDocument, bool, error) {
 }
 
 func loadAuthoring(input []byte) (*loadedDocument, bool, error) {
-	doc, err := parse.ParseYAML(input)
+	doc, err := authoring.ParseYAML(input)
 	if err != nil {
 		return nil, false, fmt.Errorf("parse input: %w", err)
 	}

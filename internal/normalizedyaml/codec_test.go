@@ -8,11 +8,11 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/satorunooshie/ffcraft/internal/ast"
+	"github.com/satorunooshie/ffcraft/internal/authoring"
 	"github.com/satorunooshie/ffcraft/internal/flagd"
 	"github.com/satorunooshie/ffcraft/internal/gofeatureflag"
 	"github.com/satorunooshie/ffcraft/internal/normalize"
 	"github.com/satorunooshie/ffcraft/internal/normalizedyaml"
-	"github.com/satorunooshie/ffcraft/internal/parse"
 	"google.golang.org/protobuf/testing/protocmp"
 )
 
@@ -189,7 +189,7 @@ flags:
           client:
             enabled: true
 `)
-	authoring, err := parse.ParseYAML(input)
+	authoring, err := authoring.ParseYAML(input)
 	if err != nil {
 		t.Fatalf("parse: %v", err)
 	}
@@ -228,7 +228,7 @@ func mustRoundTripDoc(t *testing.T, fixture string) *ast.Document {
 		t.Fatalf("read authoring fixture: %v", err)
 	}
 
-	authoringDoc, err := parse.ParseYAML(src)
+	authoringDoc, err := authoring.ParseYAML(src)
 	if err != nil {
 		t.Fatalf("parse failed: %v", err)
 	}

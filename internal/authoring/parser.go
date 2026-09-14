@@ -1,4 +1,4 @@
-package parse
+package authoring
 
 import (
 	"fmt"

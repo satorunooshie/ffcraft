@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/satorunooshie/ffcraft/internal/parse"
+	"github.com/satorunooshie/ffcraft/internal/authoring"
 	"github.com/satorunooshie/ffcraft/internal/validate"
 )
 
@@ -50,7 +50,7 @@ func TestValidate(t *testing.T) {
 			if err != nil {
 				t.Fatalf("read fixture %s: %v", tt.file, err)
 			}
-			doc, err := parse.ParseYAML(src)
+			doc, err := authoring.ParseYAML(src)
 			if err != nil {
 				t.Fatalf("parse failed: %v", err)
 			}

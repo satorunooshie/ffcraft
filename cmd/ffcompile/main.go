@@ -8,11 +8,11 @@ import (
 	"os"
 
 	irv1 "github.com/satorunooshie/ffcraft/gen/ffcraft/ir/v1"
+	"github.com/satorunooshie/ffcraft/internal/authoring"
 	"github.com/satorunooshie/ffcraft/internal/flagd"
 	"github.com/satorunooshie/ffcraft/internal/gofeatureflag"
 	"github.com/satorunooshie/ffcraft/internal/normalizeir"
 	"github.com/satorunooshie/ffcraft/internal/normalizeiryaml"
-	"github.com/satorunooshie/ffcraft/internal/parse"
 )
 
 func main() {
@@ -277,7 +277,7 @@ func loadAuthoring(path string) (*irv1.Document, error) {
 	if err != nil {
 		return nil, fmt.Errorf("read input: %w", err)
 	}
-	doc, err := parse.ParseYAML(input)
+	doc, err := authoring.ParseYAML(input)
 	if err != nil {
 		return nil, fmt.Errorf("parse input: %w", err)
 	}

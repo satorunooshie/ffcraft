@@ -10,8 +10,8 @@ import (
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/satorunooshie/ffcraft/internal/ast"
+	"github.com/satorunooshie/ffcraft/internal/authoring"
 	"github.com/satorunooshie/ffcraft/internal/normalize"
-	"github.com/satorunooshie/ffcraft/internal/parse"
 	"github.com/satorunooshie/ffcraft/internal/testhelper"
 )
 
@@ -455,7 +455,7 @@ func TestCompile_TargetingKeySignaturesAndGuards(t *testing.T) {
 func mustNormalizeFixture(t *testing.T, name string) *ast.Document {
 	t.Helper()
 	input := testhelper.MustReadFile(t, testdataFS, filepath.Join("testdata", name))
-	doc, err := parse.ParseYAML(input)
+	doc, err := authoring.ParseYAML(input)
 	if err != nil {
 		t.Fatalf("parse input: %v", err)
 	}
