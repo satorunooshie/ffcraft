@@ -8,6 +8,7 @@ import (
 
 	"buf.build/go/protovalidate"
 	irv1 "github.com/satorunooshie/ffcraft/gen/ffcraft/ir/v1"
+	"google.golang.org/protobuf/proto"
 )
 
 var (
@@ -25,7 +26,15 @@ func Validate(doc *irv1.Document) error {
 	if validatorErr != nil {
 		return validatorErr
 	}
-	if err := validator.Validate(doc); err != nil {
+	core := proto.Clone(doc).(*irv1.Document)
+	core.Extensions = nil
+	for _, flag := range core.Flags {
+		flag.Extensions = nil
+		for _, environment := range flag.Environments {
+			environment.Extensions = nil
+		}
+	}
+	if err := validator.Validate(core); err != nil {
 		return err
 	}
 	if len(doc.Flags) == 0 {
@@ -221,6 +230,12 @@ func validateExtensions(values map[string]*irv1.ExtensionValue) error {
 func validateExtensionDepth(value *irv1.ExtensionValue, depth int) error {
 	if depth > 64 {
 		return fmt.Errorf("extension nesting depth exceeds 64")
+	}
+	if value == nil {
+		return fmt.Errorf("extension value is nil")
+	}
+	if value.GetKind() == nil && len(value.ProtoReflect().GetUnknown()) != 0 {
+		return nil
 	}
 	switch kind := value.GetKind().(type) {
 	case *irv1.ExtensionValue_DoubleValue:
