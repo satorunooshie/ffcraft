@@ -237,3 +237,174 @@ func TestEvaluateOperatorTruthTable(t *testing.T) {
 		})
 	}
 }
+
+func TestExactNumberConversionTable(t *testing.T) {
+	tests := []struct {
+		name  string
+		value any
+		valid bool
+	}{
+		{name: "int", value: int(1), valid: true},
+		{name: "int8", value: int8(1), valid: true},
+		{name: "int16", value: int16(1), valid: true},
+		{name: "int32", value: int32(1), valid: true},
+		{name: "int64", value: int64(1), valid: true},
+		{name: "uint", value: uint(1), valid: true},
+		{name: "uint8", value: uint8(1), valid: true},
+		{name: "uint16", value: uint16(1), valid: true},
+		{name: "uint32", value: uint32(1), valid: true},
+		{name: "uint64", value: uint64(1), valid: true},
+		{name: "float32", value: float32(1), valid: true},
+		{name: "float64", value: float64(1), valid: true},
+		{name: "nan", value: math.NaN(), valid: false},
+		{name: "positive infinity", value: math.Inf(1), valid: false},
+		{name: "negative infinity", value: math.Inf(-1), valid: false},
+		{name: "unsupported", value: struct{}{}, valid: false},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, valid := number(test.value)
+			if valid != test.valid {
+				t.Fatalf("number(%T) valid = %v, want %v", test.value, valid, test.valid)
+			}
+		})
+	}
+}
+
+func TestScalarAndSemverHelperContracts(t *testing.T) {
+	stringValue := func(value string) *irv1.ScalarValue {
+		return &irv1.ScalarValue{Kind: &irv1.ScalarValue_StringValue{StringValue: value}}
+	}
+	intValue := func(value int64) *irv1.ScalarValue {
+		return &irv1.ScalarValue{Kind: &irv1.ScalarValue_IntValue{IntValue: value}}
+	}
+	for _, test := range []struct {
+		name    string
+		actual  any
+		literal *irv1.ScalarValue
+		want    bool
+	}{
+		{name: "string equal", actual: "x", literal: stringValue("x"), want: true},
+		{name: "int equal", actual: int64(2), literal: intValue(2), want: true},
+		{name: "double equal", actual: float64(2), literal: &irv1.ScalarValue{Kind: &irv1.ScalarValue_DoubleValue{DoubleValue: 2}}, want: true},
+		{name: "bool mismatch", actual: true, literal: &irv1.ScalarValue{Kind: &irv1.ScalarValue_BoolValue{BoolValue: false}}, want: false},
+		{name: "nil literal", actual: nil, literal: nil, want: false},
+		{name: "unsupported actual", actual: []string{"x"}, literal: stringValue("x"), want: false},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if got := equal(test.actual, test.literal); got != test.want {
+				t.Fatalf("equal() = %v, want %v", got, test.want)
+			}
+		})
+	}
+	for _, test := range []struct {
+		literal string
+		valid   bool
+	}{
+		{literal: "0.0.0", valid: true},
+		{literal: "1.2.3-alpha.1+build.5", valid: true},
+		{literal: "01.2.3", valid: false},
+		{literal: "1.2", valid: false},
+		{literal: "", valid: false},
+	} {
+		t.Run("semver/"+test.literal, func(t *testing.T) {
+			_, valid := parseSemver(test.literal)
+			if valid != test.valid {
+				t.Fatalf("parseSemver(%q) valid = %v, want %v", test.literal, valid, test.valid)
+			}
+		})
+	}
+}
+
+func TestComparisonHelperTables(t *testing.T) {
+	left := integerNumber(2)
+	right := integerNumber(2)
+	for _, test := range []struct {
+		operator irv1.NumericComparisonOperator
+		want     bool
+	}{
+		{operator: irv1.NumericComparisonOperator_NUMERIC_COMPARISON_OPERATOR_GT, want: false},
+		{operator: irv1.NumericComparisonOperator_NUMERIC_COMPARISON_OPERATOR_GTE, want: true},
+		{operator: irv1.NumericComparisonOperator_NUMERIC_COMPARISON_OPERATOR_LT, want: false},
+		{operator: irv1.NumericComparisonOperator_NUMERIC_COMPARISON_OPERATOR_LTE, want: true},
+		{operator: irv1.NumericComparisonOperator_NUMERIC_COMPARISON_OPERATOR_UNSPECIFIED, want: false},
+	} {
+		if got := compareNumbers(left, right, test.operator); got != test.want {
+			t.Fatalf("compareNumbers(%v) = %v, want %v", test.operator, got, test.want)
+		}
+	}
+	semverValue := func(value string) semver {
+		parsed, valid := parseSemver(value)
+		if !valid {
+			t.Fatalf("parseSemver(%q) failed", value)
+		}
+		return parsed
+	}
+	for _, test := range []struct {
+		name        string
+		left, right string
+		want        int
+	}{
+		{name: "major", left: "2.0.0", right: "1.0.0", want: 1},
+		{name: "minor", left: "1.2.0", right: "1.1.0", want: 1},
+		{name: "patch", left: "1.0.2", right: "1.0.1", want: 1},
+		{name: "release beats prerelease", left: "1.0.0", right: "1.0.0-rc.1", want: 1},
+		{name: "numeric prerelease", left: "1.0.0-2", right: "1.0.0-10", want: -1},
+		{name: "numeric beats text", left: "1.0.0-1", right: "1.0.0-alpha", want: -1},
+		{name: "text lexical", left: "1.0.0-beta", right: "1.0.0-alpha", want: 1},
+		{name: "short prerelease", left: "1.0.0-alpha", right: "1.0.0-alpha.1", want: -1},
+		{name: "equal build metadata", left: "1.0.0+one", right: "1.0.0+two", want: 0},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			got := compareSemverValue(semverValue(test.left), semverValue(test.right))
+			if got != test.want {
+				t.Fatalf("compareSemverValue() = %d, want %d", got, test.want)
+			}
+		})
+	}
+	if compareSemver(semverValue("1.0.0"), semverValue("1.0.0"), irv1.SemVerComparisonOperator_SEM_VER_COMPARISON_OPERATOR_UNSPECIFIED) {
+		t.Fatal("unspecified SemVer operator matched")
+	}
+}
+
+func TestRuntimeInternalBoundaryHelpers(t *testing.T) {
+	if _, ok := numericValue(nil); ok {
+		t.Fatal("numericValue(nil) unexpectedly succeeded")
+	}
+	if _, ok := numericValue(&irv1.NumericValue{Kind: &irv1.NumericValue_IntValue{IntValue: 1}}); !ok {
+		t.Fatal("numericValue(int) failed")
+	}
+	if _, ok := numericValue(&irv1.NumericValue{Kind: &irv1.NumericValue_DoubleValue{DoubleValue: 1.5}}); !ok {
+		t.Fatal("numericValue(double) failed")
+	}
+	if _, ok := numericValue(&irv1.NumericValue{}); ok {
+		t.Fatal("numericValue(empty) unexpectedly succeeded")
+	}
+	if _, ok := scalarNumber(&irv1.ScalarValue{Kind: &irv1.ScalarValue_NullValue{NullValue: &irv1.ScalarNull{}}}); ok {
+		t.Fatal("scalarNumber(null) unexpectedly succeeded")
+	}
+	if _, ok := scalarNumber(nil); ok {
+		t.Fatal("scalarNumber(nil) unexpectedly succeeded")
+	}
+	if value, ok := lookup(Context{"user": map[string]any{"id": "u1"}}, &irv1.AttributePath{Segments: []string{"user", "id"}}); !ok || value != "u1" {
+		t.Fatalf("nested lookup = %#v, %v", value, ok)
+	}
+	if _, ok := lookup(Context{"user": "u1"}, &irv1.AttributePath{Segments: []string{"user", "id"}}); ok {
+		t.Fatal("lookup traversed a non-object value")
+	}
+	if _, ok := lookup(Context{}, &irv1.AttributePath{}); ok {
+		t.Fatal("lookup accepted an empty path")
+	}
+	for _, test := range []struct {
+		value string
+		want  bool
+	}{
+		{value: "", want: false},
+		{value: "123", want: true},
+		{value: "12a", want: false},
+	} {
+		if got := allDigits(test.value); got != test.want {
+			t.Fatalf("allDigits(%q) = %v, want %v", test.value, got, test.want)
+		}
+	}
+}
