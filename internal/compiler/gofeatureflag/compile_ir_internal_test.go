@@ -119,3 +119,28 @@ func TestCompileIRDefaultRuleContracts(t *testing.T) {
 		t.Fatalf("invalid distribution default error = %v", err)
 	}
 }
+
+func TestCompileIRDocumentEnvironmentSelection(t *testing.T) {
+	doc := &irv1.Document{Flags: map[string]*irv1.Flag{
+		"static": {
+			Variants: map[string]*irv1.VariantValue{
+				"off": {Kind: &irv1.VariantValue_BoolValue{BoolValue: false}},
+				"on":  {Kind: &irv1.VariantValue_BoolValue{BoolValue: true}},
+			},
+			Environments: map[string]*irv1.Environment{
+				"prod": {Base: &irv1.Evaluation{DefaultAction: &irv1.Action{Kind: &irv1.Action_Serve{Serve: "on"}}}},
+			},
+		},
+	}}
+	output, warnings, err := CompileIR(doc, "prod", CompileOptions{})
+	if err != nil || len(warnings) != 0 || !strings.Contains(string(output), "defaultRule:\n        variation: \"on\"") {
+		t.Fatalf("CompileIR(prod) = %s, %#v, %v", output, warnings, err)
+	}
+	if _, _, err := CompileIR(doc, "staging", CompileOptions{}); err == nil || !strings.Contains(err.Error(), `environment "staging" not found`) {
+		t.Fatalf("missing environment error = %v", err)
+	}
+	output, warnings, err = CompileIR(doc, "staging", CompileOptions{AllowMissingEnvironment: true})
+	if err != nil || len(warnings) != 1 || !strings.Contains(warnings[0], "skipping flag") || len(output) == 0 {
+		t.Fatalf("missing environment warning mode = %s, %#v, %v", output, warnings, err)
+	}
+}
