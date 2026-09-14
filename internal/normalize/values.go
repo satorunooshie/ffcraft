@@ -4,11 +4,24 @@ import (
 	"fmt"
 	"maps"
 
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 
+	irv1 "github.com/satorunooshie/ffcraft/gen/ffcraft/ir/v1"
 	ffv1 "github.com/satorunooshie/ffcraft/gen/ffcraft/v1"
 	"github.com/satorunooshie/ffcraft/internal/ast"
 )
+
+func cloneExtensions(values map[string]*irv1.ExtensionValue) map[string]*irv1.ExtensionValue {
+	if len(values) == 0 {
+		return map[string]*irv1.ExtensionValue{}
+	}
+	out := make(map[string]*irv1.ExtensionValue, len(values))
+	for key, value := range values {
+		out[key] = proto.Clone(value).(*irv1.ExtensionValue)
+	}
+	return out
+}
 
 func normalizeAction(doc *ffv1.FeatureFlagDocument, action *ffv1.Action) (ast.Action, error) {
 	switch kind := action.Kind.(type) {

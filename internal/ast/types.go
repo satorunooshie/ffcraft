@@ -1,7 +1,10 @@
 package ast
 
+import irv1 "github.com/satorunooshie/ffcraft/gen/ffcraft/ir/v1"
+
 type Document struct {
-	Flags []*Flag
+	Flags      []*Flag
+	Extensions map[string]*irv1.ExtensionValue
 }
 
 type Flag struct {
@@ -10,6 +13,7 @@ type Flag struct {
 	DefaultVariant string
 	Environments   map[string]*Environment
 	Metadata       *Metadata
+	Extensions     map[string]*irv1.ExtensionValue
 }
 
 type Metadata struct {
@@ -48,6 +52,7 @@ type Environment struct {
 	DefaultAction     Action
 	Experimentation   *Experimentation
 	ScheduledRollouts []*ScheduledStep
+	Extensions        map[string]*irv1.ExtensionValue
 }
 
 type Rule struct {

@@ -14,7 +14,8 @@ func Normalize(doc *ffv1.FeatureFlagDocument) (*ast.Document, error) {
 	}
 
 	out := &ast.Document{
-		Flags: make([]*ast.Flag, 0, len(doc.Flags)),
+		Flags:      make([]*ast.Flag, 0, len(doc.Flags)),
+		Extensions: cloneExtensions(doc.Extensions),
 	}
 	for _, flag := range doc.Flags {
 		value, err := normalizeFlag(doc, flag)
@@ -36,6 +37,7 @@ func normalizeFlag(doc *ffv1.FeatureFlagDocument, flag *ffv1.Flag) (*ast.Flag, e
 		DefaultVariant: flag.DefaultVariant,
 		Environments:   map[string]*ast.Environment{},
 		Metadata:       normalizeMetadata(flag.Metadata),
+		Extensions:     cloneExtensions(flag.Extensions),
 	}
 	for envName, env := range flag.Environments {
 		value, err := normalizeEnvironment(doc, flag, env)
@@ -52,6 +54,7 @@ func normalizeEnvironment(doc *ffv1.FeatureFlagDocument, flag *ffv1.Flag, env *f
 		return &ast.Environment{
 			StaticVariant: fixed.Variant,
 			DefaultAction: &ast.ServeAction{Variant: fixed.Variant},
+			Extensions:    cloneExtensions(env.Extensions),
 		}, nil
 	}
 
@@ -69,6 +72,7 @@ func normalizeEnvironment(doc *ffv1.FeatureFlagDocument, flag *ffv1.Flag, env *f
 		Experimentation:   normalizeExperimentation(eval.Experimentation),
 		ScheduledRollouts: make([]*ast.ScheduledStep, 0, len(eval.ScheduledRollouts)),
 		Rules:             make([]*ast.Rule, 0, len(eval.Rules)),
+		Extensions:        cloneExtensions(env.Extensions),
 	}
 	for _, entry := range eval.Rules {
 		rule, keep, err := normalizeRuleEntry(doc, entry)

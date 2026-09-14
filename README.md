@@ -18,6 +18,13 @@ flowchart LR
     E --> F[Target Compiler]
 ```
 
+The semantic contract between normalization and compilers is the protobuf IR
+defined in [proto/ffcraft/ir/v1/normalized.proto](proto/ffcraft/ir/v1/normalized.proto).
+Normalized YAML is a deterministic adapter for that IR. Opaque extensions are
+preserved at document, flag, and environment scope; core compilers ignore them
+and external generators may consume the namespaces they own. See
+[docs/extension-spec.md](docs/extension-spec.md) for the complete contract.
+
 ## Scope
 
 Supported today:

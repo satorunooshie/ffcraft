@@ -13,8 +13,9 @@ import (
 const version = "normalized/v1"
 
 type documentFile struct {
-	Version string     `yaml:"version"`
-	Flags   []flagFile `yaml:"flags"`
+	Version    string                   `yaml:"version"`
+	Flags      []flagFile               `yaml:"flags"`
+	Extensions map[string]extensionYAML `yaml:"extensions,omitempty"`
 }
 
 type flagFile struct {
@@ -23,6 +24,7 @@ type flagFile struct {
 	DefaultVariant string                      `yaml:"default_variant"`
 	Environments   map[string]environmentFile  `yaml:"environments"`
 	Metadata       *metadataFile               `yaml:"metadata,omitempty"`
+	Extensions     map[string]extensionYAML    `yaml:"extensions,omitempty"`
 }
 
 type metadataFile struct {
@@ -33,11 +35,12 @@ type metadataFile struct {
 }
 
 type environmentFile struct {
-	StaticVariant     string               `yaml:"static_variant,omitempty"`
-	DefaultAction     *actionYAML          `yaml:"default_action,omitempty"`
-	Experimentation   *experimentationFile `yaml:"experimentation,omitempty"`
-	ScheduledRollouts []scheduledStepFile  `yaml:"scheduled_rollouts,omitempty"`
-	Rules             []ruleFile           `yaml:"rules,omitempty"`
+	StaticVariant     string                   `yaml:"static_variant,omitempty"`
+	DefaultAction     *actionYAML              `yaml:"default_action,omitempty"`
+	Experimentation   *experimentationFile     `yaml:"experimentation,omitempty"`
+	ScheduledRollouts []scheduledStepFile      `yaml:"scheduled_rollouts,omitempty"`
+	Rules             []ruleFile               `yaml:"rules,omitempty"`
+	Extensions        map[string]extensionYAML `yaml:"extensions,omitempty"`
 }
 
 type ruleFile struct {
@@ -91,8 +94,9 @@ type variantValueYAML struct {
 
 func Marshal(doc *ast.Document) ([]byte, error) {
 	file := documentFile{
-		Version: version,
-		Flags:   make([]flagFile, 0, len(doc.Flags)),
+		Version:    version,
+		Flags:      make([]flagFile, 0, len(doc.Flags)),
+		Extensions: wrapExtensions(doc.Extensions),
 	}
 	for _, flag := range doc.Flags {
 		file.Flags = append(file.Flags, flagFile{
@@ -101,6 +105,7 @@ func Marshal(doc *ast.Document) ([]byte, error) {
 			DefaultVariant: flag.DefaultVariant,
 			Environments:   wrapEnvironments(flag.Environments),
 			Metadata:       wrapMetadata(flag.Metadata),
+			Extensions:     wrapExtensions(flag.Extensions),
 		})
 	}
 	return yaml.Marshal(file)
@@ -118,7 +123,8 @@ func Unmarshal(data []byte) (*ast.Document, error) {
 	}
 
 	out := &ast.Document{
-		Flags: make([]*ast.Flag, 0, len(file.Flags)),
+		Flags:      make([]*ast.Flag, 0, len(file.Flags)),
+		Extensions: unwrapExtensions(file.Extensions),
 	}
 	for _, flag := range file.Flags {
 		out.Flags = append(out.Flags, &ast.Flag{
@@ -127,6 +133,8 @@ func Unmarshal(data []byte) (*ast.Document, error) {
 			DefaultVariant: flag.DefaultVariant,
 			Environments:   unwrapEnvironments(flag.Environments),
 			Metadata:       unwrapMetadata(flag.Metadata),
+			Extensions:     unwrapExtensions(flag.Extensions),
+			// environment extensions are restored below with the environment map.
 		})
 	}
 	if err := validate.ValidateNormalizedIR(out); err != nil {
@@ -212,6 +220,7 @@ func wrapEnvironments(values map[string]*ast.Environment) map[string]environment
 			Experimentation:   wrapExperimentation(value.Experimentation),
 			ScheduledRollouts: wrapScheduledSteps(value.ScheduledRollouts),
 			Rules:             wrapRules(value.Rules),
+			Extensions:        wrapExtensions(value.Extensions),
 		}
 	}
 	return out
@@ -226,6 +235,7 @@ func unwrapEnvironments(values map[string]environmentFile) map[string]*ast.Envir
 			Experimentation:   unwrapExperimentation(value.Experimentation),
 			ScheduledRollouts: unwrapScheduledSteps(value.ScheduledRollouts),
 			Rules:             unwrapRules(value.Rules),
+			Extensions:        unwrapExtensions(value.Extensions),
 		}
 	}
 	return out

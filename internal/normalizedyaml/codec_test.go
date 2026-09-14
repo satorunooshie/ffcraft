@@ -6,12 +6,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/satorunooshie/ffcraft/internal/ast"
 	"github.com/satorunooshie/ffcraft/internal/flagd"
 	"github.com/satorunooshie/ffcraft/internal/gofeatureflag"
 	"github.com/satorunooshie/ffcraft/internal/normalize"
 	"github.com/satorunooshie/ffcraft/internal/normalizedyaml"
 	"github.com/satorunooshie/ffcraft/internal/parse"
+	"google.golang.org/protobuf/testing/protocmp"
 )
 
 func TestUnmarshalRejectsUnsafeObjectIntegerBeforeFloatConversion(t *testing.T) {
@@ -151,6 +153,70 @@ func TestRoundTrip(t *testing.T) {
 			decoded := mustRoundTripDoc(t, tt.fixture)
 			tt.validate(t, decoded)
 		})
+	}
+}
+
+func TestExtensionsRoundTripLosslessly(t *testing.T) {
+	t.Parallel()
+
+	input := []byte(`version: v1
+extensions:
+  metadata:
+    owner: platform-team
+    enabled: true
+    count: 9007199254740993
+    ratio: 1.0
+    absent: null
+    nested:
+      - first
+      - 2
+variant_sets:
+  boolean:
+    on: true
+    off: false
+flags:
+  - key: example
+    variant_set: boolean
+    default_variant: off
+    extensions:
+      analytics:
+        event: evaluated
+    environments:
+      prod:
+        default_action:
+          serve: off
+        extensions:
+          client:
+            enabled: true
+`)
+	authoring, err := parse.ParseYAML(input)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	normalized, err := normalize.Normalize(authoring)
+	if err != nil {
+		t.Fatalf("normalize: %v", err)
+	}
+	if len(normalized.Extensions) != 1 || len(normalized.Flags[0].Extensions) != 1 || len(normalized.Flags[0].Environments["prod"].Extensions) != 1 {
+		t.Fatalf("extensions were not retained at every scope: %#v", normalized)
+	}
+
+	encoded, err := normalizedyaml.Marshal(normalized)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	decoded, err := normalizedyaml.Unmarshal(encoded)
+	if err != nil {
+		t.Fatalf("unmarshal: %v\n%s", err, encoded)
+	}
+	if diff := cmp.Diff(normalized.Extensions, decoded.Extensions, protocmp.Transform()); diff != "" {
+		t.Fatalf("document extensions changed (-want +got):\n%s", diff)
+	}
+	if diff := cmp.Diff(normalized.Flags[0].Extensions, decoded.Flags[0].Extensions, protocmp.Transform()); diff != "" {
+		t.Fatalf("flag extensions changed (-want +got):\n%s", diff)
+	}
+	if diff := cmp.Diff(normalized.Flags[0].Environments["prod"].Extensions, decoded.Flags[0].Environments["prod"].Extensions, protocmp.Transform()); diff != "" {
+		t.Fatalf("environment extensions changed (-want +got):\n%s", diff)
 	}
 }
 

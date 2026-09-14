@@ -5,6 +5,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	irv1 "github.com/satorunooshie/ffcraft/gen/ffcraft/ir/v1"
 	ffv1 "github.com/satorunooshie/ffcraft/gen/ffcraft/v1"
 )
 
@@ -17,9 +18,10 @@ func parseRootDocument(node *yaml.Node, path string) (*ffv1.FeatureFlagDocument,
 		VariantSets:   map[string]*ffv1.VariantSet{},
 		Rules:         map[string]*ffv1.Condition{},
 		Distributions: map[string]*ffv1.Distribution{},
+		Extensions:    map[string]*irv1.ExtensionValue{},
 	}
 
-	fields, err := strictMapping(node, path, "version", "variant_sets", "rules", "distributions", "flags")
+	fields, err := strictMapping(node, path, "version", "variant_sets", "rules", "distributions", "flags", "extensions")
 	if err != nil {
 		return nil, err
 	}
@@ -38,6 +40,9 @@ func parseRootDocument(node *yaml.Node, path string) (*ffv1.FeatureFlagDocument,
 		return nil, err
 	}
 	if doc.Distributions, err = parseNamedDistributions(fields["distributions"], path+".distributions"); err != nil {
+		return nil, err
+	}
+	if doc.Extensions, err = parseExtensions(fields["extensions"], path+".extensions"); err != nil {
 		return nil, err
 	}
 
@@ -169,11 +174,11 @@ func parseFlags(node *yaml.Node, path string) ([]*ffv1.Flag, error) {
 }
 
 func parseFlag(node *yaml.Node, path string) (*ffv1.Flag, error) {
-	fields, err := strictMapping(node, path, "key", "variant_set", "default_variant", "metadata", "environments")
+	fields, err := strictMapping(node, path, "key", "variant_set", "default_variant", "metadata", "environments", "extensions")
 	if err != nil {
 		return nil, err
 	}
-	out := &ffv1.Flag{Environments: map[string]*ffv1.Environment{}}
+	out := &ffv1.Flag{Environments: map[string]*ffv1.Environment{}, Extensions: map[string]*irv1.ExtensionValue{}}
 
 	if scalar := fields["key"]; scalar != nil {
 		out.Key, err = scalarString(scalar, path+".key")
@@ -198,6 +203,9 @@ func parseFlag(node *yaml.Node, path string) (*ffv1.Flag, error) {
 		if err != nil {
 			return nil, err
 		}
+	}
+	if out.Extensions, err = parseExtensions(fields["extensions"], path+".extensions"); err != nil {
+		return nil, err
 	}
 	if envNode := fields["environments"]; envNode != nil {
 		out.Environments, err = parseEnvironments(envNode, path+".environments")
@@ -258,7 +266,7 @@ func parseEnvironments(node *yaml.Node, path string) (map[string]*ffv1.Environme
 }
 
 func parseEnvironment(node *yaml.Node, path string) (*ffv1.Environment, error) {
-	fields, err := strictMapping(node, path, "serve", "rules", "default_action", "experimentation", "scheduled_rollouts")
+	fields, err := strictMapping(node, path, "serve", "rules", "default_action", "experimentation", "scheduled_rollouts", "extensions")
 	if err != nil {
 		return nil, err
 	}
@@ -270,20 +278,26 @@ func parseEnvironment(node *yaml.Node, path string) (*ffv1.Environment, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &ffv1.Environment{
+		env := &ffv1.Environment{
 			Kind: &ffv1.Environment_FixedServe{
 				FixedServe: &ffv1.FixedServe{Variant: variant},
 			},
-		}, nil
+			Extensions: map[string]*irv1.ExtensionValue{},
+		}
+		env.Extensions, err = parseExtensions(fields["extensions"], path+".extensions")
+		return env, err
 	}
 
 	ruleEval, err := parseRuleEvaluation(fields, path)
 	if err != nil {
 		return nil, err
 	}
-	return &ffv1.Environment{
-		Kind: &ffv1.Environment_RuleEvaluation{RuleEvaluation: ruleEval},
-	}, nil
+	env := &ffv1.Environment{
+		Kind:       &ffv1.Environment_RuleEvaluation{RuleEvaluation: ruleEval},
+		Extensions: map[string]*irv1.ExtensionValue{},
+	}
+	env.Extensions, err = parseExtensions(fields["extensions"], path+".extensions")
+	return env, err
 }
 
 func parseRuleEvaluation(fields map[string]*yaml.Node, path string) (*ffv1.RuleEvaluation, error) {

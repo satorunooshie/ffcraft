@@ -8,6 +8,7 @@ package ffcraftv1
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	v1 "github.com/satorunooshie/ffcraft/gen/ffcraft/ir/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	structpb "google.golang.org/protobuf/types/known/structpb"
@@ -24,12 +25,13 @@ const (
 )
 
 type FeatureFlagDocument struct {
-	state         protoimpl.MessageState   `protogen:"open.v1"`
-	Version       string                   `protobuf:"bytes,1,opt,name=version,proto3" json:"version,omitempty"`
-	VariantSets   map[string]*VariantSet   `protobuf:"bytes,2,rep,name=variant_sets,json=variantSets,proto3" json:"variant_sets,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	Rules         map[string]*Condition    `protobuf:"bytes,3,rep,name=rules,proto3" json:"rules,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	Distributions map[string]*Distribution `protobuf:"bytes,4,rep,name=distributions,proto3" json:"distributions,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	Flags         []*Flag                  `protobuf:"bytes,5,rep,name=flags,proto3" json:"flags,omitempty"`
+	state         protoimpl.MessageState        `protogen:"open.v1"`
+	Version       string                        `protobuf:"bytes,1,opt,name=version,proto3" json:"version,omitempty"`
+	VariantSets   map[string]*VariantSet        `protobuf:"bytes,2,rep,name=variant_sets,json=variantSets,proto3" json:"variant_sets,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Rules         map[string]*Condition         `protobuf:"bytes,3,rep,name=rules,proto3" json:"rules,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Distributions map[string]*Distribution      `protobuf:"bytes,4,rep,name=distributions,proto3" json:"distributions,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Flags         []*Flag                       `protobuf:"bytes,5,rep,name=flags,proto3" json:"flags,omitempty"`
+	Extensions    map[string]*v1.ExtensionValue `protobuf:"bytes,6,rep,name=extensions,proto3" json:"extensions,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -95,6 +97,13 @@ func (x *FeatureFlagDocument) GetDistributions() map[string]*Distribution {
 func (x *FeatureFlagDocument) GetFlags() []*Flag {
 	if x != nil {
 		return x.Flags
+	}
+	return nil
+}
+
+func (x *FeatureFlagDocument) GetExtensions() map[string]*v1.ExtensionValue {
+	if x != nil {
+		return x.Extensions
 	}
 	return nil
 }
@@ -389,10 +398,11 @@ type Flag struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Key   string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
 	// reference to document.variant_sets
-	VariantSet     string                  `protobuf:"bytes,2,opt,name=variant_set,json=variantSet,proto3" json:"variant_set,omitempty"`
-	DefaultVariant string                  `protobuf:"bytes,3,opt,name=default_variant,json=defaultVariant,proto3" json:"default_variant,omitempty"`
-	Environments   map[string]*Environment `protobuf:"bytes,4,rep,name=environments,proto3" json:"environments,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	Metadata       *Metadata               `protobuf:"bytes,5,opt,name=metadata,proto3" json:"metadata,omitempty"`
+	VariantSet     string                        `protobuf:"bytes,2,opt,name=variant_set,json=variantSet,proto3" json:"variant_set,omitempty"`
+	DefaultVariant string                        `protobuf:"bytes,3,opt,name=default_variant,json=defaultVariant,proto3" json:"default_variant,omitempty"`
+	Environments   map[string]*Environment       `protobuf:"bytes,4,rep,name=environments,proto3" json:"environments,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Metadata       *Metadata                     `protobuf:"bytes,5,opt,name=metadata,proto3" json:"metadata,omitempty"`
+	Extensions     map[string]*v1.ExtensionValue `protobuf:"bytes,6,rep,name=extensions,proto3" json:"extensions,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -458,6 +468,13 @@ func (x *Flag) GetEnvironments() map[string]*Environment {
 func (x *Flag) GetMetadata() *Metadata {
 	if x != nil {
 		return x.Metadata
+	}
+	return nil
+}
+
+func (x *Flag) GetExtensions() map[string]*v1.ExtensionValue {
+	if x != nil {
+		return x.Extensions
 	}
 	return nil
 }
@@ -536,7 +553,8 @@ type Environment struct {
 	//
 	//	*Environment_FixedServe
 	//	*Environment_RuleEvaluation
-	Kind          isEnvironment_Kind `protobuf_oneof:"kind"`
+	Kind          isEnvironment_Kind            `protobuf_oneof:"kind"`
+	Extensions    map[string]*v1.ExtensionValue `protobuf:"bytes,3,rep,name=extensions,proto3" json:"extensions,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -592,6 +610,13 @@ func (x *Environment) GetRuleEvaluation() *RuleEvaluation {
 		if x, ok := x.Kind.(*Environment_RuleEvaluation); ok {
 			return x.RuleEvaluation
 		}
+	}
+	return nil
+}
+
+func (x *Environment) GetExtensions() map[string]*v1.ExtensionValue {
+	if x != nil {
+		return x.Extensions
 	}
 	return nil
 }
@@ -3045,14 +3070,17 @@ var File_proto_ffcraft_v1_ffcraft_proto protoreflect.FileDescriptor
 const file_proto_ffcraft_v1_ffcraft_proto_rawDesc = "" +
 	"\n" +
 	"\x1eproto/ffcraft/v1/ffcraft.proto\x12\n" +
-	"ffcraft.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1cgoogle/protobuf/struct.proto\"\x9a\x05\n" +
+	"ffcraft.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a$proto/ffcraft/ir/v1/normalized.proto\"\xda\x06\n" +
 	"\x13FeatureFlagDocument\x12&\n" +
 	"\aversion\x18\x01 \x01(\tB\f\xbaH\t\xc8\x01\x01r\x04\n" +
 	"\x02v1R\aversion\x12f\n" +
 	"\fvariant_sets\x18\x02 \x03(\v20.ffcraft.v1.FeatureFlagDocument.VariantSetsEntryB\x11\xbaH\x0e\x9a\x01\v\b\x01\"\ar\x05\x10\x01\x18\x80\x01R\vvariantSets\x12Q\n" +
 	"\x05rules\x18\x03 \x03(\v2*.ffcraft.v1.FeatureFlagDocument.RulesEntryB\x0f\xbaH\f\x9a\x01\t\"\ar\x05\x10\x01\x18\x80\x01R\x05rules\x12i\n" +
 	"\rdistributions\x18\x04 \x03(\v22.ffcraft.v1.FeatureFlagDocument.DistributionsEntryB\x0f\xbaH\f\x9a\x01\t\"\ar\x05\x10\x01\x18\x80\x01R\rdistributions\x120\n" +
-	"\x05flags\x18\x05 \x03(\v2\x10.ffcraft.v1.FlagB\b\xbaH\x05\x92\x01\x02\b\x01R\x05flags\x1aV\n" +
+	"\x05flags\x18\x05 \x03(\v2\x10.ffcraft.v1.FlagB\b\xbaH\x05\x92\x01\x02\b\x01R\x05flags\x12`\n" +
+	"\n" +
+	"extensions\x18\x06 \x03(\v2/.ffcraft.v1.FeatureFlagDocument.ExtensionsEntryB\x0f\xbaH\f\x9a\x01\t\"\ar\x05\x10\x01(\x80\x01R\n" +
+	"extensions\x1aV\n" +
 	"\x10VariantSetsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12,\n" +
 	"\x05value\x18\x02 \x01(\v2\x16.ffcraft.v1.VariantSetR\x05value:\x028\x01\x1aO\n" +
@@ -3062,7 +3090,10 @@ const file_proto_ffcraft_v1_ffcraft_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\v2\x15.ffcraft.v1.ConditionR\x05value:\x028\x01\x1aZ\n" +
 	"\x12DistributionsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12.\n" +
-	"\x05value\x18\x02 \x01(\v2\x18.ffcraft.v1.DistributionR\x05value:\x028\x01\"\xb8\x01\n" +
+	"\x05value\x18\x02 \x01(\v2\x18.ffcraft.v1.DistributionR\x05value:\x028\x01\x1a\\\n" +
+	"\x0fExtensionsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x123\n" +
+	"\x05value\x18\x02 \x01(\v2\x1d.ffcraft.ir.v1.ExtensionValueR\x05value:\x028\x01\"\xb8\x01\n" +
 	"\n" +
 	"VariantSet\x12S\n" +
 	"\bvariants\x18\x01 \x03(\v2$.ffcraft.v1.VariantSet.VariantsEntryB\x11\xbaH\x0e\x9a\x01\v\b\x01\"\ar\x05\x10\x01\x18\x80\x01R\bvariants\x1aU\n" +
@@ -3083,7 +3114,7 @@ const file_proto_ffcraft_v1_ffcraft_proto_rawDesc = "" +
 	"\x04kind\"=\n" +
 	"\tListValue\x120\n" +
 	"\x06values\x18\x01 \x03(\v2\x18.ffcraft.v1.VariantValueR\x06values\"\v\n" +
-	"\tNullValue\"\xa1\x03\n" +
+	"\tNullValue\"\xd2\x04\n" +
 	"\x04Flag\x127\n" +
 	"\x03key\x18\x01 \x01(\tB%\xbaH\"\xc8\x01\x01r\x1d\x10\x01\x18\x80\x012\x16^[a-z0-9][a-z0-9._-]*$R\x03key\x12.\n" +
 	"\vvariant_set\x18\x02 \x01(\tB\r\xbaH\n" +
@@ -3092,19 +3123,31 @@ const file_proto_ffcraft_v1_ffcraft_proto_rawDesc = "" +
 	"\x0fdefault_variant\x18\x03 \x01(\tB\r\xbaH\n" +
 	"\xc8\x01\x01r\x05\x10\x01\x18\x80\x01R\x0edefaultVariant\x12l\n" +
 	"\fenvironments\x18\x04 \x03(\v2\".ffcraft.v1.Flag.EnvironmentsEntryB$\xbaH!\x9a\x01\x1e\b\x01\"\x1ar\x18\x10\x01\x18@2\x12^[a-z][a-z0-9_-]*$R\fenvironments\x120\n" +
-	"\bmetadata\x18\x05 \x01(\v2\x14.ffcraft.v1.MetadataR\bmetadata\x1aX\n" +
+	"\bmetadata\x18\x05 \x01(\v2\x14.ffcraft.v1.MetadataR\bmetadata\x12Q\n" +
+	"\n" +
+	"extensions\x18\x06 \x03(\v2 .ffcraft.v1.Flag.ExtensionsEntryB\x0f\xbaH\f\x9a\x01\t\"\ar\x05\x10\x01(\x80\x01R\n" +
+	"extensions\x1aX\n" +
 	"\x11EnvironmentsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12-\n" +
-	"\x05value\x18\x02 \x01(\v2\x17.ffcraft.v1.EnvironmentR\x05value:\x028\x01\"\x9b\x01\n" +
+	"\x05value\x18\x02 \x01(\v2\x17.ffcraft.v1.EnvironmentR\x05value:\x028\x01\x1a\\\n" +
+	"\x0fExtensionsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x123\n" +
+	"\x05value\x18\x02 \x01(\v2\x1d.ffcraft.ir.v1.ExtensionValueR\x05value:\x028\x01\"\x9b\x01\n" +
 	"\bMetadata\x12\x1e\n" +
 	"\x05owner\x18\x01 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x01R\x05owner\x12*\n" +
 	"\vdescription\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x10R\vdescription\x12\x1f\n" +
 	"\x06expiry\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x18 R\x06expiry\x12\"\n" +
-	"\x04tags\x18\x04 \x03(\tB\x0e\xbaH\v\x92\x01\b\"\x06r\x04\x10\x01\x18@R\x04tags\"\x97\x01\n" +
+	"\x04tags\x18\x04 \x03(\tB\x0e\xbaH\v\x92\x01\b\"\x06r\x04\x10\x01\x18@R\x04tags\"\xcf\x02\n" +
 	"\vEnvironment\x129\n" +
 	"\vfixed_serve\x18\x01 \x01(\v2\x16.ffcraft.v1.FixedServeH\x00R\n" +
 	"fixedServe\x12E\n" +
-	"\x0frule_evaluation\x18\x02 \x01(\v2\x1a.ffcraft.v1.RuleEvaluationH\x00R\x0eruleEvaluationB\x06\n" +
+	"\x0frule_evaluation\x18\x02 \x01(\v2\x1a.ffcraft.v1.RuleEvaluationH\x00R\x0eruleEvaluation\x12X\n" +
+	"\n" +
+	"extensions\x18\x03 \x03(\v2'.ffcraft.v1.Environment.ExtensionsEntryB\x0f\xbaH\f\x9a\x01\t\"\ar\x05\x10\x01(\x80\x01R\n" +
+	"extensions\x1a\\\n" +
+	"\x0fExtensionsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x123\n" +
+	"\x05value\x18\x02 \x01(\v2\x1d.ffcraft.ir.v1.ExtensionValueR\x05value:\x028\x01B\x06\n" +
 	"\x04kind\"5\n" +
 	"\n" +
 	"FixedServe\x12'\n" +
@@ -3290,7 +3333,7 @@ func file_proto_ffcraft_v1_ffcraft_proto_rawDescGZIP() []byte {
 	return file_proto_ffcraft_v1_ffcraft_proto_rawDescData
 }
 
-var file_proto_ffcraft_v1_ffcraft_proto_msgTypes = make([]protoimpl.MessageInfo, 51)
+var file_proto_ffcraft_v1_ffcraft_proto_msgTypes = make([]protoimpl.MessageInfo, 54)
 var file_proto_ffcraft_v1_ffcraft_proto_goTypes = []any{
 	(*FeatureFlagDocument)(nil), // 0: ffcraft.v1.FeatureFlagDocument
 	(*VariantSet)(nil),          // 1: ffcraft.v1.VariantSet
@@ -3340,102 +3383,112 @@ var file_proto_ffcraft_v1_ffcraft_proto_goTypes = []any{
 	nil,                         // 45: ffcraft.v1.FeatureFlagDocument.VariantSetsEntry
 	nil,                         // 46: ffcraft.v1.FeatureFlagDocument.RulesEntry
 	nil,                         // 47: ffcraft.v1.FeatureFlagDocument.DistributionsEntry
-	nil,                         // 48: ffcraft.v1.VariantSet.VariantsEntry
-	nil,                         // 49: ffcraft.v1.Flag.EnvironmentsEntry
-	nil,                         // 50: ffcraft.v1.Distribution.AllocationsEntry
-	(*structpb.Struct)(nil),     // 51: google.protobuf.Struct
+	nil,                         // 48: ffcraft.v1.FeatureFlagDocument.ExtensionsEntry
+	nil,                         // 49: ffcraft.v1.VariantSet.VariantsEntry
+	nil,                         // 50: ffcraft.v1.Flag.EnvironmentsEntry
+	nil,                         // 51: ffcraft.v1.Flag.ExtensionsEntry
+	nil,                         // 52: ffcraft.v1.Environment.ExtensionsEntry
+	nil,                         // 53: ffcraft.v1.Distribution.AllocationsEntry
+	(*structpb.Struct)(nil),     // 54: google.protobuf.Struct
+	(*v1.ExtensionValue)(nil),   // 55: ffcraft.ir.v1.ExtensionValue
 }
 var file_proto_ffcraft_v1_ffcraft_proto_depIdxs = []int32{
 	45, // 0: ffcraft.v1.FeatureFlagDocument.variant_sets:type_name -> ffcraft.v1.FeatureFlagDocument.VariantSetsEntry
 	46, // 1: ffcraft.v1.FeatureFlagDocument.rules:type_name -> ffcraft.v1.FeatureFlagDocument.RulesEntry
 	47, // 2: ffcraft.v1.FeatureFlagDocument.distributions:type_name -> ffcraft.v1.FeatureFlagDocument.DistributionsEntry
 	5,  // 3: ffcraft.v1.FeatureFlagDocument.flags:type_name -> ffcraft.v1.Flag
-	48, // 4: ffcraft.v1.VariantSet.variants:type_name -> ffcraft.v1.VariantSet.VariantsEntry
-	51, // 5: ffcraft.v1.VariantValue.object_value:type_name -> google.protobuf.Struct
-	3,  // 6: ffcraft.v1.VariantValue.list_value:type_name -> ffcraft.v1.ListValue
-	4,  // 7: ffcraft.v1.VariantValue.null_value:type_name -> ffcraft.v1.NullValue
-	2,  // 8: ffcraft.v1.ListValue.values:type_name -> ffcraft.v1.VariantValue
-	49, // 9: ffcraft.v1.Flag.environments:type_name -> ffcraft.v1.Flag.EnvironmentsEntry
-	6,  // 10: ffcraft.v1.Flag.metadata:type_name -> ffcraft.v1.Metadata
-	8,  // 11: ffcraft.v1.Environment.fixed_serve:type_name -> ffcraft.v1.FixedServe
-	9,  // 12: ffcraft.v1.Environment.rule_evaluation:type_name -> ffcraft.v1.RuleEvaluation
-	10, // 13: ffcraft.v1.RuleEvaluation.rules:type_name -> ffcraft.v1.RuleEntry
-	11, // 14: ffcraft.v1.RuleEvaluation.default_action:type_name -> ffcraft.v1.Action
-	15, // 15: ffcraft.v1.RuleEvaluation.experimentation:type_name -> ffcraft.v1.Experimentation
-	16, // 16: ffcraft.v1.RuleEvaluation.scheduled_rollouts:type_name -> ffcraft.v1.ScheduledStep
-	18, // 17: ffcraft.v1.RuleEntry.if:type_name -> ffcraft.v1.Condition
-	11, // 18: ffcraft.v1.RuleEntry.action:type_name -> ffcraft.v1.Action
-	12, // 19: ffcraft.v1.Action.serve:type_name -> ffcraft.v1.Serve
-	13, // 20: ffcraft.v1.Action.distribute:type_name -> ffcraft.v1.Distribute
-	14, // 21: ffcraft.v1.Action.progressive_rollout:type_name -> ffcraft.v1.ProgressiveRollout
-	10, // 22: ffcraft.v1.ScheduledStep.rules:type_name -> ffcraft.v1.RuleEntry
-	11, // 23: ffcraft.v1.ScheduledStep.default_action:type_name -> ffcraft.v1.Action
-	15, // 24: ffcraft.v1.ScheduledStep.experimentation:type_name -> ffcraft.v1.Experimentation
-	50, // 25: ffcraft.v1.Distribution.allocations:type_name -> ffcraft.v1.Distribution.AllocationsEntry
-	19, // 26: ffcraft.v1.Condition.rule:type_name -> ffcraft.v1.RuleRef
-	25, // 27: ffcraft.v1.Condition.eq:type_name -> ffcraft.v1.Eq
-	26, // 28: ffcraft.v1.Condition.ne:type_name -> ffcraft.v1.Ne
-	27, // 29: ffcraft.v1.Condition.gt:type_name -> ffcraft.v1.Gt
-	28, // 30: ffcraft.v1.Condition.gte:type_name -> ffcraft.v1.Gte
-	29, // 31: ffcraft.v1.Condition.lt:type_name -> ffcraft.v1.Lt
-	30, // 32: ffcraft.v1.Condition.lte:type_name -> ffcraft.v1.Lte
-	31, // 33: ffcraft.v1.Condition.in:type_name -> ffcraft.v1.In
-	32, // 34: ffcraft.v1.Condition.contains:type_name -> ffcraft.v1.Contains
-	33, // 35: ffcraft.v1.Condition.starts_with:type_name -> ffcraft.v1.StartsWith
-	34, // 36: ffcraft.v1.Condition.ends_with:type_name -> ffcraft.v1.EndsWith
-	35, // 37: ffcraft.v1.Condition.matches:type_name -> ffcraft.v1.Matches
-	36, // 38: ffcraft.v1.Condition.semver_gt:type_name -> ffcraft.v1.SemverGt
-	37, // 39: ffcraft.v1.Condition.semver_gte:type_name -> ffcraft.v1.SemverGte
-	38, // 40: ffcraft.v1.Condition.semver_lt:type_name -> ffcraft.v1.SemverLt
-	39, // 41: ffcraft.v1.Condition.semver_lte:type_name -> ffcraft.v1.SemverLte
-	21, // 42: ffcraft.v1.Condition.all_of:type_name -> ffcraft.v1.AllOf
-	22, // 43: ffcraft.v1.Condition.any_of:type_name -> ffcraft.v1.AnyOf
-	24, // 44: ffcraft.v1.Condition.not:type_name -> ffcraft.v1.Not
-	23, // 45: ffcraft.v1.Condition.one_of:type_name -> ffcraft.v1.OneOf
-	20, // 46: ffcraft.v1.Condition.literal_bool:type_name -> ffcraft.v1.LiteralBool
-	18, // 47: ffcraft.v1.AllOf.conditions:type_name -> ffcraft.v1.Condition
-	18, // 48: ffcraft.v1.AnyOf.conditions:type_name -> ffcraft.v1.Condition
-	18, // 49: ffcraft.v1.OneOf.conditions:type_name -> ffcraft.v1.Condition
-	18, // 50: ffcraft.v1.Not.condition:type_name -> ffcraft.v1.Condition
-	40, // 51: ffcraft.v1.Eq.left:type_name -> ffcraft.v1.Value
-	40, // 52: ffcraft.v1.Eq.right:type_name -> ffcraft.v1.Value
-	40, // 53: ffcraft.v1.Ne.left:type_name -> ffcraft.v1.Value
-	40, // 54: ffcraft.v1.Ne.right:type_name -> ffcraft.v1.Value
-	40, // 55: ffcraft.v1.Gt.left:type_name -> ffcraft.v1.Value
-	40, // 56: ffcraft.v1.Gt.right:type_name -> ffcraft.v1.Value
-	40, // 57: ffcraft.v1.Gte.left:type_name -> ffcraft.v1.Value
-	40, // 58: ffcraft.v1.Gte.right:type_name -> ffcraft.v1.Value
-	40, // 59: ffcraft.v1.Lt.left:type_name -> ffcraft.v1.Value
-	40, // 60: ffcraft.v1.Lt.right:type_name -> ffcraft.v1.Value
-	40, // 61: ffcraft.v1.Lte.left:type_name -> ffcraft.v1.Value
-	40, // 62: ffcraft.v1.Lte.right:type_name -> ffcraft.v1.Value
-	40, // 63: ffcraft.v1.In.target:type_name -> ffcraft.v1.Value
-	40, // 64: ffcraft.v1.In.candidate:type_name -> ffcraft.v1.Value
-	40, // 65: ffcraft.v1.Contains.container:type_name -> ffcraft.v1.Value
-	40, // 66: ffcraft.v1.Contains.value:type_name -> ffcraft.v1.Value
-	40, // 67: ffcraft.v1.StartsWith.target:type_name -> ffcraft.v1.Value
-	40, // 68: ffcraft.v1.EndsWith.target:type_name -> ffcraft.v1.Value
-	40, // 69: ffcraft.v1.Matches.target:type_name -> ffcraft.v1.Value
-	40, // 70: ffcraft.v1.SemverGt.left:type_name -> ffcraft.v1.Value
-	40, // 71: ffcraft.v1.SemverGte.left:type_name -> ffcraft.v1.Value
-	40, // 72: ffcraft.v1.SemverLt.left:type_name -> ffcraft.v1.Value
-	40, // 73: ffcraft.v1.SemverLte.left:type_name -> ffcraft.v1.Value
-	41, // 74: ffcraft.v1.Value.var:type_name -> ffcraft.v1.VarRef
-	42, // 75: ffcraft.v1.Value.scalar:type_name -> ffcraft.v1.Scalar
-	43, // 76: ffcraft.v1.Value.string_list:type_name -> ffcraft.v1.StringList
-	44, // 77: ffcraft.v1.Value.list:type_name -> ffcraft.v1.ValueList
-	4,  // 78: ffcraft.v1.Scalar.null_value:type_name -> ffcraft.v1.NullValue
-	40, // 79: ffcraft.v1.ValueList.values:type_name -> ffcraft.v1.Value
-	1,  // 80: ffcraft.v1.FeatureFlagDocument.VariantSetsEntry.value:type_name -> ffcraft.v1.VariantSet
-	18, // 81: ffcraft.v1.FeatureFlagDocument.RulesEntry.value:type_name -> ffcraft.v1.Condition
-	17, // 82: ffcraft.v1.FeatureFlagDocument.DistributionsEntry.value:type_name -> ffcraft.v1.Distribution
-	2,  // 83: ffcraft.v1.VariantSet.VariantsEntry.value:type_name -> ffcraft.v1.VariantValue
-	7,  // 84: ffcraft.v1.Flag.EnvironmentsEntry.value:type_name -> ffcraft.v1.Environment
-	85, // [85:85] is the sub-list for method output_type
-	85, // [85:85] is the sub-list for method input_type
-	85, // [85:85] is the sub-list for extension type_name
-	85, // [85:85] is the sub-list for extension extendee
-	0,  // [0:85] is the sub-list for field type_name
+	48, // 4: ffcraft.v1.FeatureFlagDocument.extensions:type_name -> ffcraft.v1.FeatureFlagDocument.ExtensionsEntry
+	49, // 5: ffcraft.v1.VariantSet.variants:type_name -> ffcraft.v1.VariantSet.VariantsEntry
+	54, // 6: ffcraft.v1.VariantValue.object_value:type_name -> google.protobuf.Struct
+	3,  // 7: ffcraft.v1.VariantValue.list_value:type_name -> ffcraft.v1.ListValue
+	4,  // 8: ffcraft.v1.VariantValue.null_value:type_name -> ffcraft.v1.NullValue
+	2,  // 9: ffcraft.v1.ListValue.values:type_name -> ffcraft.v1.VariantValue
+	50, // 10: ffcraft.v1.Flag.environments:type_name -> ffcraft.v1.Flag.EnvironmentsEntry
+	6,  // 11: ffcraft.v1.Flag.metadata:type_name -> ffcraft.v1.Metadata
+	51, // 12: ffcraft.v1.Flag.extensions:type_name -> ffcraft.v1.Flag.ExtensionsEntry
+	8,  // 13: ffcraft.v1.Environment.fixed_serve:type_name -> ffcraft.v1.FixedServe
+	9,  // 14: ffcraft.v1.Environment.rule_evaluation:type_name -> ffcraft.v1.RuleEvaluation
+	52, // 15: ffcraft.v1.Environment.extensions:type_name -> ffcraft.v1.Environment.ExtensionsEntry
+	10, // 16: ffcraft.v1.RuleEvaluation.rules:type_name -> ffcraft.v1.RuleEntry
+	11, // 17: ffcraft.v1.RuleEvaluation.default_action:type_name -> ffcraft.v1.Action
+	15, // 18: ffcraft.v1.RuleEvaluation.experimentation:type_name -> ffcraft.v1.Experimentation
+	16, // 19: ffcraft.v1.RuleEvaluation.scheduled_rollouts:type_name -> ffcraft.v1.ScheduledStep
+	18, // 20: ffcraft.v1.RuleEntry.if:type_name -> ffcraft.v1.Condition
+	11, // 21: ffcraft.v1.RuleEntry.action:type_name -> ffcraft.v1.Action
+	12, // 22: ffcraft.v1.Action.serve:type_name -> ffcraft.v1.Serve
+	13, // 23: ffcraft.v1.Action.distribute:type_name -> ffcraft.v1.Distribute
+	14, // 24: ffcraft.v1.Action.progressive_rollout:type_name -> ffcraft.v1.ProgressiveRollout
+	10, // 25: ffcraft.v1.ScheduledStep.rules:type_name -> ffcraft.v1.RuleEntry
+	11, // 26: ffcraft.v1.ScheduledStep.default_action:type_name -> ffcraft.v1.Action
+	15, // 27: ffcraft.v1.ScheduledStep.experimentation:type_name -> ffcraft.v1.Experimentation
+	53, // 28: ffcraft.v1.Distribution.allocations:type_name -> ffcraft.v1.Distribution.AllocationsEntry
+	19, // 29: ffcraft.v1.Condition.rule:type_name -> ffcraft.v1.RuleRef
+	25, // 30: ffcraft.v1.Condition.eq:type_name -> ffcraft.v1.Eq
+	26, // 31: ffcraft.v1.Condition.ne:type_name -> ffcraft.v1.Ne
+	27, // 32: ffcraft.v1.Condition.gt:type_name -> ffcraft.v1.Gt
+	28, // 33: ffcraft.v1.Condition.gte:type_name -> ffcraft.v1.Gte
+	29, // 34: ffcraft.v1.Condition.lt:type_name -> ffcraft.v1.Lt
+	30, // 35: ffcraft.v1.Condition.lte:type_name -> ffcraft.v1.Lte
+	31, // 36: ffcraft.v1.Condition.in:type_name -> ffcraft.v1.In
+	32, // 37: ffcraft.v1.Condition.contains:type_name -> ffcraft.v1.Contains
+	33, // 38: ffcraft.v1.Condition.starts_with:type_name -> ffcraft.v1.StartsWith
+	34, // 39: ffcraft.v1.Condition.ends_with:type_name -> ffcraft.v1.EndsWith
+	35, // 40: ffcraft.v1.Condition.matches:type_name -> ffcraft.v1.Matches
+	36, // 41: ffcraft.v1.Condition.semver_gt:type_name -> ffcraft.v1.SemverGt
+	37, // 42: ffcraft.v1.Condition.semver_gte:type_name -> ffcraft.v1.SemverGte
+	38, // 43: ffcraft.v1.Condition.semver_lt:type_name -> ffcraft.v1.SemverLt
+	39, // 44: ffcraft.v1.Condition.semver_lte:type_name -> ffcraft.v1.SemverLte
+	21, // 45: ffcraft.v1.Condition.all_of:type_name -> ffcraft.v1.AllOf
+	22, // 46: ffcraft.v1.Condition.any_of:type_name -> ffcraft.v1.AnyOf
+	24, // 47: ffcraft.v1.Condition.not:type_name -> ffcraft.v1.Not
+	23, // 48: ffcraft.v1.Condition.one_of:type_name -> ffcraft.v1.OneOf
+	20, // 49: ffcraft.v1.Condition.literal_bool:type_name -> ffcraft.v1.LiteralBool
+	18, // 50: ffcraft.v1.AllOf.conditions:type_name -> ffcraft.v1.Condition
+	18, // 51: ffcraft.v1.AnyOf.conditions:type_name -> ffcraft.v1.Condition
+	18, // 52: ffcraft.v1.OneOf.conditions:type_name -> ffcraft.v1.Condition
+	18, // 53: ffcraft.v1.Not.condition:type_name -> ffcraft.v1.Condition
+	40, // 54: ffcraft.v1.Eq.left:type_name -> ffcraft.v1.Value
+	40, // 55: ffcraft.v1.Eq.right:type_name -> ffcraft.v1.Value
+	40, // 56: ffcraft.v1.Ne.left:type_name -> ffcraft.v1.Value
+	40, // 57: ffcraft.v1.Ne.right:type_name -> ffcraft.v1.Value
+	40, // 58: ffcraft.v1.Gt.left:type_name -> ffcraft.v1.Value
+	40, // 59: ffcraft.v1.Gt.right:type_name -> ffcraft.v1.Value
+	40, // 60: ffcraft.v1.Gte.left:type_name -> ffcraft.v1.Value
+	40, // 61: ffcraft.v1.Gte.right:type_name -> ffcraft.v1.Value
+	40, // 62: ffcraft.v1.Lt.left:type_name -> ffcraft.v1.Value
+	40, // 63: ffcraft.v1.Lt.right:type_name -> ffcraft.v1.Value
+	40, // 64: ffcraft.v1.Lte.left:type_name -> ffcraft.v1.Value
+	40, // 65: ffcraft.v1.Lte.right:type_name -> ffcraft.v1.Value
+	40, // 66: ffcraft.v1.In.target:type_name -> ffcraft.v1.Value
+	40, // 67: ffcraft.v1.In.candidate:type_name -> ffcraft.v1.Value
+	40, // 68: ffcraft.v1.Contains.container:type_name -> ffcraft.v1.Value
+	40, // 69: ffcraft.v1.Contains.value:type_name -> ffcraft.v1.Value
+	40, // 70: ffcraft.v1.StartsWith.target:type_name -> ffcraft.v1.Value
+	40, // 71: ffcraft.v1.EndsWith.target:type_name -> ffcraft.v1.Value
+	40, // 72: ffcraft.v1.Matches.target:type_name -> ffcraft.v1.Value
+	40, // 73: ffcraft.v1.SemverGt.left:type_name -> ffcraft.v1.Value
+	40, // 74: ffcraft.v1.SemverGte.left:type_name -> ffcraft.v1.Value
+	40, // 75: ffcraft.v1.SemverLt.left:type_name -> ffcraft.v1.Value
+	40, // 76: ffcraft.v1.SemverLte.left:type_name -> ffcraft.v1.Value
+	41, // 77: ffcraft.v1.Value.var:type_name -> ffcraft.v1.VarRef
+	42, // 78: ffcraft.v1.Value.scalar:type_name -> ffcraft.v1.Scalar
+	43, // 79: ffcraft.v1.Value.string_list:type_name -> ffcraft.v1.StringList
+	44, // 80: ffcraft.v1.Value.list:type_name -> ffcraft.v1.ValueList
+	4,  // 81: ffcraft.v1.Scalar.null_value:type_name -> ffcraft.v1.NullValue
+	40, // 82: ffcraft.v1.ValueList.values:type_name -> ffcraft.v1.Value
+	1,  // 83: ffcraft.v1.FeatureFlagDocument.VariantSetsEntry.value:type_name -> ffcraft.v1.VariantSet
+	18, // 84: ffcraft.v1.FeatureFlagDocument.RulesEntry.value:type_name -> ffcraft.v1.Condition
+	17, // 85: ffcraft.v1.FeatureFlagDocument.DistributionsEntry.value:type_name -> ffcraft.v1.Distribution
+	55, // 86: ffcraft.v1.FeatureFlagDocument.ExtensionsEntry.value:type_name -> ffcraft.ir.v1.ExtensionValue
+	2,  // 87: ffcraft.v1.VariantSet.VariantsEntry.value:type_name -> ffcraft.v1.VariantValue
+	7,  // 88: ffcraft.v1.Flag.EnvironmentsEntry.value:type_name -> ffcraft.v1.Environment
+	55, // 89: ffcraft.v1.Flag.ExtensionsEntry.value:type_name -> ffcraft.ir.v1.ExtensionValue
+	55, // 90: ffcraft.v1.Environment.ExtensionsEntry.value:type_name -> ffcraft.ir.v1.ExtensionValue
+	91, // [91:91] is the sub-list for method output_type
+	91, // [91:91] is the sub-list for method input_type
+	91, // [91:91] is the sub-list for extension type_name
+	91, // [91:91] is the sub-list for extension extendee
+	0,  // [0:91] is the sub-list for field type_name
 }
 
 func init() { file_proto_ffcraft_v1_ffcraft_proto_init() }
@@ -3503,7 +3556,7 @@ func file_proto_ffcraft_v1_ffcraft_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_ffcraft_v1_ffcraft_proto_rawDesc), len(file_proto_ffcraft_v1_ffcraft_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   51,
+			NumMessages:   54,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
