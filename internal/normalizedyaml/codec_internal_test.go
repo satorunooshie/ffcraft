@@ -120,3 +120,34 @@ func TestRejectUnrepresentableExtensionScopes(t *testing.T) {
 		})
 	}
 }
+
+func TestNormalizedYAMLNodeValidationContracts(t *testing.T) {
+	tests := []struct {
+		name string
+		node *yaml.Node
+		want string
+	}{
+		{"custom tag", &yaml.Node{Kind: yaml.ScalarNode, Tag: "!custom", Value: "x"}, "custom YAML tags"},
+		{"non scalar key", &yaml.Node{Kind: yaml.MappingNode, Content: []*yaml.Node{{Kind: yaml.SequenceNode}, {Kind: yaml.ScalarNode, Value: "x"}}}, "mapping keys must be scalars"},
+		{"duplicate key", &yaml.Node{Kind: yaml.MappingNode, Content: []*yaml.Node{{Kind: yaml.ScalarNode, Value: "x"}, {Kind: yaml.ScalarNode, Value: "1"}, {Kind: yaml.ScalarNode, Value: "x"}, {Kind: yaml.ScalarNode, Value: "2"}}}, "duplicate"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if err := validateYAMLNode(test.node); err == nil || !strings.Contains(err.Error(), test.want) {
+				t.Fatalf("validateYAMLNode() = %v, want %q", err, test.want)
+			}
+		})
+	}
+	var value any
+	if err := decodeYAMLValue(&yaml.Node{Kind: yaml.DocumentNode}, &value); err == nil || !strings.Contains(err.Error(), "unsupported normalized YAML node kind") {
+		t.Fatalf("decodeYAMLValue() = %v, want unsupported node kind", err)
+	}
+	for _, tag := range []string{"!!map", "!!seq", "!!str", "!!bool", "!!int", "!!float", "!!null"} {
+		if !isCoreYAMLTag(tag) {
+			t.Errorf("isCoreYAMLTag(%q) = false", tag)
+		}
+	}
+	if isCoreYAMLTag("!custom") {
+		t.Error("isCoreYAMLTag(!custom) = true")
+	}
+}
