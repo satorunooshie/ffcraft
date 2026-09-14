@@ -3,6 +3,7 @@ package parse
 import (
 	"fmt"
 	"math"
+	"regexp"
 	"strconv"
 
 	"google.golang.org/protobuf/types/known/structpb"
@@ -106,7 +107,7 @@ func parseSequenceValue(node *yaml.Node, path string) (*ffv1.Value, error) {
 }
 
 func parseScalarValue(node *yaml.Node) *ffv1.Value {
-	if node.Tag == "!!null" || node.Value == "null" {
+	if isExactNull(node) {
 		return &ffv1.Value{Kind: &ffv1.Value_Scalar{Scalar: &ffv1.Scalar{Kind: &ffv1.Scalar_NullValue{NullValue: &ffv1.NullValue{}}}}}
 	}
 	if value, ok := parseBoolScalar(node); ok {
@@ -165,7 +166,7 @@ func parseListVariantValue(node *yaml.Node, path string) (*ffv1.VariantValue, er
 }
 
 func parseScalarVariantValue(node *yaml.Node) *ffv1.VariantValue {
-	if node.Tag == "!!null" || node.Value == "null" {
+	if isExactNull(node) {
 		return &ffv1.VariantValue{Kind: &ffv1.VariantValue_NullValue{NullValue: &ffv1.NullValue{}}}
 	}
 	if value, ok := parseBoolScalar(node); ok {
@@ -207,7 +208,7 @@ func nodeToAny(node *yaml.Node, path string) (any, error) {
 		}
 		return out, nil
 	case yaml.ScalarNode:
-		if node.Tag == "!!null" || node.Value == "null" {
+		if isExactNull(node) {
 			return nil, nil
 		}
 		if value, ok := parseBoolScalar(node); ok {
@@ -234,7 +235,7 @@ func nodeToAny(node *yaml.Node, path string) (any, error) {
 }
 
 func parseBoolScalar(node *yaml.Node) (bool, bool) {
-	if node.Tag != "!!bool" && node.Value != "true" && node.Value != "false" {
+	if node.Tag != "!!bool" || node.Style != 0 {
 		return false, false
 	}
 	value, err := strconv.ParseBool(node.Value)
@@ -242,7 +243,7 @@ func parseBoolScalar(node *yaml.Node) (bool, bool) {
 }
 
 func parseIntScalar(node *yaml.Node) (int64, bool) {
-	if node.Tag == "!!str" {
+	if node.Style != 0 || !yamlIntegerPattern.MatchString(node.Value) {
 		return 0, false
 	}
 	value, err := strconv.ParseInt(node.Value, 10, 64)
@@ -250,7 +251,7 @@ func parseIntScalar(node *yaml.Node) (int64, bool) {
 }
 
 func parseFloatScalar(node *yaml.Node) (float64, bool) {
-	if node.Tag == "!!str" {
+	if node.Style != 0 || !yamlFloatPattern.MatchString(node.Value) {
 		return 0, false
 	}
 	value, err := strconv.ParseFloat(node.Value, 64)
@@ -259,3 +260,14 @@ func parseFloatScalar(node *yaml.Node) (float64, bool) {
 	}
 	return value, true
 }
+
+func isExactNull(node *yaml.Node) bool {
+	return node.Style == 0 && node.Tag == "!!null" && node.Value == "null"
+}
+
+var (
+	yamlIntegerPattern = regexp.MustCompile(`^-?(0|[1-9][0-9]*)$`)
+	// This is the JSON number grammar, restricted to values containing a
+	// fractional part or exponent as required by the extension specification.
+	yamlFloatPattern = regexp.MustCompile(`^-?(0|[1-9][0-9]*)(\.[0-9]+|[eE][+-]?[0-9]+|\.[0-9]+[eE][+-]?[0-9]+)$`)
+)

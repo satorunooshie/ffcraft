@@ -23,6 +23,9 @@ func TestValidateSemanticContracts(t *testing.T) {
 		{name: "semver literal", want: "invalid SemVer", mutate: func(doc *irv1.Document) {
 			doc.Flags["f"].Environments["prod"].Base.Rules = []*irv1.Rule{{Condition: &irv1.Condition{Kind: &irv1.Condition_SemverComparison{SemverComparison: &irv1.SemVerComparisonCondition{Operator: irv1.SemVerComparisonOperator_SEM_VER_COMPARISON_OPERATOR_GT, Attribute: &irv1.AttributePath{Segments: []string{"version"}}, Semver: "1.0"}}}, Action: &irv1.Action{Kind: &irv1.Action_Serve{Serve: "on"}}}}
 		}},
+		{name: "distribution weights are reduced", want: "GCD=1", mutate: func(doc *irv1.Document) {
+			doc.Flags["f"].Environments["prod"].Base.DefaultAction = &irv1.Action{Kind: &irv1.Action_Distribute{Distribute: &irv1.Distribution{AllocationKey: &irv1.AttributePath{Segments: []string{"user", "id"}}, Weights: map[string]uint32{"on": 2, "off": 4}}}}
+		}},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

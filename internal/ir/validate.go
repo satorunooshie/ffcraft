@@ -24,6 +24,9 @@ func Validate(doc *irv1.Document) error {
 	if doc == nil {
 		return fmt.Errorf("IR document is nil")
 	}
+	if err := rejectUnknownCore(doc); err != nil {
+		return err
+	}
 	validatorOnce.Do(func() { validator, validatorErr = protovalidate.New() })
 	if validatorErr != nil {
 		return validatorErr
@@ -124,9 +127,10 @@ func validateAction(action *irv1.Action, variants map[string]*irv1.VariantValue)
 			return fmt.Errorf("unknown serve variant %q", kind.Serve)
 		}
 	case *irv1.Action_Distribute:
-		if len(kind.Distribute.Weights) < 2 || kind.Distribute.AllocationKey == nil {
+		if kind.Distribute == nil || len(kind.Distribute.Weights) < 2 || kind.Distribute.AllocationKey == nil {
 			return fmt.Errorf("invalid distribution")
 		}
+		var divisor uint32
 		for name, weight := range kind.Distribute.Weights {
 			if weight == 0 {
 				return fmt.Errorf("distribution weight %q is zero", name)
@@ -134,11 +138,26 @@ func validateAction(action *irv1.Action, variants map[string]*irv1.VariantValue)
 			if _, ok := variants[name]; !ok {
 				return fmt.Errorf("unknown distribution variant %q", name)
 			}
+			if divisor == 0 {
+				divisor = weight
+			} else {
+				divisor = gcd(divisor, weight)
+			}
+		}
+		if divisor != 1 {
+			return fmt.Errorf("distribution weights must be in GCD=1 form")
 		}
 	default:
 		return fmt.Errorf("action kind is required")
 	}
 	return nil
+}
+
+func gcd(a, b uint32) uint32 {
+	for b != 0 {
+		a, b = b, a%b
+	}
+	return a
 }
 
 func validateCondition(condition *irv1.Condition) error { return validateConditionDepth(condition, 0) }

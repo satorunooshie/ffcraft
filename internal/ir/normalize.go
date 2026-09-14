@@ -100,6 +100,23 @@ func environment(source *ast.Environment, variants map[string]*irv1.VariantValue
 	if source.Experimentation != nil {
 		return nil, fmt.Errorf("experimentation has no target-independent IR semantics")
 	}
+	sort.Slice(out.Schedule, func(i, j int) bool {
+		return out.Schedule[i].EffectiveAt.AsTime().Before(out.Schedule[j].EffectiveAt.AsTime())
+	})
+	ordered := out.Schedule[:0]
+	for _, scheduled := range out.Schedule {
+		if len(ordered) > 0 {
+			previous := ordered[len(ordered)-1]
+			if scheduled.EffectiveAt.AsTime().Equal(previous.EffectiveAt.AsTime()) {
+				return nil, fmt.Errorf("schedule timestamps must be unique")
+			}
+			if proto.Equal(scheduled.Evaluation, previous.Evaluation) {
+				continue
+			}
+		}
+		ordered = append(ordered, scheduled)
+	}
+	out.Schedule = ordered
 	return out, nil
 }
 

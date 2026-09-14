@@ -2,8 +2,6 @@ package parse
 
 import (
 	"fmt"
-	"math"
-	"strconv"
 
 	irv1 "github.com/satorunooshie/ffcraft/gen/ffcraft/ir/v1"
 	"gopkg.in/yaml.v3"
@@ -61,32 +59,28 @@ func parseExtensionValue(node *yaml.Node, path string) (*irv1.ExtensionValue, er
 		}
 		return &irv1.ExtensionValue{Kind: &irv1.ExtensionValue_ListValue{ListValue: &irv1.ExtensionList{Values: values}}}, nil
 	case yaml.ScalarNode:
-		switch node.Tag {
-		case "!!null":
-			return &irv1.ExtensionValue{Kind: &irv1.ExtensionValue_NullValue{NullValue: &irv1.ExtensionNull{}}}, nil
-		case "!!bool":
-			v, err := strconv.ParseBool(node.Value)
-			if err != nil {
-				return nil, fmt.Errorf("%s: invalid boolean", path)
-			}
-			return &irv1.ExtensionValue{Kind: &irv1.ExtensionValue_BoolValue{BoolValue: v}}, nil
-		case "!!int":
-			v, err := strconv.ParseInt(node.Value, 10, 64)
-			if err != nil {
-				return nil, fmt.Errorf("%s: integer %q cannot be represented as int64", path, node.Value)
-			}
-			return &irv1.ExtensionValue{Kind: &irv1.ExtensionValue_IntValue{IntValue: v}}, nil
-		case "!!float":
-			v, err := strconv.ParseFloat(node.Value, 64)
-			if err != nil || math.IsNaN(v) || math.IsInf(v, 0) {
-				return nil, fmt.Errorf("%s: floating-point value must be finite", path)
-			}
-			return &irv1.ExtensionValue{Kind: &irv1.ExtensionValue_DoubleValue{DoubleValue: v}}, nil
-		case "!!str":
+		if node.Style != 0 {
 			return &irv1.ExtensionValue{Kind: &irv1.ExtensionValue_StringValue{StringValue: node.Value}}, nil
-		default:
-			return nil, fmt.Errorf("%s: unsupported YAML scalar tag %q", path, node.Tag)
 		}
+		if isExactNull(node) {
+			return &irv1.ExtensionValue{Kind: &irv1.ExtensionValue_NullValue{NullValue: &irv1.ExtensionNull{}}}, nil
+		}
+		if value, ok := parseBoolScalar(node); ok {
+			return &irv1.ExtensionValue{Kind: &irv1.ExtensionValue_BoolValue{BoolValue: value}}, nil
+		}
+		if value, ok := parseIntScalar(node); ok {
+			return &irv1.ExtensionValue{Kind: &irv1.ExtensionValue_IntValue{IntValue: value}}, nil
+		}
+		if yamlIntegerPattern.MatchString(node.Value) {
+			return nil, fmt.Errorf("%s: integer %q cannot be represented as int64", path, node.Value)
+		}
+		if value, ok := parseFloatScalar(node); ok {
+			return &irv1.ExtensionValue{Kind: &irv1.ExtensionValue_DoubleValue{DoubleValue: value}}, nil
+		}
+		if yamlFloatPattern.MatchString(node.Value) {
+			return nil, fmt.Errorf("%s: floating-point value must be finite", path)
+		}
+		return &irv1.ExtensionValue{Kind: &irv1.ExtensionValue_StringValue{StringValue: node.Value}}, nil
 	case yaml.AliasNode:
 		return nil, fmt.Errorf("%s: yaml aliases are not supported", path)
 	default:

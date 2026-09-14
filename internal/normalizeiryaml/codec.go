@@ -7,6 +7,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"math"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -106,15 +108,20 @@ func Unmarshal(data []byte) (*irv1.Document, error) {
 	if err != nil {
 		return nil, err
 	}
-	decoder = yaml.NewDecoder(bytes.NewReader(data))
-	var value map[string]any
-	if err := decoder.Decode(&value); err != nil {
+	var value any
+	if err := decodeYAMLValue(document.Content[0], &value); err != nil {
 		return nil, err
 	}
-	if value["version"] != version {
-		return nil, fmt.Errorf("unsupported normalized yaml version %q", value["version"])
+	root, ok := value.(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("normalized YAML root must be a mapping")
 	}
-	delete(value, "version")
+	value = root
+	valueMap := value.(map[string]any)
+	if valueMap["version"] != version {
+		return nil, fmt.Errorf("unsupported normalized yaml version %q", valueMap["version"])
+	}
+	delete(valueMap, "version")
 	payload, err := json.Marshal(value)
 	if err != nil {
 		return nil, err
@@ -133,13 +140,83 @@ func validateYAMLNode(node *yaml.Node) error {
 	if node.Kind == yaml.AliasNode {
 		return fmt.Errorf("YAML aliases are not supported")
 	}
-	if node.Tag != "" && len(node.Tag) > 0 && node.Tag[0] == '!' && node.Tag != "!!map" && node.Tag != "!!seq" && node.Tag != "!!str" && node.Tag != "!!bool" && node.Tag != "!!int" && node.Tag != "!!float" && node.Tag != "!!null" {
+	if node.Style&yaml.TaggedStyle != 0 || node.Tag != "" && len(node.Tag) > 0 && node.Tag[0] == '!' && node.Tag != "!!map" && node.Tag != "!!seq" && node.Tag != "!!str" && node.Tag != "!!bool" && node.Tag != "!!int" && node.Tag != "!!float" && node.Tag != "!!null" {
 		return fmt.Errorf("custom YAML tags are not supported")
+	}
+	if node.Kind == yaml.MappingNode {
+		seen := make(map[string]struct{}, len(node.Content)/2)
+		for i := 0; i+1 < len(node.Content); i += 2 {
+			key := node.Content[i]
+			if key.Kind != yaml.ScalarNode {
+				return fmt.Errorf("normalized YAML mapping keys must be scalars")
+			}
+			if _, exists := seen[key.Value]; exists {
+				return fmt.Errorf("duplicate normalized YAML mapping key %q", key.Value)
+			}
+			seen[key.Value] = struct{}{}
+		}
 	}
 	for _, child := range node.Content {
 		if err := validateYAMLNode(child); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+var (
+	normalizedIntegerPattern = regexp.MustCompile(`^-?(0|[1-9][0-9]*)$`)
+	normalizedFloatPattern   = regexp.MustCompile(`^-?(0|[1-9][0-9]*)(\.[0-9]+|[eE][+-]?[0-9]+|\.[0-9]+[eE][+-]?[0-9]+)$`)
+)
+
+func decodeYAMLValue(node *yaml.Node, out *any) error {
+	switch node.Kind {
+	case yaml.MappingNode:
+		value := make(map[string]any, len(node.Content)/2)
+		for i := 0; i < len(node.Content); i += 2 {
+			key := node.Content[i]
+			var child any
+			if err := decodeYAMLValue(node.Content[i+1], &child); err != nil {
+				return err
+			}
+			value[key.Value] = child
+		}
+		*out = value
+	case yaml.SequenceNode:
+		value := make([]any, len(node.Content))
+		for i, child := range node.Content {
+			if err := decodeYAMLValue(child, &value[i]); err != nil {
+				return err
+			}
+		}
+		*out = value
+	case yaml.ScalarNode:
+		if node.Style != 0 {
+			*out = node.Value
+			return nil
+		}
+		switch {
+		case node.Tag == "!!null" && node.Value == "null":
+			*out = nil
+		case node.Tag == "!!bool" && (node.Value == "true" || node.Value == "false"):
+			*out = node.Value == "true"
+		case normalizedIntegerPattern.MatchString(node.Value):
+			value, err := strconv.ParseInt(node.Value, 10, 64)
+			if err != nil {
+				return fmt.Errorf("integer %q cannot be represented as int64", node.Value)
+			}
+			*out = value
+		case normalizedFloatPattern.MatchString(node.Value):
+			value, err := strconv.ParseFloat(node.Value, 64)
+			if err != nil || math.IsNaN(value) || math.IsInf(value, 0) {
+				return fmt.Errorf("floating-point value %q must be finite", node.Value)
+			}
+			*out = value
+		default:
+			*out = node.Value
+		}
+	default:
+		return fmt.Errorf("unsupported normalized YAML node kind %v", node.Kind)
 	}
 	return nil
 }
