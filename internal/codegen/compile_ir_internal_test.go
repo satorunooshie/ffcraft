@@ -174,6 +174,36 @@ func TestCodegenTemplateAndFormattingContracts(t *testing.T) {
 	}
 }
 
+func TestCompileIRDocumentConfigContracts(t *testing.T) {
+	doc := minimalCodegenDocument()
+	if _, err := CompileIR(doc, Config{}); err == nil || !strings.Contains(err.Error(), "package name is required") {
+		t.Fatalf("CompileIR(missing package) = %v", err)
+	}
+	source, err := CompileIR(doc, Config{PackageName: "generated"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, fragment := range []string{"type Client interface", "type Evaluator struct"} {
+		if !strings.Contains(string(source), fragment) {
+			t.Fatalf("default generated type missing %q", fragment)
+		}
+	}
+	source, err = CompileIR(doc, Config{
+		PackageName:   "generated",
+		ContextType:   "RequestContext",
+		ClientType:    "FeatureClient",
+		EvaluatorType: "FeatureEvaluator",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, fragment := range []string{"type FeatureClient interface", "type FeatureEvaluator struct"} {
+		if !strings.Contains(string(source), fragment) {
+			t.Fatalf("custom generated type missing %q", fragment)
+		}
+	}
+}
+
 func minimalCodegenDocument() *irv1.Document {
 	return &irv1.Document{Flags: map[string]*irv1.Flag{"flag": {
 		Variants:     map[string]*irv1.VariantValue{"on": {Kind: &irv1.VariantValue_BoolValue{BoolValue: true}}, "off": {Kind: &irv1.VariantValue_BoolValue{BoolValue: false}}},
