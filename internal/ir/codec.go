@@ -5,6 +5,7 @@ import (
 
 	irv1 "github.com/satorunooshie/ffcraft/gen/ffcraft/ir/v1"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 // Marshal encodes a validated IR document using the normative protobuf wire
@@ -34,81 +35,41 @@ func Unmarshal(data []byte) (*irv1.Document, error) {
 }
 
 func rejectUnknownCore(doc *irv1.Document) error {
-	if len(doc.ProtoReflect().GetUnknown()) != 0 {
-		return fmt.Errorf("unknown fields in Document")
+	return rejectUnknownMessage(doc.ProtoReflect(), false)
+}
+
+func rejectUnknownMessage(message protoreflect.Message, opaque bool) error {
+	if !opaque && len(message.GetUnknown()) != 0 {
+		return fmt.Errorf("unknown fields in %s", message.Descriptor().FullName())
 	}
-	for key, flag := range doc.Flags {
-		if len(flag.ProtoReflect().GetUnknown()) != 0 {
-			return fmt.Errorf("unknown fields in flag %q", key)
+	var nestedErr error
+	message.Range(func(field protoreflect.FieldDescriptor, value protoreflect.Value) bool {
+		if nestedErr != nil {
+			return false
 		}
-		for name, env := range flag.Environments {
-			if err := rejectEnvironment(name, env); err != nil {
-				return fmt.Errorf("flag %q: %w", key, err)
+		check := func(child protoreflect.Message) {
+			nestedErr = rejectUnknownMessage(child, opaque || isExtensionMessage(child.Descriptor().FullName()))
+		}
+		switch {
+		case field.IsMap():
+			value.Map().Range(func(_ protoreflect.MapKey, item protoreflect.Value) bool {
+				if field.MapValue().Kind() == protoreflect.MessageKind {
+					check(item.Message())
+				}
+				return nestedErr == nil
+			})
+		case field.IsList() && field.Message() != nil:
+			for i := 0; i < value.List().Len() && nestedErr == nil; i++ {
+				check(value.List().Get(i).Message())
 			}
+		case field.Message() != nil:
+			check(value.Message())
 		}
-	}
-	return nil
+		return nestedErr == nil
+	})
+	return nestedErr
 }
-func rejectEnvironment(name string, env *irv1.Environment) error {
-	if len(env.ProtoReflect().GetUnknown()) != 0 {
-		return fmt.Errorf("environment %q has unknown fields", name)
-	}
-	if err := rejectEvaluation(env.Base); err != nil {
-		return err
-	}
-	for _, scheduled := range env.Schedule {
-		if len(scheduled.ProtoReflect().GetUnknown()) != 0 {
-			return fmt.Errorf("scheduled evaluation has unknown fields")
-		}
-		if err := rejectEvaluation(scheduled.Evaluation); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-func rejectEvaluation(eval *irv1.Evaluation) error {
-	if len(eval.ProtoReflect().GetUnknown()) != 0 {
-		return fmt.Errorf("evaluation has unknown fields")
-	}
-	for _, rule := range eval.Rules {
-		if len(rule.ProtoReflect().GetUnknown()) != 0 {
-			return fmt.Errorf("rule has unknown fields")
-		}
-		if err := rejectCondition(rule.Condition); err != nil {
-			return err
-		}
-		if err := rejectAction(rule.Action); err != nil {
-			return err
-		}
-	}
-	return rejectAction(eval.DefaultAction)
-}
-func rejectAction(action *irv1.Action) error {
-	if len(action.ProtoReflect().GetUnknown()) != 0 {
-		return fmt.Errorf("action has unknown fields")
-	}
-	if distribution, ok := action.GetKind().(*irv1.Action_Distribute); ok && len(distribution.Distribute.ProtoReflect().GetUnknown()) != 0 {
-		return fmt.Errorf("distribution has unknown fields")
-	}
-	return nil
-}
-func rejectCondition(condition *irv1.Condition) error {
-	if len(condition.ProtoReflect().GetUnknown()) != 0 {
-		return fmt.Errorf("condition has unknown fields")
-	}
-	switch kind := condition.GetKind().(type) {
-	case *irv1.Condition_Equality:
-		if len(kind.Equality.ProtoReflect().GetUnknown()) != 0 {
-			return fmt.Errorf("equality condition has unknown fields")
-		}
-	case *irv1.Condition_Logical:
-		for _, child := range kind.Logical.Conditions {
-			if err := rejectCondition(child); err != nil {
-				return err
-			}
-		}
-	case *irv1.Condition_Negation:
-		return rejectCondition(kind.Negation)
-	}
-	return nil
+
+func isExtensionMessage(name protoreflect.FullName) bool {
+	return name == "ffcraft.ir.v1.ExtensionValue" || name == "ffcraft.ir.v1.ExtensionObject" || name == "ffcraft.ir.v1.ExtensionList" || name == "ffcraft.ir.v1.ExtensionNull"
 }

@@ -11,7 +11,9 @@ import (
 	"strings"
 	"text/template"
 
+	irv1 "github.com/satorunooshie/ffcraft/gen/ffcraft/ir/v1"
 	"github.com/satorunooshie/ffcraft/internal/ast"
+	"github.com/satorunooshie/ffcraft/internal/ir"
 )
 
 type Config struct {
@@ -22,6 +24,15 @@ type Config struct {
 	ContextDefaults ContextDefaultsConfig
 	ContextFields   []ContextFieldConfig
 	Accessors       map[string]AccessorConfig
+}
+
+// CompileIR is the canonical generator entrypoint for normalized protobuf IR.
+func CompileIR(doc *irv1.Document, cfg Config) ([]byte, error) {
+	legacy, err := ir.ToAST(doc)
+	if err != nil {
+		return nil, err
+	}
+	return Compile(legacy, cfg)
 }
 
 type CompileOptions struct {

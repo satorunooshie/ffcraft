@@ -6,22 +6,12 @@ import (
 	"math"
 	"sort"
 	"strings"
+	"time"
 
 	irv1 "github.com/satorunooshie/ffcraft/gen/ffcraft/ir/v1"
-	ffv1 "github.com/satorunooshie/ffcraft/gen/ffcraft/v1"
 	"github.com/satorunooshie/ffcraft/internal/ast"
-	"github.com/satorunooshie/ffcraft/internal/normalize"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
-
-// Normalize parses authoring semantics through the authoring adapter and
-// returns the normative protobuf IR consumed by downstream adapters.
-func Normalize(doc *ffv1.FeatureFlagDocument) (*irv1.Document, error) {
-	normalized, err := normalize.Normalize(doc)
-	if err != nil {
-		return nil, err
-	}
-	return FromAST(normalized)
-}
 
 // FromAST is the compatibility boundary for the pre-IR internal model. No
 // compiler should call it; new code should receive *irv1.Document directly.
@@ -39,7 +29,7 @@ func FromAST(doc *ast.Document) (*irv1.Document, error) {
 			f.Variants[name] = variant(value)
 		}
 		for name, env := range flag.Environments {
-			converted, err := environment(env, f.Variants)
+			converted, err := environment(env, f.Variants, flag.DefaultVariant)
 			if err != nil {
 				return nil, fmt.Errorf("flag %q environment %q: %w", flag.Key, name, err)
 			}
@@ -53,18 +43,98 @@ func FromAST(doc *ast.Document) (*irv1.Document, error) {
 	return out, nil
 }
 
-func environment(source *ast.Environment, variants map[string]*irv1.VariantValue) (*irv1.Environment, error) {
-	base, err := evaluation(source.Rules, source.DefaultAction)
+func environment(source *ast.Environment, variants map[string]*irv1.VariantValue, defaultVariant string) (*irv1.Environment, error) {
+	baseAction := source.DefaultAction
+	var progressive *ast.ProgressiveRolloutAction
+	if candidate, ok := baseAction.(*ast.ProgressiveRolloutAction); ok {
+		progressive = candidate
+		baseAction = &ast.ServeAction{Variant: defaultVariant}
+	}
+	base, err := evaluation(source.Rules, baseAction)
 	if err != nil {
 		return nil, err
 	}
 	if source.StaticVariant != "" {
 		base = &irv1.Evaluation{DefaultAction: serve(source.StaticVariant)}
 	}
-	if source.Experimentation != nil || len(source.ScheduledRollouts) != 0 {
-		return nil, fmt.Errorf("authoring rollout metadata requires snapshot lowering")
+	out := &irv1.Environment{Base: base, Extensions: cloneExtensions(source.Extensions)}
+	if progressive != nil {
+		steps, err := progressiveSnapshots(progressive, defaultVariant, base)
+		if err != nil {
+			return nil, err
+		}
+		out.Schedule = append(out.Schedule, steps...)
 	}
-	return &irv1.Environment{Base: base, Extensions: cloneExtensions(source.Extensions)}, nil
+	current := base
+	currentFallback := baseAction
+	for _, step := range source.ScheduledRollouts {
+		if step.Disabled {
+			continue
+		}
+		at, err := parseInstant(step.Date)
+		if err != nil {
+			return nil, fmt.Errorf("schedule date: %w", err)
+		}
+		if len(step.Rules) > 0 || step.DefaultAction != nil {
+			rules := step.Rules
+			fallback := step.DefaultAction
+			if len(rules) == 0 {
+				rules = nil
+			} else if fallback == nil {
+				fallback = currentFallback
+			}
+			if fallback == nil {
+				return nil, fmt.Errorf("schedule snapshot has no default action")
+			}
+			current, err = evaluation(rules, fallback)
+			if err != nil {
+				return nil, err
+			}
+			currentFallback = fallback
+		}
+		out.Schedule = append(out.Schedule, &irv1.ScheduledEvaluation{EffectiveAt: at, Evaluation: current})
+	}
+	if source.Experimentation != nil {
+		return nil, fmt.Errorf("experimentation has no target-independent IR semantics")
+	}
+	return out, nil
+}
+
+func parseInstant(value string) (*timestamppb.Timestamp, error) {
+	instant, err := time.Parse(time.RFC3339Nano, value)
+	if err != nil {
+		return nil, err
+	}
+	return timestamppb.New(instant), nil
+}
+
+func progressiveSnapshots(rollout *ast.ProgressiveRolloutAction, defaultVariant string, base *irv1.Evaluation) ([]*irv1.ScheduledEvaluation, error) {
+	if rollout.Steps == 0 {
+		return nil, fmt.Errorf("progressive rollout must have at least one step")
+	}
+	start, err := parseInstant(rollout.Start)
+	if err != nil {
+		return nil, err
+	}
+	end, err := parseInstant(rollout.End)
+	if err != nil {
+		return nil, err
+	}
+	if !end.AsTime().After(start.AsTime()) {
+		return nil, fmt.Errorf("progressive rollout end must be after start")
+	}
+	out := make([]*irv1.ScheduledEvaluation, 0, rollout.Steps)
+	for index := uint32(1); index <= rollout.Steps; index++ {
+		fraction := float64(index) / float64(rollout.Steps)
+		at := start.AsTime().Add(end.AsTime().Sub(start.AsTime()) * time.Duration(float64(index-1)/float64(rollout.Steps)))
+		weights := map[string]uint32{defaultVariant: uint32(math.Max(1, math.Round((1-fraction)*100))), rollout.Variant: uint32(math.Max(1, math.Round(fraction*100)))}
+		if defaultVariant == rollout.Variant {
+			weights = map[string]uint32{rollout.Variant: 100}
+		}
+		evaluation := &irv1.Evaluation{Rules: base.Rules, DefaultAction: &irv1.Action{Kind: &irv1.Action_Distribute{Distribute: &irv1.Distribution{AllocationKey: path(rollout.Stickiness), Weights: canonicalWeights(weights)}}}}
+		out = append(out, &irv1.ScheduledEvaluation{EffectiveAt: timestamppb.New(at), Evaluation: evaluation})
+	}
+	return out, nil
 }
 
 func evaluation(rules []*ast.Rule, fallback ast.Action) (*irv1.Evaluation, error) {
@@ -175,6 +245,25 @@ func condition(value ast.Condition) (*irv1.Condition, error) {
 			return nil, fmt.Errorf("string match target must be a variable")
 		}
 		return &irv1.Condition{Kind: &irv1.Condition_StringMatch{StringMatch: &irv1.StringMatchCondition{Operator: op, Attribute: path(target.Path), Literal: literal}}}, nil
+	case *ast.SemverGt, *ast.SemverGte, *ast.SemverLt, *ast.SemverLte:
+		var target ast.Value
+		var literal string
+		var op irv1.SemVerComparisonOperator
+		switch item := value.(type) {
+		case *ast.SemverGt:
+			target, literal, op = item.Left, item.Right, irv1.SemVerComparisonOperator_SEM_VER_COMPARISON_OPERATOR_GT
+		case *ast.SemverGte:
+			target, literal, op = item.Left, item.Right, irv1.SemVerComparisonOperator_SEM_VER_COMPARISON_OPERATOR_GTE
+		case *ast.SemverLt:
+			target, literal, op = item.Left, item.Right, irv1.SemVerComparisonOperator_SEM_VER_COMPARISON_OPERATOR_LT
+		case *ast.SemverLte:
+			target, literal, op = item.Left, item.Right, irv1.SemVerComparisonOperator_SEM_VER_COMPARISON_OPERATOR_LTE
+		}
+		variable, ok := target.(*ast.Var)
+		if !ok {
+			return nil, fmt.Errorf("semver target must be a variable")
+		}
+		return &irv1.Condition{Kind: &irv1.Condition_SemverComparison{SemverComparison: &irv1.SemVerComparisonCondition{Operator: op, Attribute: path(variable.Path), Semver: literal}}}, nil
 	case *ast.AllOf, *ast.AnyOf, *ast.OneOf:
 		children, op := logicalChildren(value)
 		conditions := make([]*irv1.Condition, 0, len(children))

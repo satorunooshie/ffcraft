@@ -7,8 +7,20 @@ import (
 	"sort"
 	"time"
 
+	irv1 "github.com/satorunooshie/ffcraft/gen/ffcraft/ir/v1"
 	"github.com/satorunooshie/ffcraft/internal/ast"
+	"github.com/satorunooshie/ffcraft/internal/ir"
 )
+
+// CompileIR is the canonical compiler entrypoint. The AST overload remains
+// internal compatibility for callers that have not yet migrated.
+func CompileIR(doc *irv1.Document, environment string, opts CompileOptions) ([]byte, []string, error) {
+	legacy, err := ir.ToAST(doc)
+	if err != nil {
+		return nil, nil, err
+	}
+	return CompileJSONWithOptions(legacy, environment, opts)
+}
 
 const schemaURL = "https://flagd.dev/schema/v0/flags.json"
 

@@ -8,9 +8,20 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	irv1 "github.com/satorunooshie/ffcraft/gen/ffcraft/ir/v1"
 	"github.com/satorunooshie/ffcraft/internal/ast"
+	"github.com/satorunooshie/ffcraft/internal/ir"
 	"github.com/satorunooshie/ffcraft/internal/numeric"
 )
+
+// CompileIR is the canonical compiler entrypoint for normalized protobuf IR.
+func CompileIR(doc *irv1.Document, environment string, opts CompileOptions) ([]byte, []string, error) {
+	legacy, err := ir.ToAST(doc)
+	if err != nil {
+		return nil, nil, err
+	}
+	return CompileYAMLWithOptions(legacy, environment, opts)
+}
 
 type CompileOptions struct {
 	AllowMissingEnvironment bool

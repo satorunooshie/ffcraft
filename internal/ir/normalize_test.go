@@ -7,6 +7,7 @@ import (
 	"google.golang.org/protobuf/testing/protocmp"
 
 	"github.com/satorunooshie/ffcraft/internal/ir"
+	"github.com/satorunooshie/ffcraft/internal/normalizeir"
 	"github.com/satorunooshie/ffcraft/internal/parse"
 )
 
@@ -29,7 +30,7 @@ flags:
 	if err != nil {
 		t.Fatal(err)
 	}
-	want, err := ir.Normalize(doc)
+	want, err := normalizeir.Normalize(doc)
 	if err != nil {
 		t.Fatal(err)
 	}
