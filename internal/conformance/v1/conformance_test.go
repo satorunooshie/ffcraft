@@ -3,6 +3,7 @@ package v1_test
 import (
 	"bytes"
 	"embed"
+	"io/fs"
 	"testing"
 
 	"github.com/satorunooshie/ffcraft/internal/compiler/flagd"
@@ -18,80 +19,76 @@ import (
 var fixtures embed.FS
 
 func TestV1NormalizedFixture(t *testing.T) {
-	data, err := fixtures.ReadFile("testdata/extensions.yaml")
+	fixtureNames, err := fs.Glob(fixtures, "testdata/*.yaml")
 	if err != nil {
 		t.Fatal(err)
 	}
-	doc, err := normalizedyaml.Unmarshal(data)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := ir.Validate(doc); err != nil {
-		t.Fatal(err)
-	}
-	encoded, err := normalizedyaml.Marshal(doc)
-	if err != nil {
-		t.Fatal(err)
-	}
-	roundTrip, err := normalizedyaml.Unmarshal(encoded)
-	if err != nil || !proto.Equal(doc, roundTrip) {
-		t.Fatalf("normalized YAML round trip mismatch: %v", err)
+	for _, fixture := range fixtureNames {
+		t.Run(fixture, func(t *testing.T) {
+			data, err := fixtures.ReadFile(fixture)
+			if err != nil {
+				t.Fatal(err)
+			}
+			doc, err := normalizedyaml.Unmarshal(data)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := ir.Validate(doc); err != nil {
+				t.Fatal(err)
+			}
+			encoded, err := normalizedyaml.Marshal(doc)
+			if err != nil {
+				t.Fatal(err)
+			}
+			roundTrip, err := normalizedyaml.Unmarshal(encoded)
+			if err != nil || !proto.Equal(doc, roundTrip) {
+				t.Fatalf("normalized YAML round trip mismatch: %v", err)
+			}
+		})
 	}
 }
 
 func TestV1CompilerOutputIgnoresExtensions(t *testing.T) {
-	data, err := fixtures.ReadFile("testdata/extensions.yaml")
+	fixtureNames, err := fs.Glob(fixtures, "testdata/*.yaml")
 	if err != nil {
 		t.Fatal(err)
 	}
-	withExtensions, err := normalizedyaml.Unmarshal(data)
-	if err != nil {
-		t.Fatal(err)
-	}
-	withoutExtensions := proto.Clone(withExtensions).(*irv1.Document)
-	withoutExtensions.Extensions = nil
+	for _, fixture := range fixtureNames {
+		t.Run(fixture, func(t *testing.T) {
+			data, err := fixtures.ReadFile(fixture)
+			if err != nil {
+				t.Fatal(err)
+			}
+			withExtensions, err := normalizedyaml.Unmarshal(data)
+			if err != nil {
+				t.Fatal(err)
+			}
+			withoutExtensions := proto.Clone(withExtensions).(*irv1.Document)
+			withoutExtensions.Extensions = nil
 
-	flagdWith, _, err := flagd.CompileIR(withExtensions, "prod", flagd.CompileOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	flagdWithout, _, err := flagd.CompileIR(withoutExtensions, "prod", flagd.CompileOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Equal(flagdWith, flagdWithout) {
-		t.Fatal("flagd output changed after stripping extensions")
-	}
+			flagdWith, _, err := flagd.CompileIR(withExtensions, "prod", flagd.CompileOptions{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			flagdWithout, _, err := flagd.CompileIR(withoutExtensions, "prod", flagd.CompileOptions{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(flagdWith, flagdWithout) {
+				t.Fatal("flagd output changed after stripping extensions")
+			}
 
-	goffWith, _, err := gofeatureflag.CompileIR(withExtensions, "prod", gofeatureflag.CompileOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	goffWithout, _, err := gofeatureflag.CompileIR(withoutExtensions, "prod", gofeatureflag.CompileOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !bytes.Equal(goffWith, goffWithout) {
-		t.Fatal("GO Feature Flag output changed after stripping extensions")
-	}
-}
-
-func TestV1CoreConditionCompilerFixture(t *testing.T) {
-	data, err := fixtures.ReadFile("testdata/core_conditions.yaml")
-	if err != nil {
-		t.Fatal(err)
-	}
-	doc, err := normalizedyaml.Unmarshal(data)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := ir.Validate(doc); err != nil {
-		t.Fatal(err)
-	}
-	if _, _, err := flagd.CompileIR(doc, "prod", flagd.CompileOptions{}); err != nil {
-		t.Fatalf("flagd failed core condition fixture: %v", err)
-	}
-	if _, _, err := gofeatureflag.CompileIR(doc, "prod", gofeatureflag.CompileOptions{}); err != nil {
-		t.Fatalf("GO Feature Flag failed core condition fixture: %v", err)
+			goffWith, _, err := gofeatureflag.CompileIR(withExtensions, "prod", gofeatureflag.CompileOptions{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			goffWithout, _, err := gofeatureflag.CompileIR(withoutExtensions, "prod", gofeatureflag.CompileOptions{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(goffWith, goffWithout) {
+				t.Fatal("GO Feature Flag output changed after stripping extensions")
+			}
+		})
 	}
 }
