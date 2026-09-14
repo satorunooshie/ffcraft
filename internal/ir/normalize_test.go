@@ -65,6 +65,35 @@ func TestUnknownCoreFieldDiagnostic(t *testing.T) {
 	}
 }
 
+func TestAuthoringExperimentationIsConsumedBeforeIR(t *testing.T) {
+	doc, err := authoring.ParseYAML([]byte(`version: v1
+variant_sets:
+  values:
+    on: true
+flags:
+  - key: experiment
+    variant_set: values
+    default_variant: on
+    environments:
+      prod:
+        experimentation:
+          start: 2026-01-01T00:00:00Z
+          end: 2026-01-02T00:00:00Z
+        default_action:
+          serve: on
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	normalized, err := normalize.Normalize(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := normalized.Flags["experiment"].Environments["prod"].Base.DefaultAction.GetKind().(*irv1.Action_Serve); !ok {
+		t.Fatal("experiment authoring sugar changed the semantic default action")
+	}
+}
+
 func minimalIRForUnknownField() *irv1.Document {
 	return &irv1.Document{Flags: map[string]*irv1.Flag{"f": {Variants: map[string]*irv1.VariantValue{"on": {Kind: &irv1.VariantValue_BoolValue{BoolValue: true}}}, Environments: map[string]*irv1.Environment{"prod": {Base: &irv1.Evaluation{DefaultAction: &irv1.Action{Kind: &irv1.Action_Serve{Serve: "on"}}}}}}}}
 }

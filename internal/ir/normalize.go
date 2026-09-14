@@ -97,9 +97,6 @@ func environment(source *ast.Environment, variants map[string]*irv1.VariantValue
 			out.Schedule = append(out.Schedule, &irv1.ScheduledEvaluation{EffectiveAt: at, Evaluation: current})
 		}
 	}
-	if source.Experimentation != nil {
-		return nil, fmt.Errorf("experimentation has no target-independent IR semantics")
-	}
 	sort.Slice(out.Schedule, func(i, j int) bool {
 		return out.Schedule[i].EffectiveAt.AsTime().Before(out.Schedule[j].EffectiveAt.AsTime())
 	})
