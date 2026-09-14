@@ -7,11 +7,11 @@ import (
 	"io"
 	"os"
 
-	"github.com/satorunooshie/ffcraft/internal/ast"
+	irv1 "github.com/satorunooshie/ffcraft/gen/ffcraft/ir/v1"
 	"github.com/satorunooshie/ffcraft/internal/flagd"
 	"github.com/satorunooshie/ffcraft/internal/gofeatureflag"
-	"github.com/satorunooshie/ffcraft/internal/normalize"
-	"github.com/satorunooshie/ffcraft/internal/normalizedyaml"
+	"github.com/satorunooshie/ffcraft/internal/normalizeir"
+	"github.com/satorunooshie/ffcraft/internal/normalizeiryaml"
 	"github.com/satorunooshie/ffcraft/internal/parse"
 )
 
@@ -108,7 +108,7 @@ func runNormalize(args []string, stdout io.Writer) error {
 		return fmt.Errorf("normalize input: %w", err)
 	}
 
-	output, err := normalizedyaml.Marshal(normalizedDoc)
+	output, err := normalizeiryaml.Marshal(normalizedDoc)
 	if err != nil {
 		return fmt.Errorf("marshal normalized yaml: %w", err)
 	}
@@ -173,7 +173,7 @@ func runBuildFlagd(args []string, stdout, stderr io.Writer) error {
 		return err
 	}
 
-	output, warnings, err := flagd.CompileJSONWithOptions(normalizedDoc, opts.environment, flagd.CompileOptions{
+	output, warnings, err := flagd.CompileIR(normalizedDoc, opts.environment, flagd.CompileOptions{
 		AllowMissingEnvironment: opts.allowMissingEnv,
 	})
 	if err != nil {
@@ -197,7 +197,7 @@ func runCompileFlagd(args []string, stdout, stderr io.Writer) error {
 		return err
 	}
 
-	output, warnings, err := flagd.CompileJSONWithOptions(doc, opts.environment, flagd.CompileOptions{
+	output, warnings, err := flagd.CompileIR(doc, opts.environment, flagd.CompileOptions{
 		AllowMissingEnvironment: opts.allowMissingEnv,
 	})
 	if err != nil {
@@ -225,7 +225,7 @@ func runBuildGOFeatureFlag(args []string, stdout, stderr io.Writer) error {
 		return err
 	}
 
-	output, warnings, err := gofeatureflag.CompileYAMLWithOptions(normalizedDoc, opts.environment, gofeatureflag.CompileOptions{
+	output, warnings, err := gofeatureflag.CompileIR(normalizedDoc, opts.environment, gofeatureflag.CompileOptions{
 		AllowMissingEnvironment: opts.allowMissingEnv,
 	})
 	if err != nil {
@@ -248,7 +248,7 @@ func runCompileGOFeatureFlag(args []string, stdout, stderr io.Writer) error {
 		return err
 	}
 
-	output, warnings, err := gofeatureflag.CompileYAMLWithOptions(doc, opts.environment, gofeatureflag.CompileOptions{
+	output, warnings, err := gofeatureflag.CompileIR(doc, opts.environment, gofeatureflag.CompileOptions{
 		AllowMissingEnvironment: opts.allowMissingEnv,
 	})
 	if err != nil {
@@ -272,7 +272,7 @@ func writeOutput(stdout io.Writer, outPath string, output []byte) error {
 	return nil
 }
 
-func loadAuthoring(path string) (*ast.Document, error) {
+func loadAuthoring(path string) (*irv1.Document, error) {
 	input, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("read input: %w", err)
@@ -281,30 +281,30 @@ func loadAuthoring(path string) (*ast.Document, error) {
 	if err != nil {
 		return nil, fmt.Errorf("parse input: %w", err)
 	}
-	normalized, err := normalize.Normalize(doc)
+	normalized, err := normalizeir.Normalize(doc)
 	if err != nil {
 		return nil, fmt.Errorf("normalize input: %w", err)
 	}
 	return normalized, nil
 }
 
-func loadNormalized(path string) (*ast.Document, error) {
+func loadNormalized(path string) (*irv1.Document, error) {
 	input, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("read input: %w", err)
 	}
-	doc, err := normalizedyaml.Unmarshal(input)
+	doc, err := normalizeiryaml.Unmarshal(input)
 	if err != nil {
 		return nil, fmt.Errorf("read normalized yaml: %w", err)
 	}
 	return doc, nil
 }
 
-func writeNormalizedDump(stderr io.Writer, path string, doc *ast.Document) error {
+func writeNormalizedDump(stderr io.Writer, path string, doc *irv1.Document) error {
 	if path == "" {
 		return nil
 	}
-	dump, err := normalizedyaml.Marshal(doc)
+	dump, err := normalizeiryaml.Marshal(doc)
 	if err != nil {
 		return fmt.Errorf("marshal normalized yaml: %w", err)
 	}

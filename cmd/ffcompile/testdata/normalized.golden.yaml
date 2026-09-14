@@ -1,12 +1,13 @@
-version: normalized/v1
 flags:
-    - key: enable-new-home
-      variants:
-        "off": false
-        "on": true
-      default_variant: "off"
-      environments:
-        prod:
-            static_variant: "on"
-            default_action:
-                serve: "on"
+    enable-new-home:
+        environments:
+            prod:
+                base:
+                    default_action:
+                        serve: "on"
+        variants:
+            "off":
+                bool_value: false
+            "on":
+                bool_value: true
+version: normalized/v1
