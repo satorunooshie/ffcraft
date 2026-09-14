@@ -39,14 +39,14 @@ Supported today:
 - per-environment `serve`, `rules`, and `default_action`
 - `scheduled_rollouts`
 - `progressive_rollout`
-- `experimentation`
+- authoring-only `experimentation` sugar (discarded before semantic IR)
 - comparison, logical, collection, string, and semver operators
 
 Current limitations:
 
 - `matches` parses and validates, but does not compile for `flagd` or `gofeatureflag`
 - YAML aliases and anchors are not supported
-- top-level environment `experimentation` is not compiled for `flagd`
+- `experimentation` has no semantic IR representation and therefore does not affect either target
 
 ## Install
 
@@ -277,8 +277,7 @@ enable-new-home:
 | Percentage rollout | `fractional` targeting | native `percentage` |
 | Progressive rollout | expanded at compile time into time-based steps | native `progressiveRollout` |
 | Scheduled rollout | compiled into timestamp-ordered `if` chain | native `scheduledRollout` |
-| Step experimentation | temporary overlay during `start <= now < end` | compiled to native rollout fields, not overlay-identical |
-| Top-level environment experimentation | not supported | native `experimentation` |
+| Experimentation sugar | discarded before semantic IR | discarded before semantic IR |
 | Mixed stickiness in one flag | allowed per action | rejected because `bucketingKey` is flag-scoped |
 
 For the full target notes, see [docs/compiler-targets.md](docs/compiler-targets.md).

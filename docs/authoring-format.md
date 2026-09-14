@@ -278,7 +278,10 @@ Evaluation is fixed:
 
 ## experimentation
 
-`experimentation` can appear at the environment level and on `scheduled_rollouts` steps.
+`experimentation` can appear at the environment level and on `scheduled_rollouts` steps as
+authoring-only sugar. It is validated while parsing authoring YAML and then consumed before
+semantic IR normalization; the normalized protobuf has no experimentation field and neither
+target receives experimentation semantics.
 
 Environment-level experimentation:
 
@@ -311,7 +314,8 @@ scheduled_rollouts:
 - `start` and `end` must be RFC3339 timestamps
 - `start` must be before `end`
 
-Semantics differ by compiler. See [docs/compiler-targets.md](compiler-targets.md).
+The timestamps are authoring metadata only. They do not change the semantic IR or compiled
+target behavior.
 
 ## Validation
 
@@ -334,6 +338,6 @@ At minimum, `ffcompile` validates:
 
 - YAML aliases and anchors
 - `matches` compilation for both `flagd` and `gofeatureflag`
-- top-level environment `experimentation` compilation for `flagd`
+- `experimentation` is authoring-only and is not represented in semantic IR
 
 `matches` is accepted by parse, validate, and normalize, but compilation currently fails.
