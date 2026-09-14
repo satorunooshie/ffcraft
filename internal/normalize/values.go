@@ -5,7 +5,6 @@ import (
 	"maps"
 
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/structpb"
 
 	irv1 "github.com/satorunooshie/ffcraft/gen/ffcraft/ir/v1"
 	ffv1 "github.com/satorunooshie/ffcraft/gen/ffcraft/v1"
@@ -130,7 +129,11 @@ func normalizeVariantValue(value *ffv1.VariantValue) ast.VariantValue {
 	case *ffv1.VariantValue_DoubleValue:
 		return ast.VariantValue{Kind: ast.VariantValueKindDouble, Double: kind.DoubleValue}
 	case *ffv1.VariantValue_ObjectValue:
-		return ast.VariantValue{Kind: ast.VariantValueKindObject, Object: structToMap(kind.ObjectValue)}
+		fields := make(map[string]any, len(kind.ObjectValue.Fields))
+		for name, child := range kind.ObjectValue.Fields {
+			fields[name] = astVariantAny(normalizeVariantValue(child))
+		}
+		return ast.VariantValue{Kind: ast.VariantValueKindObject, Object: fields}
 	case *ffv1.VariantValue_ListValue:
 		items := make([]ast.VariantValue, 0, len(kind.ListValue.Values))
 		for _, item := range kind.ListValue.Values {
@@ -144,6 +147,31 @@ func normalizeVariantValue(value *ffv1.VariantValue) ast.VariantValue {
 	}
 }
 
+func astVariantAny(value ast.VariantValue) any {
+	switch value.Kind {
+	case ast.VariantValueKindBool:
+		return value.Bool
+	case ast.VariantValueKindString:
+		return value.String
+	case ast.VariantValueKindInt:
+		return value.Int
+	case ast.VariantValueKindDouble:
+		return value.Double
+	case ast.VariantValueKindNull:
+		return nil
+	case ast.VariantValueKindObject:
+		return value.Object
+	case ast.VariantValueKindList:
+		out := make([]any, 0, len(value.List))
+		for _, child := range value.List {
+			out = append(out, astVariantAny(child))
+		}
+		return out
+	default:
+		return nil
+	}
+}
+
 func normalizeMetadata(metadata *ffv1.Metadata) *ast.Metadata {
 	if metadata == nil {
 		return nil
@@ -154,12 +182,4 @@ func normalizeMetadata(metadata *ffv1.Metadata) *ast.Metadata {
 		Expiry:      metadata.Expiry,
 		Tags:        append([]string(nil), metadata.Tags...),
 	}
-}
-
-func structToMap(value *structpb.Struct) map[string]any {
-	out := make(map[string]any, len(value.Fields))
-	for key, field := range value.Fields {
-		out[key] = field.AsInterface()
-	}
-	return out
 }

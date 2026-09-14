@@ -3,7 +3,6 @@ syntax = "proto3";
 package ffcraft.v1;
 
 import "buf/validate/validate.proto";
-import "google/protobuf/struct.proto";
 import "proto/ffcraft/ir/v1/normalized.proto";
 
 option go_package = "github.com/satorunooshie/ffcraft/gen/ffcraft/v1;ffcraftv1";
@@ -54,10 +53,19 @@ message VariantValue {
     string string_value = 2 [(buf.validate.field).string.max_len = 1024];
     int64 int_value = 3;
     double double_value = 4;
-    google.protobuf.Struct object_value = 5;
+	ObjectValue object_value = 5;
     ListValue list_value = 6;
     NullValue null_value = 7;
   }
+}
+
+message ObjectValue {
+	map<string, VariantValue> fields = 1 [
+		(buf.validate.field).map.keys.string = {
+			min_len: 1
+			max_len: 256
+		}
+	];
 }
 
 message ListValue {

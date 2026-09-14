@@ -6,7 +6,6 @@ import (
 	"regexp"
 	"strconv"
 
-	"google.golang.org/protobuf/types/known/structpb"
 	"gopkg.in/yaml.v3"
 
 	ffv1 "github.com/satorunooshie/ffcraft/gen/ffcraft/v1"
@@ -138,19 +137,22 @@ func parseVariantValue(node *yaml.Node, path string) (*ffv1.VariantValue, error)
 }
 
 func parseObjectVariantValue(node *yaml.Node, path string) (*ffv1.VariantValue, error) {
-	objectValue, err := nodeToAny(node, path)
+	if node.Kind != yaml.MappingNode {
+		return nil, fmt.Errorf("%s: expected object", path)
+	}
+	fields, err := mapping(node, path)
 	if err != nil {
 		return nil, err
 	}
-	fields, ok := objectValue.(map[string]any)
-	if !ok {
-		return nil, fmt.Errorf("%s: expected object", path)
+	values := make(map[string]*ffv1.VariantValue, len(fields))
+	for name, child := range fields {
+		value, err := parseVariantValue(child, path+"."+name)
+		if err != nil {
+			return nil, err
+		}
+		values[name] = value
 	}
-	value, err := structpb.NewStruct(fields)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", path, err)
-	}
-	return &ffv1.VariantValue{Kind: &ffv1.VariantValue_ObjectValue{ObjectValue: value}}, nil
+	return &ffv1.VariantValue{Kind: &ffv1.VariantValue_ObjectValue{ObjectValue: &ffv1.ObjectValue{Fields: values}}}, nil
 }
 
 func parseListVariantValue(node *yaml.Node, path string) (*ffv1.VariantValue, error) {

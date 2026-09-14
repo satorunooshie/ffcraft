@@ -175,39 +175,32 @@ variant_sets:
 			value: "    object:\n      id: -9007199254740991\n",
 		},
 		{
-			name:    "B0A-OBJECT-INT-UNSAFE-POSITIVE-001",
-			value:   "    object:\n      id: 9007199254740992\n",
-			wantErr: true,
+			name:  "B0A-OBJECT-INT-UNSAFE-POSITIVE-001",
+			value: "    object:\n      id: 9007199254740992\n",
 		},
 		{
-			name:    "B0A-OBJECT-INT-UNSAFE-2P53-001",
-			value:   "    object:\n      id: 9007199254740992\n",
-			wantErr: true,
+			name:  "B0A-OBJECT-INT-UNSAFE-2P53-001",
+			value: "    object:\n      id: 9007199254740992\n",
 		},
 		{
-			name:    "B0A-OBJECT-INT-LOSSY-POSITIVE-001",
-			value:   "    object:\n      id: 9007199254740993\n",
-			wantErr: true,
+			name:  "B0A-OBJECT-INT-LOSSY-POSITIVE-001",
+			value: "    object:\n      id: 9007199254740993\n",
 		},
 		{
-			name:    "B0A-OBJECT-INT-LOSSY-2P53P1-001",
-			value:   "    object:\n      id: 9007199254740993\n",
-			wantErr: true,
+			name:  "B0A-OBJECT-INT-LOSSY-2P53P1-001",
+			value: "    object:\n      id: 9007199254740993\n",
 		},
 		{
-			name:    "B0A-OBJECT-INT-UNSAFE-NEGATIVE-001",
-			value:   "    object:\n      id: -9007199254740992\n",
-			wantErr: true,
+			name:  "B0A-OBJECT-INT-UNSAFE-NEGATIVE-001",
+			value: "    object:\n      id: -9007199254740992\n",
 		},
 		{
-			name:    "B0A-DEEP-OBJECT-INT-LOSSY-001",
-			value:   "    object:\n      a:\n        b:\n          value: 9007199254740993\n",
-			wantErr: true,
+			name:  "B0A-DEEP-OBJECT-INT-LOSSY-001",
+			value: "    object:\n      a:\n        b:\n          value: 9007199254740993\n",
 		},
 		{
-			name:    "B0A-OBJECT-LIST-INT-LOSSY-001",
-			value:   "    object:\n      users:\n        - id: 9007199254740993\n",
-			wantErr: true,
+			name:  "B0A-OBJECT-LIST-INT-LOSSY-001",
+			value: "    object:\n      users:\n        - id: 9007199254740993\n",
 		},
 		{
 			name:  "B0A-OBJECT-LIST-INT-SAFE-001",
@@ -277,5 +270,37 @@ variant_sets:
 				tt.assert(t, doc)
 			}
 		})
+	}
+}
+
+func TestParseYAMLNestedVariantPreservesNumericKinds(t *testing.T) {
+	doc, err := ParseYAML([]byte(`version: v1
+variant_sets:
+  values:
+    object:
+      integer: 9007199254740993
+      decimal: 1.0
+      nested:
+        - 9223372036854775807
+flags:
+  - key: test
+    variant_set: values
+    default_variant: object
+    environments:
+      prod:
+        serve: object
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	object := doc.VariantSets["values"].Variants["object"].GetObjectValue()
+	if got := object.Fields["integer"].GetIntValue(); got != 9007199254740993 {
+		t.Fatalf("nested integer kind/value was not preserved: %d", got)
+	}
+	if got := object.Fields["decimal"].GetDoubleValue(); got != 1.0 {
+		t.Fatalf("nested double kind/value was not preserved: %v", got)
+	}
+	if got := object.Fields["nested"].GetListValue().Values[0].GetIntValue(); got != 9223372036854775807 {
+		t.Fatalf("deep integer kind/value was not preserved: %d", got)
 	}
 }
