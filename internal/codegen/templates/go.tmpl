@@ -244,28 +244,28 @@ func (e {{ $.EvaluatorType }}) {{ .AccessorName }}(ctx context.Context{{- if .Us
 func (e {{ $.EvaluatorType }}) {{ .AccessorName }}(ctx context.Context{{- if .UsesContext }}, ec {{ $.ContextType }}{{- end }}{{- if .RequiresTargetingKey }}, targetingKey string{{- end }}) (bool, error) {
 {{- template "targetingGuard" (dict "Flag" . "Root" $) }}
 {{- template "attrsSetup" (dict "Flag" . "Root" $) }}
-	return e.client.BooleanValue(ctx, {{ .ConstName }}, {{ goLiteral .DefaultValue }}, {{- if .RequiresTargetingKey }}newEvaluationContextWithTargetingKey(attrs, targetingKey){{- else }}newEvaluationContext(attrs){{- end }})
+	return e.client.BooleanValue(ctx, {{ .ConstName }}, {{ .DefaultLiteral }}, {{- if .RequiresTargetingKey }}newEvaluationContextWithTargetingKey(attrs, targetingKey){{- else }}newEvaluationContext(attrs){{- end }})
 }
 
 {{- else if isIntFlag .Kind }}
 func (e {{ $.EvaluatorType }}) {{ .AccessorName }}(ctx context.Context{{- if .UsesContext }}, ec {{ $.ContextType }}{{- end }}{{- if .RequiresTargetingKey }}, targetingKey string{{- end }}) (int64, error) {
 {{- template "targetingGuard" (dict "Flag" . "Root" $) }}
 {{- template "attrsSetup" (dict "Flag" . "Root" $) }}
-	return e.client.IntValue(ctx, {{ .ConstName }}, {{ goLiteral .DefaultValue }}, {{- if .RequiresTargetingKey }}newEvaluationContextWithTargetingKey(attrs, targetingKey){{- else }}newEvaluationContext(attrs){{- end }})
+	return e.client.IntValue(ctx, {{ .ConstName }}, {{ .DefaultLiteral }}, {{- if .RequiresTargetingKey }}newEvaluationContextWithTargetingKey(attrs, targetingKey){{- else }}newEvaluationContext(attrs){{- end }})
 }
 
 {{- else if isFloatFlag .Kind }}
 func (e {{ $.EvaluatorType }}) {{ .AccessorName }}(ctx context.Context{{- if .UsesContext }}, ec {{ $.ContextType }}{{- end }}{{- if .RequiresTargetingKey }}, targetingKey string{{- end }}) (float64, error) {
 {{- template "targetingGuard" (dict "Flag" . "Root" $) }}
 {{- template "attrsSetup" (dict "Flag" . "Root" $) }}
-	return e.client.FloatValue(ctx, {{ .ConstName }}, {{ goLiteral .DefaultValue }}, {{- if .RequiresTargetingKey }}newEvaluationContextWithTargetingKey(attrs, targetingKey){{- else }}newEvaluationContext(attrs){{- end }})
+	return e.client.FloatValue(ctx, {{ .ConstName }}, {{ .DefaultLiteral }}, {{- if .RequiresTargetingKey }}newEvaluationContextWithTargetingKey(attrs, targetingKey){{- else }}newEvaluationContext(attrs){{- end }})
 }
 
 {{- else if isObjectFlag .Kind }}
 func (e {{ $.EvaluatorType }}) {{ .AccessorName }}(ctx context.Context{{- if .UsesContext }}, ec {{ $.ContextType }}{{- end }}{{- if .RequiresTargetingKey }}, targetingKey string{{- end }}) (map[string]any, error) {
 {{- template "targetingGuard" (dict "Flag" . "Root" $) }}
 {{- template "attrsSetup" (dict "Flag" . "Root" $) }}
-	value, err := e.client.ObjectValue(ctx, {{ .ConstName }}, {{ goLiteral .DefaultValue }}, {{- if .RequiresTargetingKey }}newEvaluationContextWithTargetingKey(attrs, targetingKey){{- else }}newEvaluationContext(attrs){{- end }})
+	value, err := e.client.ObjectValue(ctx, {{ .ConstName }}, {{ .DefaultLiteral }}, {{- if .RequiresTargetingKey }}newEvaluationContextWithTargetingKey(attrs, targetingKey){{- else }}newEvaluationContext(attrs){{- end }})
 	if err != nil {
 		return nil, err
 	}
@@ -276,7 +276,7 @@ func (e {{ $.EvaluatorType }}) {{ .AccessorName }}(ctx context.Context{{- if .Us
 func (e {{ $.EvaluatorType }}) {{ .AccessorName }}(ctx context.Context{{- if .UsesContext }}, ec {{ $.ContextType }}{{- end }}{{- if .RequiresTargetingKey }}, targetingKey string{{- end }}) ([]any, error) {
 {{- template "targetingGuard" (dict "Flag" . "Root" $) }}
 {{- template "attrsSetup" (dict "Flag" . "Root" $) }}
-	value, err := e.client.ObjectValue(ctx, {{ .ConstName }}, {{ goLiteral .DefaultValue }}, {{- if .RequiresTargetingKey }}newEvaluationContextWithTargetingKey(attrs, targetingKey){{- else }}newEvaluationContext(attrs){{- end }})
+	value, err := e.client.ObjectValue(ctx, {{ .ConstName }}, {{ .DefaultLiteral }}, {{- if .RequiresTargetingKey }}newEvaluationContextWithTargetingKey(attrs, targetingKey){{- else }}newEvaluationContext(attrs){{- end }})
 	if err != nil {
 		return nil, err
 	}
@@ -287,7 +287,7 @@ func (e {{ $.EvaluatorType }}) {{ .AccessorName }}(ctx context.Context{{- if .Us
 func (e {{ $.EvaluatorType }}) {{ .AccessorName }}(ctx context.Context{{- if .UsesContext }}, ec {{ $.ContextType }}{{- end }}{{- if .RequiresTargetingKey }}, targetingKey string{{- end }}) (bool, error) {
 {{- template "targetingGuard" (dict "Flag" . "Root" $) }}
 {{- template "attrsSetup" (dict "Flag" . "Root" $) }}
-	return e.client.BooleanValue(ctx, {{ .ConstName }}, {{ goLiteral .DefaultValue }}, {{- if .RequiresTargetingKey }}newEvaluationContextWithTargetingKey(attrs, targetingKey){{- else }}newEvaluationContext(attrs){{- end }})
+	return e.client.BooleanValue(ctx, {{ .ConstName }}, {{ .DefaultLiteral }}, {{- if .RequiresTargetingKey }}newEvaluationContextWithTargetingKey(attrs, targetingKey){{- else }}newEvaluationContext(attrs){{- end }})
 }
 
 {{ end }}

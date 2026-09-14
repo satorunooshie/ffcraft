@@ -13,7 +13,6 @@ import (
 
 	irv1 "github.com/satorunooshie/ffcraft/gen/ffcraft/ir/v1"
 	"github.com/satorunooshie/ffcraft/internal/ast"
-	"github.com/satorunooshie/ffcraft/internal/ir"
 )
 
 type Config struct {
@@ -28,11 +27,7 @@ type Config struct {
 
 // CompileIR is the canonical generator entrypoint for normalized protobuf IR.
 func CompileIR(doc *irv1.Document, cfg Config) ([]byte, error) {
-	legacy, err := ir.ToAST(doc)
-	if err != nil {
-		return nil, err
-	}
-	return compileAST(legacy, cfg)
+	return compileIRDocument(doc, cfg)
 }
 
 type CompileOptions struct {
@@ -78,6 +73,7 @@ type compiledFlag struct {
 	ConstName            string
 	DefaultVariant       string
 	DefaultValue         ast.VariantValue
+	DefaultLiteral       string
 	Kind                 flagKind
 	VariantType          string
 	Variants             []compiledVariant
@@ -584,6 +580,7 @@ func compileFlag(src *ast.Flag, cfg AccessorConfig) (compiledFlag, error) {
 		ConstName:            "Flag" + accessorName,
 		DefaultVariant:       src.DefaultVariant,
 		DefaultValue:         defaultValue,
+		DefaultLiteral:       goLiteral(defaultValue),
 		Kind:                 kind,
 		UsesContext:          flagUsesContext(src),
 		RequiresTargetingKey: flagRequiresTargetingKey(src),
