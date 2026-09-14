@@ -1,0 +1,41 @@
+flags:
+  rollout:
+    variants:
+      off:
+        bool_value: false
+      on:
+        bool_value: true
+    environments:
+      prod:
+        base:
+          default_action:
+            serve: off
+        schedule:
+          - effective_at: "2026-01-01T00:00:00.000000001Z"
+            evaluation:
+              default_action:
+                distribute:
+                  allocation_key:
+                    segments:
+                      - user
+                      - id
+                  weights:
+                    off: 1
+                    on: 2
+          - effective_at: "2026-02-01T00:00:00Z"
+            evaluation:
+              rules:
+                - condition:
+                    equality:
+                      operator: EQUALITY_OPERATOR_EQ
+                      attribute:
+                        segments:
+                          - user
+                          - segment
+                      literal:
+                        string_value: beta
+                  action:
+                    serve: on
+              default_action:
+                serve: off
+version: normalized/v1
