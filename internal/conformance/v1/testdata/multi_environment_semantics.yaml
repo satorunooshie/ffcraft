@@ -68,4 +68,27 @@ flags:
                     serve: on
               default_action:
                 serve: off
+      canary:
+        base:
+          default_action:
+            serve: off
+        schedule:
+          - effective_at: "2026-01-10T00:00:00Z"
+            evaluation:
+              rules:
+                - condition:
+                    equality:
+                      operator: EQUALITY_OPERATOR_EQ
+                      attribute:
+                        segments: [cohort]
+                      literal:
+                        string_value: canary
+                  action:
+                    serve: on
+              default_action:
+                serve: off
+          - effective_at: "2026-02-10T00:00:00Z"
+            evaluation:
+              default_action:
+                serve: off
 version: normalized/v1

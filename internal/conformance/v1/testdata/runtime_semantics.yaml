@@ -1,0 +1,70 @@
+flags:
+  numeric_equality:
+    variants:
+      off:
+        bool_value: false
+      on:
+        bool_value: true
+    environments:
+      prod:
+        base:
+          rules:
+            - condition:
+                equality:
+                  operator: EQUALITY_OPERATOR_EQ
+                  attribute:
+                    segments: [value]
+                  literal:
+                    int_value: 9007199254740993
+              action:
+                serve: on
+          default_action:
+            serve: off
+  null_and_presence:
+    variants:
+      off:
+        bool_value: false
+      on:
+        bool_value: true
+    environments:
+      prod:
+        base:
+          rules:
+            - condition:
+                equality:
+                  operator: EQUALITY_OPERATOR_EQ
+                  attribute:
+                    segments: [value]
+                  literal:
+                    null_value: {}
+              action:
+                serve: on
+            - condition:
+                presence:
+                  attribute:
+                    segments: [value]
+              action:
+                serve: on
+          default_action:
+            serve: off
+  semver_runtime:
+    variants:
+      off:
+        bool_value: false
+      on:
+        bool_value: true
+    environments:
+      prod:
+        base:
+          rules:
+            - condition:
+                semver_comparison:
+                  operator: SEM_VER_COMPARISON_OPERATOR_GTE
+                  attribute:
+                    segments: [version]
+                  semver: 2.0.0
+              action:
+                serve: on
+          default_action:
+            serve: off
+version: normalized/v1

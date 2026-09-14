@@ -87,6 +87,58 @@ cases:
               base:
                 default_action:
                   serve: value
+  - name: invalid_scalar_on_for_bool
+    input: |
+      version: normalized/v1
+      flags:
+        example:
+          variants:
+            value:
+              bool_value: ON
+          environments:
+            prod:
+              base:
+                default_action:
+                  serve: value
+  - name: invalid_date_for_int64
+    input: |
+      version: normalized/v1
+      flags:
+        example:
+          variants:
+            value:
+              int_value: 2026-01-01
+          environments:
+            prod:
+              base:
+                default_action:
+                  serve: value
+  - name: invalid_decimal_for_int64
+    input: |
+      version: normalized/v1
+      flags:
+        example:
+          variants:
+            value:
+              int_value: 1.25
+          environments:
+            prod:
+              base:
+                default_action:
+                  serve: value
+  - name: invalid_exponent_for_int64
+    input: |
+      version: normalized/v1
+      flags:
+        example:
+          variants:
+            value:
+              int_value: 1.25e1
+          environments:
+            prod:
+              base:
+                default_action:
+                  serve: value
   - name: invalid_empty_object_field_name
     input: |
       version: normalized/v1
@@ -153,6 +205,120 @@ cases:
                       segments: [user, id]
                     weights:
                       value: 1
+  - name: invalid_distribution_zero_weight
+    input: |
+      version: normalized/v1
+      flags:
+        example:
+          variants:
+            off:
+              bool_value: false
+            on:
+              bool_value: true
+          environments:
+            prod:
+              base:
+                default_action:
+                  distribute:
+                    allocation_key:
+                      segments: [user, id]
+                    weights:
+                      off: 0
+                      on: 1
+  - name: invalid_distribution_floating_point_weight
+    input: |
+      version: normalized/v1
+      flags:
+        example:
+          variants:
+            off:
+              bool_value: false
+            on:
+              bool_value: true
+          environments:
+            prod:
+              base:
+                default_action:
+                  distribute:
+                    allocation_key:
+                      segments: [user, id]
+                    weights:
+                      off: 0.5
+                      on: 1.0
+  - name: invalid_semver_literal
+    input: |
+      version: normalized/v1
+      flags:
+        example:
+          variants:
+            off:
+              bool_value: false
+            on:
+              bool_value: true
+          environments:
+            prod:
+              base:
+                rules:
+                  - condition:
+                      semver_comparison:
+                        operator: SEM_VER_COMPARISON_OPERATOR_GTE
+                        attribute:
+                          segments: [app, version]
+                        semver: not-semver
+                    action:
+                      serve: on
+                default_action:
+                  serve: off
+  - name: invalid_heterogeneous_membership
+    input: |
+      version: normalized/v1
+      flags:
+        example:
+          variants:
+            off:
+              bool_value: false
+            on:
+              bool_value: true
+          environments:
+            prod:
+              base:
+                rules:
+                  - condition:
+                      membership:
+                        attribute:
+                          segments: [value]
+                        literals:
+                          values:
+                            - string_value: one
+                            - int_value: 1
+                    action:
+                      serve: on
+                default_action:
+                  serve: off
+  - name: invalid_duplicate_schedule_timestamp
+    input: |
+      version: normalized/v1
+      flags:
+        example:
+          variants:
+            off:
+              bool_value: false
+            on:
+              bool_value: true
+          environments:
+            prod:
+              base:
+                default_action:
+                  serve: off
+              schedule:
+                - effective_at: "2026-01-01T00:00:00Z"
+                  evaluation:
+                    default_action:
+                      serve: on
+                - effective_at: "2026-01-01T00:00:00+00:00"
+                  evaluation:
+                    default_action:
+                      serve: off
   - name: invalid_double_nan
     input: |
       version: normalized/v1
