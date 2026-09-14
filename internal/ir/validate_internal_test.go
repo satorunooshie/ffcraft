@@ -97,3 +97,49 @@ func TestValidateActionContracts(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateAcceptsEverySemanticKind(t *testing.T) {
+	attribute := &irv1.AttributePath{Segments: []string{"user", "value"}}
+	conditionCases := []*irv1.Condition{
+		{Kind: &irv1.Condition_Constant{Constant: true}},
+		{Kind: &irv1.Condition_Equality{Equality: &irv1.EqualityCondition{Attribute: attribute, Literal: &irv1.ScalarValue{Kind: &irv1.ScalarValue_IntValue{IntValue: 7}}}}},
+		{Kind: &irv1.Condition_NumericComparison{NumericComparison: &irv1.NumericComparisonCondition{Operator: irv1.NumericComparisonOperator_NUMERIC_COMPARISON_OPERATOR_GT, Attribute: attribute, Literal: &irv1.NumericValue{Kind: &irv1.NumericValue_DoubleValue{DoubleValue: 1.5}}}}},
+		{Kind: &irv1.Condition_Membership{Membership: &irv1.MembershipCondition{Attribute: attribute, Literals: &irv1.ScalarList{Values: []*irv1.ScalarValue{{Kind: &irv1.ScalarValue_StringValue{StringValue: "a"}}, {Kind: &irv1.ScalarValue_StringValue{StringValue: "b"}}}}}}},
+		{Kind: &irv1.Condition_StringMatch{StringMatch: &irv1.StringMatchCondition{Operator: irv1.StringMatchOperator_STRING_MATCH_OPERATOR_CONTAINS, Attribute: attribute, Literal: "x"}}},
+		{Kind: &irv1.Condition_SemverComparison{SemverComparison: &irv1.SemVerComparisonCondition{Operator: irv1.SemVerComparisonOperator_SEM_VER_COMPARISON_OPERATOR_GTE, Attribute: attribute, Semver: "1.2.3-rc.1+build.7"}}},
+		{Kind: &irv1.Condition_Presence{Presence: &irv1.PresenceCondition{Attribute: attribute}}},
+		{Kind: &irv1.Condition_Logical{Logical: &irv1.LogicalCondition{Operator: irv1.LogicalOperator_LOGICAL_OPERATOR_ANY, Conditions: []*irv1.Condition{
+			{Kind: &irv1.Condition_Constant{Constant: true}},
+			{Kind: &irv1.Condition_Constant{Constant: false}},
+		}}}},
+		{Kind: &irv1.Condition_Negation{Negation: &irv1.Condition{Kind: &irv1.Condition_Constant{Constant: false}}}},
+	}
+	for index, condition := range conditionCases {
+		if err := validateCondition(condition); err != nil {
+			t.Fatalf("condition[%d] rejected: %v", index, err)
+		}
+	}
+
+	variantCases := []*irv1.VariantValue{
+		{Kind: &irv1.VariantValue_BoolValue{BoolValue: true}},
+		{Kind: &irv1.VariantValue_StringValue{StringValue: "x"}},
+		{Kind: &irv1.VariantValue_IntValue{IntValue: 7}},
+		{Kind: &irv1.VariantValue_DoubleValue{DoubleValue: 1.5}},
+		{Kind: &irv1.VariantValue_NullValue{NullValue: &irv1.VariantNull{}}},
+		{Kind: &irv1.VariantValue_ObjectValue{ObjectValue: &irv1.VariantObject{Fields: map[string]*irv1.VariantValue{"nested": {Kind: &irv1.VariantValue_BoolValue{BoolValue: false}}}}}},
+		{Kind: &irv1.VariantValue_ListValue{ListValue: &irv1.VariantList{Values: []*irv1.VariantValue{{Kind: &irv1.VariantValue_IntValue{IntValue: 1}}}}}},
+	}
+	for index, variant := range variantCases {
+		if err := validateVariant(variant); err != nil {
+			t.Fatalf("variant[%d] rejected: %v", index, err)
+		}
+	}
+	if err := validateExtensions(map[string]*irv1.ExtensionValue{
+		"metadata": {Kind: &irv1.ExtensionValue_ObjectValue{ObjectValue: &irv1.ExtensionObject{Fields: map[string]*irv1.ExtensionValue{
+			"enabled": {Kind: &irv1.ExtensionValue_BoolValue{BoolValue: true}},
+			"items":   {Kind: &irv1.ExtensionValue_ListValue{ListValue: &irv1.ExtensionList{Values: []*irv1.ExtensionValue{{Kind: &irv1.ExtensionValue_NullValue{NullValue: &irv1.ExtensionNull{}}}}}}},
+		}}}},
+	}); err != nil {
+		t.Fatalf("valid extension rejected: %v", err)
+	}
+}
