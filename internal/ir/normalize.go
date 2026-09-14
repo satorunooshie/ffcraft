@@ -10,6 +10,7 @@ import (
 
 	irv1 "github.com/satorunooshie/ffcraft/gen/ffcraft/ir/v1"
 	"github.com/satorunooshie/ffcraft/internal/ast"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -92,7 +93,9 @@ func environment(source *ast.Environment, variants map[string]*irv1.VariantValue
 			}
 			currentFallback = fallback
 		}
-		out.Schedule = append(out.Schedule, &irv1.ScheduledEvaluation{EffectiveAt: at, Evaluation: current})
+		if len(out.Schedule) == 0 || !proto.Equal(out.Schedule[len(out.Schedule)-1].Evaluation, current) {
+			out.Schedule = append(out.Schedule, &irv1.ScheduledEvaluation{EffectiveAt: at, Evaluation: current})
+		}
 	}
 	if source.Experimentation != nil {
 		return nil, fmt.Errorf("experimentation has no target-independent IR semantics")

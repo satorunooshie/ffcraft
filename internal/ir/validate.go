@@ -3,6 +3,7 @@ package ir
 import (
 	"fmt"
 	"math"
+	"regexp"
 	"sort"
 	"sync"
 
@@ -48,8 +49,17 @@ func Validate(doc *irv1.Document) error {
 			return fmt.Errorf("flag %q extensions: %w", key, err)
 		}
 		for variant, value := range flag.Variants {
-			if err := validateVariant(value); err != nil {
+			if err := validateVariantDepth(value, 0); err != nil {
 				return fmt.Errorf("flag %q variant %q: %w", key, variant, err)
+			}
+		}
+		var variantKind string
+		for variant, value := range flag.Variants {
+			kind := fmt.Sprintf("%T", value.GetKind())
+			if variantKind == "" {
+				variantKind = kind
+			} else if kind != variantKind {
+				return fmt.Errorf("flag %q variants are not homogeneous: %q has %s, want %s", key, variant, kind, variantKind)
 			}
 		}
 		for name, env := range flag.Environments {
@@ -96,7 +106,7 @@ func validateEvaluation(eval *irv1.Evaluation, variants map[string]*irv1.Variant
 		if rule == nil {
 			return fmt.Errorf("rule[%d] is nil", index)
 		}
-		if err := validateCondition(rule.Condition); err != nil {
+		if err := validateConditionDepth(rule.Condition, 0); err != nil {
 			return fmt.Errorf("rule[%d] condition: %w", index, err)
 		}
 		if err := validateAction(rule.Action, variants); err != nil {
@@ -130,7 +140,11 @@ func validateAction(action *irv1.Action, variants map[string]*irv1.VariantValue)
 	return nil
 }
 
-func validateCondition(condition *irv1.Condition) error {
+func validateCondition(condition *irv1.Condition) error { return validateConditionDepth(condition, 0) }
+func validateConditionDepth(condition *irv1.Condition, depth int) error {
+	if depth > 64 {
+		return fmt.Errorf("condition nesting depth exceeds 64")
+	}
 	switch kind := condition.GetKind().(type) {
 	case *irv1.Condition_Constant:
 		return nil
@@ -140,9 +154,15 @@ func validateCondition(condition *irv1.Condition) error {
 		if kind.NumericComparison.Attribute == nil || kind.NumericComparison.Literal == nil {
 			return fmt.Errorf("numeric comparison is incomplete")
 		}
+		if literal, ok := kind.NumericComparison.Literal.GetKind().(*irv1.NumericValue_DoubleValue); ok && (math.IsNaN(literal.DoubleValue) || math.IsInf(literal.DoubleValue, 0)) {
+			return fmt.Errorf("numeric comparison literal is not finite")
+		}
 	case *irv1.Condition_Membership:
 		if kind.Membership.Attribute == nil || kind.Membership.Literals == nil || len(kind.Membership.Literals.Values) == 0 {
 			return fmt.Errorf("membership is incomplete")
+		}
+		if err := validateScalarHomogeneity(kind.Membership.Literals.Values); err != nil {
+			return err
 		}
 	case *irv1.Condition_StringMatch:
 		if kind.StringMatch.Attribute == nil {
@@ -151,6 +171,9 @@ func validateCondition(condition *irv1.Condition) error {
 	case *irv1.Condition_SemverComparison:
 		if kind.SemverComparison.Attribute == nil || kind.SemverComparison.Semver == "" {
 			return fmt.Errorf("semver comparison is incomplete")
+		}
+		if !semverPattern.MatchString(kind.SemverComparison.Semver) {
+			return fmt.Errorf("invalid SemVer literal %q", kind.SemverComparison.Semver)
 		}
 	case *irv1.Condition_Presence:
 		if kind.Presence.Attribute == nil {
@@ -161,16 +184,42 @@ func validateCondition(condition *irv1.Condition) error {
 			return fmt.Errorf("logical condition needs at least two children")
 		}
 		for _, child := range kind.Logical.Conditions {
-			if err := validateCondition(child); err != nil {
+			if err := validateConditionDepth(child, depth+1); err != nil {
 				return err
 			}
 		}
 	case *irv1.Condition_Negation:
-		return validateCondition(kind.Negation)
+		return validateConditionDepth(kind.Negation, depth+1)
 	default:
 		return fmt.Errorf("condition kind is required")
 	}
 	return nil
+}
+
+var semverPattern = regexp.MustCompile(`^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$`)
+
+func validateScalarHomogeneity(values []*irv1.ScalarValue) error {
+	domain := scalarDomain(values[0])
+	for _, value := range values[1:] {
+		if scalarDomain(value) != domain {
+			return fmt.Errorf("membership literals must be homogeneous")
+		}
+	}
+	return nil
+}
+func scalarDomain(value *irv1.ScalarValue) string {
+	switch value.GetKind().(type) {
+	case *irv1.ScalarValue_IntValue, *irv1.ScalarValue_DoubleValue:
+		return "number"
+	case *irv1.ScalarValue_StringValue:
+		return "string"
+	case *irv1.ScalarValue_BoolValue:
+		return "bool"
+	case *irv1.ScalarValue_NullValue:
+		return "null"
+	default:
+		return "unknown"
+	}
 }
 
 func validateAttributeLiteral(attribute *irv1.AttributePath, literal *irv1.ScalarValue) error {
@@ -179,9 +228,13 @@ func validateAttributeLiteral(attribute *irv1.AttributePath, literal *irv1.Scala
 	}
 	return nil
 }
-func validateVariant(value *irv1.VariantValue) error {
+func validateVariant(value *irv1.VariantValue) error { return validateVariantDepth(value, 0) }
+func validateVariantDepth(value *irv1.VariantValue, depth int) error {
 	if value == nil {
 		return fmt.Errorf("value is nil")
+	}
+	if depth > 64 {
+		return fmt.Errorf("variant nesting depth exceeds 64")
 	}
 	switch kind := value.GetKind().(type) {
 	case *irv1.VariantValue_DoubleValue:
@@ -193,13 +246,13 @@ func validateVariant(value *irv1.VariantValue) error {
 			if name == "" {
 				return fmt.Errorf("object key is empty")
 			}
-			if err := validateVariant(child); err != nil {
+			if err := validateVariantDepth(child, depth+1); err != nil {
 				return err
 			}
 		}
 	case *irv1.VariantValue_ListValue:
 		for _, child := range kind.ListValue.Values {
-			if err := validateVariant(child); err != nil {
+			if err := validateVariantDepth(child, depth+1); err != nil {
 				return err
 			}
 		}
