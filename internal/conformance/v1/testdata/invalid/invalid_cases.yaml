@@ -153,3 +153,45 @@ cases:
                       segments: [user, id]
                     weights:
                       value: 1
+  - name: invalid_double_nan
+    input: |
+      version: normalized/v1
+      flags:
+        example:
+          variants:
+            value:
+              double_value: .nan
+          environments:
+            prod:
+              base:
+                default_action:
+                  serve: value
+  - name: invalid_double_infinity
+    input: |
+      version: normalized/v1
+      flags:
+        example:
+          variants:
+            value:
+              double_value: .inf
+          environments:
+            prod:
+              base:
+                default_action:
+                  serve: value
+  - name: invalid_oversized_extension_namespace
+    input: |
+      version: normalized/v1
+      flags:
+        example:
+          variants:
+            value:
+              bool_value: true
+          environments:
+            prod:
+              base:
+                default_action:
+                  serve: value
+      extensions:
+        aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa: 
+          string_value: invalid

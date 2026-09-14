@@ -1,0 +1,71 @@
+flags:
+  multi_env:
+    variants:
+      off:
+        bool_value: false
+      on:
+        bool_value: true
+    environments:
+      prod:
+        base:
+          rules:
+            - condition:
+                equality:
+                  operator: EQUALITY_OPERATOR_EQ
+                  attribute:
+                    segments: [user, segment]
+                  literal:
+                    string_value: beta
+              action:
+                serve: on
+          default_action:
+            serve: off
+        schedule:
+          - effective_at: "2026-01-01T00:00:00.000000001Z"
+            evaluation:
+              rules:
+                - condition:
+                    string_match:
+                      operator: STRING_MATCH_OPERATOR_STARTS_WITH
+                      attribute:
+                        segments: [user, id]
+                      literal: prod-
+                  action:
+                    distribute:
+                      allocation_key:
+                        segments: [user, id]
+                      weights:
+                        off: 1
+                        on: 2
+              default_action:
+                serve: off
+      staging:
+        base:
+          rules:
+            - condition:
+                semver_comparison:
+                  operator: SEM_VER_COMPARISON_OPERATOR_GTE
+                  attribute:
+                    segments: [app, version]
+                  semver: 2.0.0
+              action:
+                serve: on
+          default_action:
+            serve: off
+        schedule:
+          - effective_at: "2025-12-31T19:00:00+00:00"
+            evaluation:
+              rules:
+                - condition:
+                    membership:
+                      attribute:
+                        segments: [region]
+                      literals:
+                        values:
+                          - string_value: ap-northeast
+                          - string_value: us-east
+                  action:
+                    serve: on
+              default_action:
+                serve: off
+version: normalized/v1

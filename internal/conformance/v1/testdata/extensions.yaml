@@ -43,4 +43,6 @@ extensions:
             fields: {}
         root_string:
           string_value: all-extension-kinds
+  unknown.vendor.v1:
+    string_value: accepted-unknown-namespace
 version: normalized/v1

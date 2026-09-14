@@ -5,9 +5,11 @@ import (
 	"embed"
 	"errors"
 	"io/fs"
+	"slices"
 	"testing"
 
 	"github.com/satorunooshie/ffcraft/internal/capability"
+	"github.com/satorunooshie/ffcraft/internal/codegen"
 	"github.com/satorunooshie/ffcraft/internal/compiler/flagd"
 	"github.com/satorunooshie/ffcraft/internal/compiler/gofeatureflag"
 	"github.com/satorunooshie/ffcraft/internal/ir"
@@ -69,31 +71,111 @@ func TestV1CompilerOutputIgnoresExtensions(t *testing.T) {
 			withoutExtensions := proto.Clone(withExtensions).(*irv1.Document)
 			withoutExtensions.Extensions = nil
 
-			flagdWith, _, err := flagd.CompileIR(withExtensions, "prod", flagd.CompileOptions{})
-			if err != nil {
-				t.Fatal(err)
-			}
-			flagdWithout, _, err := flagd.CompileIR(withoutExtensions, "prod", flagd.CompileOptions{})
-			if err != nil {
-				t.Fatal(err)
-			}
-			if !bytes.Equal(flagdWith, flagdWithout) {
-				t.Fatal("flagd output changed after stripping extensions")
+			for _, environment := range fixtureEnvironments(withExtensions) {
+				flagdWith, _, err := flagd.CompileIR(withExtensions, environment, flagd.CompileOptions{})
+				flagdWithout, _, withoutErr := flagd.CompileIR(withoutExtensions, environment, flagd.CompileOptions{})
+				if hasPresenceCondition(withExtensions) {
+					assertUnsupportedPresence(t, err)
+					assertUnsupportedPresence(t, withoutErr)
+					continue
+				}
+				if err != nil || withoutErr != nil {
+					t.Fatalf("flagd environment %q: with extensions: %v, without extensions: %v", environment, err, withoutErr)
+				}
+				if !bytes.Equal(flagdWith, flagdWithout) {
+					t.Fatalf("flagd output changed after stripping extensions for environment %q", environment)
+				}
+
+				goffWith, _, err := gofeatureflag.CompileIR(withExtensions, environment, gofeatureflag.CompileOptions{})
+				goffWithout, _, withoutErr := gofeatureflag.CompileIR(withoutExtensions, environment, gofeatureflag.CompileOptions{})
+				if err != nil || withoutErr != nil {
+					t.Fatalf("GO Feature Flag environment %q: with extensions: %v, without extensions: %v", environment, err, withoutErr)
+				}
+				if !bytes.Equal(goffWith, goffWithout) {
+					t.Fatalf("GO Feature Flag output changed after stripping extensions for environment %q", environment)
+				}
 			}
 
-			goffWith, _, err := gofeatureflag.CompileIR(withExtensions, "prod", gofeatureflag.CompileOptions{})
+			generated, err := codegen.CompileIR(withExtensions, codegen.Config{PackageName: "flags"})
 			if err != nil {
 				t.Fatal(err)
 			}
-			goffWithout, _, err := gofeatureflag.CompileIR(withoutExtensions, "prod", gofeatureflag.CompileOptions{})
-			if err != nil {
-				t.Fatal(err)
-			}
-			if !bytes.Equal(goffWith, goffWithout) {
-				t.Fatal("GO Feature Flag output changed after stripping extensions")
+			if fixture == "testdata/multi_environment_semantics.yaml" {
+				for _, fragment := range []string{"UserSegment", "UserID", "AppVersion", "Region"} {
+					if !bytes.Contains(generated, []byte(fragment)) {
+						t.Fatalf("multi-environment codegen output missing %q", fragment)
+					}
+				}
 			}
 		})
 	}
+}
+
+func fixtureEnvironments(doc *irv1.Document) []string {
+	seen := make(map[string]struct{})
+	for _, flag := range doc.Flags {
+		for environment := range flag.Environments {
+			seen[environment] = struct{}{}
+		}
+	}
+	result := make([]string, 0, len(seen))
+	for environment := range seen {
+		result = append(result, environment)
+	}
+	slices.Sort(result)
+	return result
+}
+
+func assertUnsupportedPresence(t *testing.T, err error) {
+	t.Helper()
+	var unsupported *capability.UnsupportedConditionError
+	if !errors.As(err, &unsupported) || unsupported.Code() != capability.UnsupportedConditionCode {
+		t.Fatalf("error = %v, want unsupported presence diagnostic", err)
+	}
+}
+
+func hasPresenceCondition(doc *irv1.Document) bool {
+	for _, flag := range doc.Flags {
+		for _, environment := range flag.Environments {
+			if evaluationHasPresence(environment.Base) {
+				return true
+			}
+			for _, scheduled := range environment.Schedule {
+				if evaluationHasPresence(scheduled.Evaluation) {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+func evaluationHasPresence(evaluation *irv1.Evaluation) bool {
+	if evaluation == nil {
+		return false
+	}
+	for _, rule := range evaluation.Rules {
+		if conditionHasPresence(rule.Condition) {
+			return true
+		}
+	}
+	return false
+}
+
+func conditionHasPresence(condition *irv1.Condition) bool {
+	switch kind := condition.GetKind().(type) {
+	case *irv1.Condition_Presence:
+		return true
+	case *irv1.Condition_Logical:
+		for _, child := range kind.Logical.Conditions {
+			if conditionHasPresence(child) {
+				return true
+			}
+		}
+	case *irv1.Condition_Negation:
+		return conditionHasPresence(kind.Negation)
+	}
+	return false
 }
 
 func TestV1UnknownCoreFieldFailsCompilation(t *testing.T) {

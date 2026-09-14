@@ -1,0 +1,132 @@
+flags:
+  condition_edges:
+    variants:
+      off:
+        bool_value: false
+      on:
+        bool_value: true
+    environments:
+      prod:
+        base:
+          rules:
+            - condition:
+                equality:
+                  operator: EQUALITY_OPERATOR_NE
+                  attribute:
+                    segments: [status]
+                  literal:
+                    null_value: {}
+              action:
+                serve: on
+            - condition:
+                string_match:
+                  operator: STRING_MATCH_OPERATOR_CONTAINS
+                  attribute:
+                    segments: [user, name]
+                  literal: taro
+              action:
+                serve: on
+            - condition:
+                string_match:
+                  operator: STRING_MATCH_OPERATOR_ENDS_WITH
+                  attribute:
+                    segments: [user, email]
+                  literal: .example
+              action:
+                serve: on
+            - condition:
+                presence:
+                  attribute:
+                    segments: [user, id]
+              action:
+                serve: on
+            - condition:
+                negation:
+                  equality:
+                    operator: EQUALITY_OPERATOR_EQ
+                    attribute:
+                      segments: [status]
+                    literal:
+                      string_value: disabled
+              action:
+                serve: on
+            - condition:
+                logical:
+                  operator: LOGICAL_OPERATOR_ANY
+                  conditions:
+                    - constant: false
+                    - equality:
+                        operator: EQUALITY_OPERATOR_EQ
+                        attribute:
+                          segments: [tier]
+                        literal:
+                          string_value: premium
+              action:
+                serve: on
+            - condition:
+                logical:
+                  operator: LOGICAL_OPERATOR_EXACTLY_ONE
+                  conditions:
+                    - equality:
+                        operator: EQUALITY_OPERATOR_EQ
+                        attribute:
+                          segments: [region]
+                        literal:
+                          string_value: ap-northeast
+                    - equality:
+                        operator: EQUALITY_OPERATOR_EQ
+                        attribute:
+                          segments: [region]
+                        literal:
+                          string_value: us-east
+              action:
+                serve: on
+          default_action:
+            serve: off
+  int64_boundaries:
+    variants:
+      min:
+        int_value: -9223372036854775808
+      max:
+        int_value: 9223372036854775807
+    environments:
+      prod:
+        base:
+          default_action:
+            serve: min
+  finite_double:
+    variants:
+      zero:
+        double_value: 0.0
+      max:
+        double_value: 1.7976931348623157e+308
+    environments:
+      prod:
+        base:
+          default_action:
+            serve: zero
+  nested_values:
+    variants:
+      empty:
+        object_value:
+          fields: {}
+      nested:
+        object_value:
+          fields:
+            profile:
+              object_value:
+                fields:
+                  tags:
+                    list_value:
+                      values:
+                        - string_value: a
+                        - object_value:
+                            fields:
+                              enabled:
+                                bool_value: true
+    environments:
+      prod:
+        base:
+          default_action:
+            serve: empty
+version: normalized/v1
