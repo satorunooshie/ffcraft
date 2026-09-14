@@ -115,6 +115,15 @@ func astCondition(source *irv1.Condition) (ast.Condition, error) {
 		default:
 			return &ast.Lte{Left: variable, Right: literal}, nil
 		}
+	case *irv1.Condition_Membership:
+		values := make([]ast.Value, 0, len(kind.Membership.Literals.Values))
+		for _, literal := range kind.Membership.Literals.Values {
+			values = append(values, astScalar(literal))
+		}
+		return &ast.In{
+			Target:    &ast.Var{Path: strings.Join(kind.Membership.Attribute.Segments, ".")},
+			Candidate: &ast.List{Values: values},
+		}, nil
 	case *irv1.Condition_StringMatch:
 		variable := &ast.Var{Path: strings.Join(kind.StringMatch.Attribute.Segments, ".")}
 		switch kind.StringMatch.Operator {

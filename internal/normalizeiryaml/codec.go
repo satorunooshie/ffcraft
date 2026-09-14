@@ -26,6 +26,9 @@ func Marshal(doc *irv1.Document) ([]byte, error) {
 	if err := ir.Validate(doc); err != nil {
 		return nil, err
 	}
+	if err := rejectUnrepresentableExtensionFields(doc); err != nil {
+		return nil, err
+	}
 	payload, err := jsonOptions.Marshal(doc)
 	if err != nil {
 		return nil, err
@@ -41,6 +44,65 @@ func Marshal(doc *irv1.Document) ([]byte, error) {
 		return nil, err
 	}
 	return preserveDoubleLexemes(encoded)
+}
+
+// YAML has no portable representation for protobuf unknown fields. Refuse to
+// serialize such an extension instead of silently losing opaque namespace data.
+func rejectUnrepresentableExtensionFields(doc *irv1.Document) error {
+	check := func(scope string, values map[string]*irv1.ExtensionValue) error {
+		for namespace, value := range values {
+			if extensionHasUnknown(value) {
+				return fmt.Errorf("%s extension %q contains unknown protobuf fields that normalized YAML cannot preserve", scope, namespace)
+			}
+		}
+		return nil
+	}
+	if err := check("document", doc.Extensions); err != nil {
+		return err
+	}
+	for flagKey, flag := range doc.Flags {
+		if err := check("flag "+flagKey, flag.Extensions); err != nil {
+			return err
+		}
+		for environment, env := range flag.Environments {
+			if err := check("environment "+flagKey+"/"+environment, env.Extensions); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func extensionHasUnknown(value *irv1.ExtensionValue) bool {
+	if value == nil {
+		return false
+	}
+	if len(value.ProtoReflect().GetUnknown()) != 0 {
+		return true
+	}
+	switch kind := value.GetKind().(type) {
+	case *irv1.ExtensionValue_ObjectValue:
+		if kind.ObjectValue == nil || len(kind.ObjectValue.ProtoReflect().GetUnknown()) != 0 {
+			return true
+		}
+		for _, child := range kind.ObjectValue.Fields {
+			if extensionHasUnknown(child) {
+				return true
+			}
+		}
+	case *irv1.ExtensionValue_ListValue:
+		if kind.ListValue == nil || len(kind.ListValue.ProtoReflect().GetUnknown()) != 0 {
+			return true
+		}
+		for _, child := range kind.ListValue.Values {
+			if extensionHasUnknown(child) {
+				return true
+			}
+		}
+	case *irv1.ExtensionValue_NullValue:
+		return kind.NullValue != nil && len(kind.NullValue.ProtoReflect().GetUnknown()) != 0
+	}
+	return false
 }
 
 func normalizeNumericLexemes(value any) {

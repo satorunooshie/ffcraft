@@ -200,6 +200,14 @@ func action(value ast.Action) (*irv1.Action, error) {
 }
 
 func condition(value ast.Condition) (*irv1.Condition, error) {
+	result, err := rawCondition(value)
+	if err != nil {
+		return nil, err
+	}
+	return canonicalCondition(result), nil
+}
+
+func rawCondition(value ast.Condition) (*irv1.Condition, error) {
 	switch value := value.(type) {
 	case *ast.LiteralBool:
 		return &irv1.Condition{Kind: &irv1.Condition_Constant{Constant: value.Value}}, nil
@@ -307,6 +315,23 @@ func condition(value ast.Condition) (*irv1.Condition, error) {
 	default:
 		return nil, fmt.Errorf("unsupported condition %T in normalized IR", value)
 	}
+}
+
+func canonicalCondition(condition *irv1.Condition) *irv1.Condition {
+	if condition == nil {
+		return nil
+	}
+	switch kind := condition.GetKind().(type) {
+	case *irv1.Condition_Logical:
+		if len(kind.Logical.Conditions) == 1 {
+			return kind.Logical.Conditions[0]
+		}
+	case *irv1.Condition_Negation:
+		if constant, ok := kind.Negation.GetKind().(*irv1.Condition_Constant); ok {
+			return &irv1.Condition{Kind: &irv1.Condition_Constant{Constant: !constant.Constant}}
+		}
+	}
+	return condition
 }
 
 func valuePair(value any) (ast.Value, ast.Value) {
