@@ -7,6 +7,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"strconv"
+	"strings"
 
 	irv1 "github.com/satorunooshie/ffcraft/gen/ffcraft/ir/v1"
 	"github.com/satorunooshie/ffcraft/internal/ir"
@@ -30,8 +32,62 @@ func Marshal(doc *irv1.Document) ([]byte, error) {
 	if err := json.Unmarshal(payload, &value); err != nil {
 		return nil, err
 	}
+	normalizeNumericLexemes(value)
 	value["version"] = version
-	return yaml.Marshal(value)
+	encoded, err := yaml.Marshal(value)
+	if err != nil {
+		return nil, err
+	}
+	return preserveDoubleLexemes(encoded)
+}
+
+func normalizeNumericLexemes(value any) {
+	switch value := value.(type) {
+	case map[string]any:
+		for key, child := range value {
+			if key == "int_value" {
+				if text, ok := child.(string); ok {
+					if integer, err := strconv.ParseInt(text, 10, 64); err == nil {
+						value[key] = integer
+						continue
+					}
+				}
+			}
+			normalizeNumericLexemes(child)
+		}
+	case []any:
+		for _, child := range value {
+			normalizeNumericLexemes(child)
+		}
+	}
+}
+
+func preserveDoubleLexemes(data []byte) ([]byte, error) {
+	var root yaml.Node
+	if err := yaml.Unmarshal(data, &root); err != nil {
+		return nil, err
+	}
+	var visit func(*yaml.Node)
+	visit = func(node *yaml.Node) {
+		if node.Kind == yaml.MappingNode {
+			for index := 0; index+1 < len(node.Content); index += 2 {
+				key, value := node.Content[index], node.Content[index+1]
+				if key.Value == "double_value" && value.Kind == yaml.ScalarNode {
+					if _, err := strconv.ParseFloat(value.Value, 64); err == nil && !strings.ContainsAny(value.Value, ".eE") {
+						value.Value += ".0"
+					}
+					value.Tag = "!!float"
+				}
+				visit(value)
+			}
+		} else {
+			for _, child := range node.Content {
+				visit(child)
+			}
+		}
+	}
+	visit(&root)
+	return yaml.Marshal(&root)
 }
 
 func Unmarshal(data []byte) (*irv1.Document, error) {

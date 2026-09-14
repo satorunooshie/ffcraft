@@ -15,7 +15,7 @@ flags:
                                         - user
                                         - id
                                 literal:
-                                    int_value: "1"
+                                    int_value: 1
                                 operator: EQUALITY_OPERATOR_EQ
         variants:
             "off":

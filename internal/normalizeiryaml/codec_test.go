@@ -1,6 +1,7 @@
 package normalizeiryaml_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -32,6 +33,9 @@ func TestRoundTripPreservesIRKinds(t *testing.T) {
 	encoded, err := normalizeiryaml.Marshal(doc)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if strings.Contains(string(encoded), `int_value: "`) || !strings.Contains(string(encoded), "double_value: 1.0") {
+		t.Fatalf("numeric lexical kinds were not preserved:\n%s", encoded)
 	}
 	decoded, err := normalizeiryaml.Unmarshal(encoded)
 	if err != nil {
