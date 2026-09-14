@@ -5,7 +5,6 @@ import (
 	"math"
 
 	"github.com/satorunooshie/ffcraft/internal/ast"
-	"github.com/satorunooshie/ffcraft/internal/compiler/flagd"
 )
 
 // CompileTarget identifies a target-specific capability policy.
@@ -82,7 +81,7 @@ func ValidateCompileTarget(target CompileTarget, doc *ast.Document) error {
 	switch target {
 	case CompileTargetFlagd:
 		for _, featureFlag := range doc.Flags {
-			if err := flagd.ValidateFlag(featureFlag); err != nil {
+			if err := validateFlagdShape(featureFlag); err != nil {
 				return fmt.Errorf("flag %q: %w", featureFlag.Key, err)
 			}
 		}
@@ -90,6 +89,15 @@ func ValidateCompileTarget(target CompileTarget, doc *ast.Document) error {
 		return nil
 	default:
 		return fmt.Errorf("unsupported compile target %q", target)
+	}
+	return nil
+}
+
+func validateFlagdShape(featureFlag *ast.Flag) error {
+	for name, value := range featureFlag.Variants {
+		if value.Kind == ast.VariantValueKindList {
+			return fmt.Errorf("variant %q: flagd does not support top-level array variant values; use an object with array fields instead", name)
+		}
 	}
 	return nil
 }

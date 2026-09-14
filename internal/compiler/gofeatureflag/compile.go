@@ -20,7 +20,7 @@ func CompileIR(doc *irv1.Document, environment string, opts CompileOptions) ([]b
 	if err != nil {
 		return nil, nil, err
 	}
-	return CompileYAMLWithOptions(legacy, environment, opts)
+	return compileYAMLWithOptions(legacy, environment, opts)
 }
 
 type CompileOptions struct {
@@ -72,12 +72,12 @@ type scheduledStepOut struct {
 	Experimentation *experimentation `yaml:"experimentation,omitempty"`
 }
 
-func CompileYAML(doc *ast.Document, environment string) ([]byte, error) {
-	output, _, err := CompileYAMLWithOptions(doc, environment, CompileOptions{})
+func compileYAML(doc *ast.Document, environment string) ([]byte, error) {
+	output, _, err := compileYAMLWithOptions(doc, environment, CompileOptions{})
 	return output, err
 }
 
-func CompileYAMLWithOptions(doc *ast.Document, environment string, opts CompileOptions) ([]byte, []string, error) {
+func compileYAMLWithOptions(doc *ast.Document, environment string, opts CompileOptions) ([]byte, []string, error) {
 	flags := make(map[string]flagFile, len(doc.Flags))
 	warnings := make([]string, 0)
 

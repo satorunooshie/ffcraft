@@ -1,4 +1,4 @@
-package flagd_test
+package flagd
 
 import (
 	"bytes"
@@ -9,7 +9,6 @@ import (
 
 	"github.com/satorunooshie/ffcraft/internal/ast"
 	"github.com/satorunooshie/ffcraft/internal/authoring"
-	"github.com/satorunooshie/ffcraft/internal/compiler/flagd"
 	"github.com/satorunooshie/ffcraft/internal/normalize"
 )
 
@@ -135,7 +134,7 @@ func TestCompileJSON(t *testing.T) {
 			t.Parallel()
 
 			doc := mustNormalizedDoc(t, tt.file)
-			out, err := flagd.CompileJSON(doc, "prod")
+			out, err := compileJSON(doc, "prod")
 			if tt.wantErr != "" {
 				if err == nil {
 					t.Fatal("expected compile error")
@@ -311,7 +310,7 @@ func mustCompiledJSON(t *testing.T, path string) ([]byte, map[string]any) {
 	t.Helper()
 
 	doc := mustNormalizedDoc(t, path)
-	out, err := flagd.CompileJSON(doc, "prod")
+	out, err := compileJSON(doc, "prod")
 	if err != nil {
 		t.Fatalf("compile failed: %v", err)
 	}

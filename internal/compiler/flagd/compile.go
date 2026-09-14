@@ -19,7 +19,7 @@ func CompileIR(doc *irv1.Document, environment string, opts CompileOptions) ([]b
 	if err != nil {
 		return nil, nil, err
 	}
-	return CompileJSONWithOptions(legacy, environment, opts)
+	return compileJSONWithOptions(legacy, environment, opts)
 }
 
 const schemaURL = "https://flagd.dev/schema/v0/flags.json"
@@ -41,12 +41,12 @@ type CompileOptions struct {
 	AllowMissingEnvironment bool
 }
 
-func CompileJSON(doc *ast.Document, environment string) ([]byte, error) {
-	output, _, err := CompileJSONWithOptions(doc, environment, CompileOptions{})
+func compileJSON(doc *ast.Document, environment string) ([]byte, error) {
+	output, _, err := compileJSONWithOptions(doc, environment, CompileOptions{})
 	return output, err
 }
 
-func CompileJSONWithOptions(doc *ast.Document, environment string, opts CompileOptions) ([]byte, []string, error) {
+func compileJSONWithOptions(doc *ast.Document, environment string, opts CompileOptions) ([]byte, []string, error) {
 	out := document{
 		Schema: schemaURL,
 		Flags:  map[string]*flag{},

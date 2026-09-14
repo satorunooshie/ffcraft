@@ -32,7 +32,7 @@ func CompileIR(doc *irv1.Document, cfg Config) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return Compile(legacy, cfg)
+	return compileAST(legacy, cfg)
 }
 
 type CompileOptions struct {
@@ -107,7 +107,7 @@ type templateData struct {
 	Flags                   []compiledFlag
 }
 
-func Compile(doc *ast.Document, cfg Config) ([]byte, error) {
+func compileAST(doc *ast.Document, cfg Config) ([]byte, error) {
 	if cfg.PackageName == "" {
 		return nil, fmt.Errorf("package name is required")
 	}
@@ -184,12 +184,12 @@ func Compile(doc *ast.Document, cfg Config) ([]byte, error) {
 	return formatted, nil
 }
 
-func CompileWithOptions(doc *ast.Document, environment string, opts CompileOptions) ([]byte, []string, error) {
+func compileWithOptions(doc *ast.Document, environment string, opts CompileOptions) ([]byte, []string, error) {
 	filtered, warnings, err := filterEnvironment(doc, environment, opts.AllowMissingEnvironment)
 	if err != nil {
 		return nil, nil, err
 	}
-	output, err := Compile(filtered, Config{PackageName: opts.PackageName})
+	output, err := compileAST(filtered, Config{PackageName: opts.PackageName})
 	if err != nil {
 		return nil, nil, err
 	}

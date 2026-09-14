@@ -1,4 +1,4 @@
-package gofeatureflag_test
+package gofeatureflag
 
 import (
 	"bytes"
@@ -8,7 +8,6 @@ import (
 
 	"github.com/satorunooshie/ffcraft/internal/ast"
 	"github.com/satorunooshie/ffcraft/internal/authoring"
-	"github.com/satorunooshie/ffcraft/internal/compiler/gofeatureflag"
 	"github.com/satorunooshie/ffcraft/internal/normalize"
 	"gopkg.in/yaml.v3"
 )
@@ -23,7 +22,7 @@ func TestCompileYAMLRejectsUnsafeRootIntegerTransport(t *testing.T) {
 		Variants:       map[string]ast.VariantValue{"value": {Kind: ast.VariantValueKindInt, Int: 9007199254740993}},
 		Environments:   map[string]*ast.Environment{"prod": {DefaultAction: &ast.ServeAction{Variant: "value"}}},
 	}}}
-	if _, err := gofeatureflag.CompileYAML(doc, "prod"); err == nil {
+	if _, err := compileYAML(doc, "prod"); err == nil {
 		t.Fatal("expected GOFF unsafe root integer transport to be rejected")
 	} else if !strings.Contains(err.Error(), "cannot preserve int64") {
 		t.Fatalf("unexpected error: %v", err)
@@ -143,7 +142,7 @@ func TestCompileYAML(t *testing.T) {
 			t.Parallel()
 
 			doc := mustNormalizedDoc(t, tt.file)
-			out, err := gofeatureflag.CompileYAML(doc, "prod")
+			out, err := compileYAML(doc, "prod")
 			if tt.wantErr != "" {
 				if err == nil {
 					t.Fatal("expected compile error")
@@ -289,7 +288,7 @@ func mustCompiledYAML(t *testing.T, path string) ([]byte, map[string]any) {
 	t.Helper()
 
 	doc := mustNormalizedDoc(t, path)
-	out, err := gofeatureflag.CompileYAML(doc, "prod")
+	out, err := compileYAML(doc, "prod")
 	if err != nil {
 		t.Fatalf("compile failed: %v", err)
 	}

@@ -217,9 +217,9 @@ func TestCompile(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			doc := mustNormalizeFixture(t, tt.fixture)
-			got, err := Compile(doc, tt.config)
+			got, err := compileAST(doc, tt.config)
 			if err != nil {
-				t.Fatalf("Compile() error = %v", err)
+				t.Fatalf("compileAST() error = %v", err)
 			}
 
 			if testhelper.ShouldUpdateGolden() {
@@ -229,7 +229,7 @@ func TestCompile(t *testing.T) {
 			want := testhelper.MustReadFile(t, testdataFS, filepath.Join("testdata", tt.goldenFile))
 
 			if diff := cmp.Diff(string(bytes.TrimSpace(want)), string(bytes.TrimSpace(got))); diff != "" {
-				t.Fatalf("Compile() mismatch (-want +got):\n%s", diff)
+				t.Fatalf("compileAST() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
@@ -281,7 +281,7 @@ func TestCompile_ContextTypeValidation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := Compile(doc, tt.config)
+			_, err := compileAST(doc, tt.config)
 			if err == nil {
 				t.Fatal("expected error")
 			}
@@ -432,9 +432,9 @@ func TestCompile_TargetingKeySignaturesAndGuards(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := Compile(tt.doc, Config{PackageName: "featureflags"})
+			got, err := compileAST(tt.doc, Config{PackageName: "featureflags"})
 			if err != nil {
-				t.Fatalf("Compile() error = %v", err)
+				t.Fatalf("compileAST() error = %v", err)
 			}
 
 			text := string(got)
