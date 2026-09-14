@@ -382,8 +382,49 @@ func variant(value ast.VariantValue) *irv1.VariantValue {
 		return &irv1.VariantValue{Kind: &irv1.VariantValue_DoubleValue{DoubleValue: value.Double}}
 	case ast.VariantValueKindNull:
 		return &irv1.VariantValue{Kind: &irv1.VariantValue_NullValue{NullValue: &irv1.VariantNull{}}}
+	case ast.VariantValueKindObject:
+		fields := make(map[string]*irv1.VariantValue, len(value.Object))
+		for name, child := range value.Object {
+			fields[name] = variantAny(child)
+		}
+		return &irv1.VariantValue{Kind: &irv1.VariantValue_ObjectValue{ObjectValue: &irv1.VariantObject{Fields: fields}}}
+	case ast.VariantValueKindList:
+		values := make([]*irv1.VariantValue, 0, len(value.List))
+		for _, child := range value.List {
+			values = append(values, variant(child))
+		}
+		return &irv1.VariantValue{Kind: &irv1.VariantValue_ListValue{ListValue: &irv1.VariantList{Values: values}}}
 	default:
 		return &irv1.VariantValue{Kind: &irv1.VariantValue_NullValue{NullValue: &irv1.VariantNull{}}}
+	}
+}
+
+func variantAny(value any) *irv1.VariantValue {
+	switch value := value.(type) {
+	case nil:
+		return &irv1.VariantValue{Kind: &irv1.VariantValue_NullValue{NullValue: &irv1.VariantNull{}}}
+	case bool:
+		return &irv1.VariantValue{Kind: &irv1.VariantValue_BoolValue{BoolValue: value}}
+	case string:
+		return &irv1.VariantValue{Kind: &irv1.VariantValue_StringValue{StringValue: value}}
+	case int64:
+		return &irv1.VariantValue{Kind: &irv1.VariantValue_IntValue{IntValue: value}}
+	case float64:
+		return &irv1.VariantValue{Kind: &irv1.VariantValue_DoubleValue{DoubleValue: value}}
+	case map[string]any:
+		fields := make(map[string]*irv1.VariantValue, len(value))
+		for name, child := range value {
+			fields[name] = variantAny(child)
+		}
+		return &irv1.VariantValue{Kind: &irv1.VariantValue_ObjectValue{ObjectValue: &irv1.VariantObject{Fields: fields}}}
+	case []any:
+		values := make([]*irv1.VariantValue, 0, len(value))
+		for _, child := range value {
+			values = append(values, variantAny(child))
+		}
+		return &irv1.VariantValue{Kind: &irv1.VariantValue_ListValue{ListValue: &irv1.VariantList{Values: values}}}
+	default:
+		return nil
 	}
 }
 func canonicalWeights(weights map[string]uint32) map[string]uint32 {
