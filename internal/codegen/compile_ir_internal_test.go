@@ -71,3 +71,44 @@ func TestCollectIRContextFieldsTraversesConditions(t *testing.T) {
 		t.Fatalf("collectIRContextFields() = %#v, %v", fields, err)
 	}
 }
+
+func TestContextTypeContractTables(t *testing.T) {
+	for _, test := range []struct {
+		input string
+		want  string
+	}{
+		{" string ", "string"},
+		{"int", "int"},
+		{"unknown", "string"},
+		{"[]string", "[]string"},
+		{"map[string]any", "map[string]any"},
+		{"[]unknown", "string"},
+	} {
+		if got := normalizeFieldType(test.input); got != test.want {
+			t.Errorf("normalizeFieldType(%q) = %q, want %q", test.input, got, test.want)
+		}
+	}
+	if !isSupportedFieldType("[]int64") || isSupportedFieldType("custom") {
+		t.Fatal("isSupportedFieldType() contract violated")
+	}
+	if got := applyContextDefaults("int64", ContextDefaultsConfig{ScalarTypes: map[string]string{"int": "string"}}); got != "string" {
+		t.Fatalf("applyContextDefaults() = %q", got)
+	}
+	tests := []struct {
+		name     string
+		defaults ContextDefaultsConfig
+		want     string
+	}{
+		{"scalar key", ContextDefaultsConfig{ScalarTypes: map[string]string{"date": "string"}}, "unsupported key"},
+		{"scalar type", ContextDefaultsConfig{ScalarTypes: map[string]string{"string": "date"}}, "unsupported type"},
+		{"collection key", ContextDefaultsConfig{CollectionTypes: map[string]string{"date": "[]string"}}, "unsupported key"},
+		{"collection type", ContextDefaultsConfig{CollectionTypes: map[string]string{"any": "date"}}, "unsupported type"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if err := validateContextDefaults(test.defaults); err == nil || !strings.Contains(err.Error(), test.want) {
+				t.Fatalf("validateContextDefaults() = %v, want %q", err, test.want)
+			}
+		})
+	}
+}
