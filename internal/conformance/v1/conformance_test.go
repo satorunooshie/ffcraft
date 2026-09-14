@@ -92,3 +92,48 @@ func TestV1CompilerOutputIgnoresExtensions(t *testing.T) {
 		})
 	}
 }
+
+func TestV1TargetCompilersFailClosedForUnrepresentablePresence(t *testing.T) {
+	data, err := fixtures.ReadFile("testdata/core_conditions.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc, err := normalizedyaml.Unmarshal(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	flag := doc.Flags["conditions"]
+	flag.Environments["prod"].Base.Rules[0].Condition = &irv1.Condition{
+		Kind: &irv1.Condition_Presence{Presence: &irv1.PresenceCondition{
+			Attribute: &irv1.AttributePath{Segments: []string{"user", "id"}},
+		}},
+	}
+	if err := ir.Validate(doc); err != nil {
+		t.Fatal(err)
+	}
+	for _, target := range []struct {
+		name string
+		call func(*irv1.Document) error
+	}{
+		{
+			name: "flagd",
+			call: func(doc *irv1.Document) error {
+				_, _, err := flagd.CompileIR(doc, "prod", flagd.CompileOptions{})
+				return err
+			},
+		},
+		{
+			name: "gofeatureflag",
+			call: func(doc *irv1.Document) error {
+				_, _, err := gofeatureflag.CompileIR(doc, "prod", gofeatureflag.CompileOptions{})
+				return err
+			},
+		},
+	} {
+		t.Run(target.name, func(t *testing.T) {
+			if err := target.call(doc); err == nil {
+				t.Fatal("expected unsupported presence condition to fail closed")
+			}
+		})
+	}
+}
