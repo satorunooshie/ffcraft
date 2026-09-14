@@ -105,6 +105,9 @@ func environment(source *ast.Environment, variants map[string]*irv1.VariantValue
 	})
 	ordered := out.Schedule[:0]
 	for _, scheduled := range out.Schedule {
+		if len(ordered) == 0 && proto.Equal(scheduled.Evaluation, base) {
+			continue
+		}
 		if len(ordered) > 0 {
 			previous := ordered[len(ordered)-1]
 			if scheduled.EffectiveAt.AsTime().Equal(previous.EffectiveAt.AsTime()) {
