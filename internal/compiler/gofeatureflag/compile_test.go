@@ -8,7 +8,7 @@ import (
 
 	"github.com/satorunooshie/ffcraft/internal/ast"
 	"github.com/satorunooshie/ffcraft/internal/authoring"
-	"github.com/satorunooshie/ffcraft/internal/gofeatureflag"
+	"github.com/satorunooshie/ffcraft/internal/compiler/gofeatureflag"
 	"github.com/satorunooshie/ffcraft/internal/normalize"
 	"gopkg.in/yaml.v3"
 )

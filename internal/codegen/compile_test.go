@@ -1,4 +1,4 @@
-package gogen
+package codegen
 
 import (
 	"bytes"

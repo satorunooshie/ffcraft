@@ -9,7 +9,7 @@ import (
 
 	"github.com/satorunooshie/ffcraft/internal/ast"
 	"github.com/satorunooshie/ffcraft/internal/authoring"
-	"github.com/satorunooshie/ffcraft/internal/flagd"
+	"github.com/satorunooshie/ffcraft/internal/compiler/flagd"
 	"github.com/satorunooshie/ffcraft/internal/normalize"
 )
 

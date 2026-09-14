@@ -6,38 +6,36 @@ import (
 	"path/filepath"
 
 	"gopkg.in/yaml.v3"
-
-	"github.com/satorunooshie/ffcraft/internal/gogen"
 )
 
-type Config struct {
+type ProjectConfig struct {
 	Version string            `yaml:"version"`
 	Source  string            `yaml:"source"`
 	Targets map[string]Target `yaml:"targets"`
 }
 
 type Target struct {
-	PackageName   string                          `yaml:"package"`
-	Output        string                          `yaml:"output"`
-	ContextType   string                          `yaml:"context_type"`
-	ClientType    string                          `yaml:"client_type"`
-	EvaluatorType string                          `yaml:"evaluator_type"`
-	Context       ContextConfig                   `yaml:"context"`
-	Accessors     map[string]gogen.AccessorConfig `yaml:"accessors"`
+	PackageName   string                    `yaml:"package"`
+	Output        string                    `yaml:"output"`
+	ContextType   string                    `yaml:"context_type"`
+	ClientType    string                    `yaml:"client_type"`
+	EvaluatorType string                    `yaml:"evaluator_type"`
+	Context       ContextConfig             `yaml:"context"`
+	Accessors     map[string]AccessorConfig `yaml:"accessors"`
 }
 
 type ContextConfig struct {
-	Defaults gogen.ContextDefaultsConfig `yaml:"defaults"`
-	Fields   []gogen.ContextFieldConfig  `yaml:"fields"`
+	Defaults ContextDefaultsConfig `yaml:"defaults"`
+	Fields   []ContextFieldConfig  `yaml:"fields"`
 }
 
-func Load(path string) (*Config, error) {
+func Load(path string) (*ProjectConfig, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("read config: %w", err)
 	}
 
-	var cfg Config
+	var cfg ProjectConfig
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
 		return nil, fmt.Errorf("unmarshal config: %w", err)
 	}

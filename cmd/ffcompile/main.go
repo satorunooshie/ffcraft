@@ -9,8 +9,8 @@ import (
 
 	irv1 "github.com/satorunooshie/ffcraft/gen/ffcraft/ir/v1"
 	"github.com/satorunooshie/ffcraft/internal/authoring"
-	"github.com/satorunooshie/ffcraft/internal/flagd"
-	"github.com/satorunooshie/ffcraft/internal/gofeatureflag"
+	"github.com/satorunooshie/ffcraft/internal/compiler/flagd"
+	"github.com/satorunooshie/ffcraft/internal/compiler/gofeatureflag"
 	"github.com/satorunooshie/ffcraft/internal/normalizeir"
 	"github.com/satorunooshie/ffcraft/internal/normalizeiryaml"
 )

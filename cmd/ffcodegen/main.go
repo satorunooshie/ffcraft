@@ -10,7 +10,6 @@ import (
 	irv1 "github.com/satorunooshie/ffcraft/gen/ffcraft/ir/v1"
 	"github.com/satorunooshie/ffcraft/internal/authoring"
 	"github.com/satorunooshie/ffcraft/internal/codegen"
-	"github.com/satorunooshie/ffcraft/internal/gogen"
 	"github.com/satorunooshie/ffcraft/internal/normalizeir"
 	"github.com/satorunooshie/ffcraft/internal/normalizeiryaml"
 )
@@ -103,7 +102,7 @@ func runGo(args []string, stdout, stderr io.Writer) error {
 		}
 	}
 
-	output, err := gogen.CompileIR(doc.IR, gogen.Config{
+	output, err := codegen.CompileIR(doc.IR, codegen.Config{
 		PackageName:     target.PackageName,
 		ContextType:     target.ContextType,
 		ClientType:      target.ClientType,

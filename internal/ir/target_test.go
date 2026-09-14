@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	irv1 "github.com/satorunooshie/ffcraft/gen/ffcraft/ir/v1"
-	"github.com/satorunooshie/ffcraft/internal/flagd"
-	"github.com/satorunooshie/ffcraft/internal/gofeatureflag"
+	"github.com/satorunooshie/ffcraft/internal/compiler/flagd"
+	"github.com/satorunooshie/ffcraft/internal/compiler/gofeatureflag"
 )
 
 func TestExtensionsDoNotChangeCoreTargetOutput(t *testing.T) {

@@ -5,7 +5,7 @@ import (
 	"math"
 
 	"github.com/satorunooshie/ffcraft/internal/ast"
-	"github.com/satorunooshie/ffcraft/internal/flagd"
+	"github.com/satorunooshie/ffcraft/internal/compiler/flagd"
 )
 
 // CompileTarget identifies a target-specific capability policy.
