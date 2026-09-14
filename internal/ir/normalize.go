@@ -188,7 +188,7 @@ func action(value ast.Action) (*irv1.Action, error) {
 	case *ast.DistributeAction:
 		weights := make(map[string]uint32, len(value.Allocations))
 		for name, percentage := range value.Allocations {
-			if percentage <= 0 || math.IsNaN(percentage) || math.IsInf(percentage, 0) || percentage != math.Trunc(percentage) {
+			if percentage <= 0 || math.IsNaN(percentage) || math.IsInf(percentage, 0) || percentage != math.Trunc(percentage) || percentage > math.MaxUint32 {
 				return nil, fmt.Errorf("distribution weight %q is not a positive integer", name)
 			}
 			weights[name] = uint32(percentage)
