@@ -1,0 +1,1 @@
+{"$schema":"https://flagd.dev/schema/v0/flags.json","flags":{"multi_env":{"state":"ENABLED","variants":{"off":false,"on":true},"defaultVariant":"off","targeting":{"if":[{">=":[{"var":"$flagd.timestamp"},1767207600]},{"if":[{"in":[{"var":"region"},["ap-northeast","us-east"]]},"on","off"]},{"if":[{"sem_ver":[{"var":"app.version"},">=","2.0.0"]},"on","off"]}]}}}}

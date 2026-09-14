@@ -1,0 +1,19 @@
+multi_env:
+  variations:
+    "off": false
+    "on": true
+  defaultRule:
+    variation: "off"
+  targeting:
+    - query: user.segment eq "beta"
+      variation: "on"
+  bucketingKey: user.id
+  scheduledRollout:
+    - date: "2026-01-01T00:00:00.000000001Z"
+      targeting:
+        - query: user.id sw "prod-"
+          percentage:
+            "off": 33
+            "on": 67
+      defaultRule:
+        variation: "off"

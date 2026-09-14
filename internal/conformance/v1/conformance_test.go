@@ -6,7 +6,9 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/fs"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -37,6 +39,58 @@ var authoringFixtures embed.FS
 //go:embed testdata/protobuf/*.hex
 var protobufFixtures embed.FS
 
+//go:embed testdata/expected/*
+var expectedFixtures embed.FS
+
+//go:embed testdata/invalid/invalid_cases.yaml
+var invalidFixtures embed.FS
+
+//go:embed testdata/manifest/conformance_manifest.yaml
+var manifestFixture []byte
+
+func TestV1ConformanceManifestIsCompleteAndResolvable(t *testing.T) {
+	var manifest struct {
+		Version string `yaml:"version"`
+		Items   []struct {
+			ID       string   `yaml:"id"`
+			Fixtures []string `yaml:"fixtures"`
+		} `yaml:"items"`
+	}
+	if err := yaml.Unmarshal(manifestFixture, &manifest); err != nil {
+		t.Fatal(err)
+	}
+	if manifest.Version != "conformance/v1" {
+		t.Fatalf("manifest version = %q", manifest.Version)
+	}
+	seen := make(map[string]struct{}, len(manifest.Items))
+	for _, item := range manifest.Items {
+		if item.ID == "" || len(item.Fixtures) == 0 {
+			t.Fatalf("invalid manifest item: %+v", item)
+		}
+		if _, exists := seen[item.ID]; exists {
+			t.Fatalf("duplicate manifest item %q", item.ID)
+		}
+		seen[item.ID] = struct{}{}
+		for _, fixture := range item.Fixtures {
+			if !conformanceFixtureExists(fixture) {
+				t.Fatalf("manifest item %q references missing fixture %q", item.ID, fixture)
+			}
+		}
+	}
+	if len(seen) != 31 {
+		t.Fatalf("manifest item count = %d, want 31 conformance requirements", len(seen))
+	}
+}
+
+func conformanceFixtureExists(path string) bool {
+	for _, filesystem := range []fs.FS{fixtures, authoringFixtures, protobufFixtures, invalidFixtures, expectedFixtures} {
+		if _, err := fs.Stat(filesystem, path); err == nil {
+			return true
+		}
+	}
+	return false
+}
+
 func TestV1NormalizedFixture(t *testing.T) {
 	fixtureNames, err := fs.Glob(fixtures, "testdata/*.yaml")
 	if err != nil {
@@ -62,6 +116,14 @@ func TestV1NormalizedFixture(t *testing.T) {
 			roundTrip, err := normalizedyaml.Unmarshal(encoded)
 			if err != nil || !proto.Equal(doc, roundTrip) {
 				t.Fatalf("normalized YAML round trip mismatch: %v", err)
+			}
+			wire, err := ir.Marshal(doc)
+			if err != nil {
+				t.Fatal(err)
+			}
+			decoded, err := ir.Unmarshal(wire)
+			if err != nil || !proto.Equal(doc, decoded) {
+				t.Fatalf("protobuf decode/encode/decode semantic mismatch: %v", err)
 			}
 		})
 	}
@@ -240,6 +302,20 @@ func TestV1ProtobufFixturesRejectUnknownCoreAndOneofFields(t *testing.T) {
 	}{
 		{name: "unknown core field", file: "testdata/protobuf/unknown_core_field.hex", mutate: func(doc *irv1.Document, wire []byte) { doc.ProtoReflect().SetUnknown(wire) }},
 		{name: "unsupported condition oneof variant", file: "testdata/protobuf/unsupported_oneof_variant.hex", mutate: func(doc *irv1.Document, wire []byte) {
+			condition := &irv1.Condition{}
+			if err := proto.Unmarshal(wire, condition); err != nil {
+				panic(err)
+			}
+			doc.Flags["conditions"].Environments["prod"].Base.Rules[0].Condition = condition
+		}},
+		{name: "unsupported equality enum value", file: "testdata/protobuf/invalid_enum_value.hex", mutate: func(doc *irv1.Document, wire []byte) {
+			condition := &irv1.Condition{}
+			if err := proto.Unmarshal(wire, condition); err != nil {
+				panic(err)
+			}
+			doc.Flags["conditions"].Environments["prod"].Base.Rules[0].Condition = condition
+		}},
+		{name: "invalid oneof payload", file: "testdata/protobuf/invalid_oneof_payload.hex", mutate: func(doc *irv1.Document, wire []byte) {
 			condition := &irv1.Condition{}
 			if err := proto.Unmarshal(wire, condition); err != nil {
 				panic(err)
@@ -459,6 +535,34 @@ func TestV1MultiEnvironmentScheduleSemantics(t *testing.T) {
 				if err != nil {
 					t.Fatalf("%s compile: %v", target.name, err)
 				}
+				suffix := ".goff.yaml"
+				if target.name == "flagd" {
+					suffix = ".flagd.json"
+				}
+				expectedName := fmt.Sprintf("testdata/expected/multi_env.%s", test.env)
+				expectedData, err := expectedFixtures.ReadFile(expectedName + suffix)
+				if err != nil {
+					t.Fatal(err)
+				}
+				var actualValue, expectedValue any
+				if target.name == "flagd" {
+					if err := json.Unmarshal(output, &actualValue); err != nil {
+						t.Fatal(err)
+					}
+					if err := json.Unmarshal(expectedData, &expectedValue); err != nil {
+						t.Fatal(err)
+					}
+				} else {
+					if err := yaml.Unmarshal(output, &actualValue); err != nil {
+						t.Fatal(err)
+					}
+					if err := yaml.Unmarshal(expectedData, &expectedValue); err != nil {
+						t.Fatal(err)
+					}
+				}
+				if !reflect.DeepEqual(actualValue, expectedValue) {
+					t.Fatalf("%s output semantic mismatch for %s\nactual: %#v\nexpected: %#v", target.name, test.env, actualValue, expectedValue)
+				}
 				fragments := test.wantGOFF
 				if target.name == "flagd" {
 					fragments = test.wantFlagd
@@ -474,6 +578,50 @@ func TestV1MultiEnvironmentScheduleSemantics(t *testing.T) {
 	if evaluation := evaluationAt(flag.Environments["canary"], time.Date(2026, 2, 11, 0, 0, 0, 0, time.UTC)); len(evaluation.Rules) != 0 || evaluation.DefaultAction.GetServe() != "off" {
 		t.Fatalf("complete snapshot replacement did not restore off evaluation: %+v", evaluation)
 	}
+}
+
+func TestV1MultiEnvironmentScheduleRuntimeMatrix(t *testing.T) {
+	flag := mustFixture(t, "testdata/multi_environment_semantics.yaml").Flags["multi_env"]
+	for _, test := range []struct {
+		name    string
+		env     string
+		at      time.Time
+		context runtimeeval.Context
+		want    string
+	}{
+		{name: "prod base match", env: "prod", at: time.Date(2025, 12, 1, 0, 0, 0, 0, time.UTC), context: runtimeeval.Context{"user": map[string]any{"segment": "beta"}}, want: "on"},
+		{name: "prod base miss", env: "prod", at: time.Date(2025, 12, 1, 0, 0, 0, 0, time.UTC), context: runtimeeval.Context{"user": map[string]any{"segment": "free"}}, want: "off"},
+		{name: "prod scheduled distribution", env: "prod", at: time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC), context: runtimeeval.Context{"user": map[string]any{"id": "prod-1"}}, want: "distribution"},
+		{name: "prod scheduled miss", env: "prod", at: time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC), context: runtimeeval.Context{"user": map[string]any{"id": "test-1"}}, want: "off"},
+		{name: "staging base match", env: "staging", at: time.Date(2025, 12, 1, 0, 0, 0, 0, time.UTC), context: runtimeeval.Context{"app": map[string]any{"version": "2.1.0"}}, want: "on"},
+		{name: "staging base invalid semver", env: "staging", at: time.Date(2025, 12, 1, 0, 0, 0, 0, time.UTC), context: runtimeeval.Context{"app": map[string]any{"version": "invalid"}}, want: "off"},
+		{name: "staging scheduled match", env: "staging", at: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), context: runtimeeval.Context{"region": "ap-northeast"}, want: "on"},
+		{name: "staging scheduled miss", env: "staging", at: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), context: runtimeeval.Context{"region": "eu-west"}, want: "off"},
+		{name: "canary first snapshot", env: "canary", at: time.Date(2026, 1, 20, 0, 0, 0, 0, time.UTC), context: runtimeeval.Context{"cohort": "canary"}, want: "on"},
+		{name: "canary replacement", env: "canary", at: time.Date(2026, 2, 11, 0, 0, 0, 0, time.UTC), context: runtimeeval.Context{"cohort": "canary"}, want: "off"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			evaluation := evaluationAt(flag.Environments[test.env], test.at)
+			if got := evaluationOutcome(evaluation, test.context); got != test.want {
+				t.Fatalf("evaluation outcome = %q, want %q", got, test.want)
+			}
+		})
+	}
+}
+
+func evaluationOutcome(evaluation *irv1.Evaluation, context runtimeeval.Context) string {
+	for _, rule := range evaluation.Rules {
+		if !runtimeeval.Evaluate(rule.Condition, context) {
+			continue
+		}
+		switch action := rule.Action.GetKind().(type) {
+		case *irv1.Action_Serve:
+			return action.Serve
+		case *irv1.Action_Distribute:
+			return "distribution"
+		}
+	}
+	return evaluation.DefaultAction.GetServe()
 }
 
 func TestV1AuthoringScheduleNormalizationRemovesRedundantSnapshots(t *testing.T) {

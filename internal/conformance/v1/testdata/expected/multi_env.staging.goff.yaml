@@ -1,0 +1,16 @@
+multi_env:
+  variations:
+    "off": false
+    "on": true
+  defaultRule:
+    variation: "off"
+  targeting:
+    - query: app.version ge 2.0.0
+      variation: "on"
+  scheduledRollout:
+    - date: "2025-12-31T19:00:00Z"
+      targeting:
+        - query: region in ["ap-northeast", "us-east"]
+          variation: "on"
+      defaultRule:
+        variation: "off"

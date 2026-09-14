@@ -1,0 +1,64 @@
+version: conformance/v1
+items:
+  - id: core_only_document
+    fixtures: [testdata/core_conditions.yaml]
+  - id: scoped_extensions
+    fixtures: [testdata/extensions.yaml]
+  - id: every_extension_value_kind
+    fixtures: [testdata/extensions.yaml]
+  - id: deeply_nested_objects_lists
+    fixtures: [testdata/condition_edge_cases.yaml]
+  - id: int64_boundaries
+    fixtures: [testdata/condition_edge_cases.yaml]
+  - id: finite_doubles_and_null
+    fixtures: [testdata/condition_edge_cases.yaml]
+  - id: repeated_namespace_scopes
+    fixtures: [testdata/extensions.yaml]
+  - id: unknown_namespaces
+    fixtures: [testdata/extensions.yaml]
+  - id: empty_maps_and_absent_fields
+    fixtures: [testdata/extensions.yaml, testdata/runtime_semantics.yaml]
+  - id: invalid_numbers
+    fixtures: [testdata/invalid/invalid_cases.yaml]
+  - id: empty_namespaces
+    fixtures: [testdata/invalid/invalid_cases.yaml]
+  - id: oversized_keys
+    fixtures: [testdata/invalid/invalid_cases.yaml]
+  - id: duplicate_yaml_mapping_keys
+    fixtures: [testdata/invalid/invalid_cases.yaml]
+  - id: custom_yaml_tags
+    fixtures: [testdata/invalid/invalid_cases.yaml]
+  - id: scalar_typing_edges
+    fixtures: [testdata/invalid/invalid_cases.yaml]
+  - id: oversized_object_field_names
+    fixtures: [testdata/invalid/invalid_cases.yaml]
+  - id: unknown_core_protobuf_fields
+    fixtures: [testdata/protobuf/unknown_core_field.hex]
+  - id: unknown_extension_namespaces_compile
+    fixtures: [testdata/extensions.yaml]
+  - id: unsupported_oneof_variants
+    fixtures: [testdata/protobuf/unsupported_oneof_variant.hex, testdata/protobuf/invalid_enum_value.hex, testdata/protobuf/invalid_oneof_payload.hex]
+  - id: integer_weights_gcd_canonicalization
+    fixtures: [testdata/authoring/gcd_distribution.yaml]
+  - id: invalid_distribution_shapes
+    fixtures: [testdata/invalid/invalid_cases.yaml]
+  - id: lossless_numeric_equality
+    fixtures: [testdata/runtime_semantics.yaml]
+  - id: missing_null_presence
+    fixtures: [testdata/runtime_semantics.yaml]
+  - id: runtime_type_mismatch_invalid_semver
+    fixtures: [testdata/runtime_semantics.yaml]
+  - id: homogeneous_heterogeneous_membership
+    fixtures: [testdata/core_conditions.yaml, testdata/invalid/invalid_cases.yaml]
+  - id: string_match_operators
+    fixtures: [testdata/condition_edge_cases.yaml]
+  - id: semver_precedence_invalid_literal
+    fixtures: [testdata/runtime_semantics.yaml, testdata/invalid/invalid_cases.yaml]
+  - id: logical_operators
+    fixtures: [testdata/condition_edge_cases.yaml]
+  - id: timestamp_timezone_nanoseconds
+    fixtures: [testdata/schedule_semantics.yaml, testdata/multi_environment_semantics.yaml]
+  - id: schedule_order_duplicates_redundancy_replacement
+    fixtures: [testdata/invalid/invalid_cases.yaml, testdata/authoring/schedule_normalization.yaml, testdata/multi_environment_semantics.yaml]
+  - id: multi_environment_target_output_semantics
+    fixtures: [testdata/expected/multi_env.prod.flagd.json, testdata/expected/multi_env.prod.goff.yaml, testdata/expected/multi_env.staging.flagd.json, testdata/expected/multi_env.staging.goff.yaml, testdata/expected/multi_env.canary.flagd.json, testdata/expected/multi_env.canary.goff.yaml]

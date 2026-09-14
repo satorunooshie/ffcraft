@@ -1,0 +1,16 @@
+multi_env:
+  variations:
+    "off": false
+    "on": true
+  defaultRule:
+    variation: "off"
+  scheduledRollout:
+    - date: "2026-01-10T00:00:00Z"
+      targeting:
+        - query: cohort eq "canary"
+          variation: "on"
+      defaultRule:
+        variation: "off"
+    - date: "2026-02-10T00:00:00Z"
+      defaultRule:
+        variation: "off"
