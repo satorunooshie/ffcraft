@@ -300,7 +300,7 @@ func mustNormalizedDoc(t *testing.T, path string) *ast.Document {
 	if err != nil {
 		t.Fatalf("parse failed: %v", err)
 	}
-	normalizedDoc, err := normalize.Normalize(doc)
+	normalizedDoc, err := normalize.NormalizeAST(doc)
 	if err != nil {
 		t.Fatalf("normalize failed: %v", err)
 	}

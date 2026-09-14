@@ -9,7 +9,7 @@ import (
 	irv1 "github.com/satorunooshie/ffcraft/gen/ffcraft/ir/v1"
 	"github.com/satorunooshie/ffcraft/internal/authoring"
 	"github.com/satorunooshie/ffcraft/internal/ir"
-	"github.com/satorunooshie/ffcraft/internal/normalizeir"
+	"github.com/satorunooshie/ffcraft/internal/normalize"
 )
 
 func TestNormalizeAndProtoRoundTrip(t *testing.T) {
@@ -31,7 +31,7 @@ flags:
 	if err != nil {
 		t.Fatal(err)
 	}
-	want, err := normalizeir.Normalize(doc)
+	want, err := normalize.Normalize(doc)
 	if err != nil {
 		t.Fatal(err)
 	}

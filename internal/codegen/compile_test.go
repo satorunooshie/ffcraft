@@ -459,7 +459,7 @@ func mustNormalizeFixture(t *testing.T, name string) *ast.Document {
 	if err != nil {
 		t.Fatalf("parse input: %v", err)
 	}
-	normalized, err := normalize.Normalize(doc)
+	normalized, err := normalize.NormalizeAST(doc)
 	if err != nil {
 		t.Fatalf("normalize input: %v", err)
 	}
