@@ -46,7 +46,7 @@ func Validate(doc *irv1.Document) error {
 		}
 	}
 	if err := validator.Validate(core); err != nil {
-		return err
+		return &CoreValidationError{Code: "FFCRAFT_IR_INVALID_CORE", Path: "$", MessageType: string(core.ProtoReflect().Descriptor().FullName()), Cause: err}
 	}
 	if len(doc.Flags) == 0 {
 		return fmt.Errorf("IR document has no flags")

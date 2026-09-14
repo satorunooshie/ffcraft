@@ -16,11 +16,17 @@ type CoreValidationError struct {
 	Path        string
 	MessageType string
 	FieldNumber protowire.Number
+	Cause       error
 }
 
 func (e *CoreValidationError) Error() string {
+	if e.Cause != nil {
+		return fmt.Sprintf("%s at %s: %v", e.Code, e.Path, e.Cause)
+	}
 	return fmt.Sprintf("%s: unknown field %d in %s at %s", e.Code, e.FieldNumber, e.MessageType, e.Path)
 }
+
+func (e *CoreValidationError) Unwrap() error { return e.Cause }
 
 // Marshal encodes a validated IR document using the normative protobuf wire
 // format. Unknown core fields are never emitted by this package.
