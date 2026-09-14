@@ -94,4 +94,32 @@ func TestProtocolAndBoundaryEvidenceContracts(t *testing.T) {
 			}
 		})
 	}
+	if err := (ProtocolIdentity{}).Validate(); err != nil {
+		t.Fatalf("empty optional protocol rejected: %v", err)
+	}
+	supported := DefaultBoundaryEvidence()
+	supported[0].Status = StatusSupported
+	supported[0].EvidenceIDs = []string{"runtime-test-001"}
+	if err := ValidateBoundaryEvidence(supported); err != nil {
+		t.Fatalf("supported evidence rejected: %v", err)
+	}
+}
+
+func TestOptionalRuntimeModuleValidationTable(t *testing.T) {
+	for _, test := range []struct {
+		name   string
+		mutate func(*RuntimeArtifactTuple)
+	}{
+		{"provider", func(tuple *RuntimeArtifactTuple) { tuple.ProviderModule = &ModuleArtifact{Module: "example/provider"} }},
+		{"sdk", func(tuple *RuntimeArtifactTuple) { tuple.SDKModule = &ModuleArtifact{Version: "v1.0.0"} }},
+		{"core", func(tuple *RuntimeArtifactTuple) { tuple.CoreModule = &ModuleArtifact{Module: "example/core"} }},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			tuple := validTuple()
+			test.mutate(&tuple)
+			if err := tuple.Validate(); err == nil || !strings.Contains(err.Error(), test.name+" module") {
+				t.Fatalf("RuntimeArtifactTuple.Validate() = %v", err)
+			}
+		})
+	}
 }
