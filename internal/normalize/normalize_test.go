@@ -72,6 +72,67 @@ flags:
 	}
 }
 
+func TestNormalizeScheduleSnapshotsPreserveReplacementSemantics(t *testing.T) {
+	const source = `version: v1
+variant_sets:
+  boolean:
+    on: true
+    off: false
+flags:
+  - key: scheduled
+    variant_set: boolean
+    default_variant: off
+    environments:
+      prod:
+        default_action:
+          serve: off
+        scheduled_rollouts:
+          - date: "2026-01-01T00:00:00Z"
+            default_action:
+              serve: off
+          - date: "2026-02-01T00:00:00Z"
+            default_action:
+              serve: on
+          - date: "2026-03-01T00:00:00Z"
+            rules:
+              - if: {eq: [{var: user.country}, JP]}
+                serve: off
+            default_action:
+              serve: on
+          - date: "2026-04-01T00:00:00Z"
+            default_action:
+              serve: on
+          - date: "2026-05-01T00:00:00Z"
+            disabled: true
+            default_action:
+              serve: off
+`
+	authoringDocument, err := authoring.ParseYAML([]byte(source))
+	if err != nil {
+		t.Fatal(err)
+	}
+	document, err := Normalize(authoringDocument)
+	if err != nil {
+		t.Fatal(err)
+	}
+	environment := document.Flags["scheduled"].Environments["prod"]
+	if len(environment.Schedule) != 3 {
+		t.Fatalf("normalized schedule length = %d, want 3", len(environment.Schedule))
+	}
+	if got := environment.Schedule[0].EffectiveAt.AsTime().Format("2006-01-02"); got != "2026-02-01" {
+		t.Fatalf("first effective date = %q, want 2026-02-01", got)
+	}
+	if got := environment.Schedule[0].Evaluation.DefaultAction.GetServe(); got != "on" {
+		t.Fatalf("first snapshot default = %q, want on", got)
+	}
+	if len(environment.Schedule[1].Evaluation.Rules) != 1 || environment.Schedule[1].Evaluation.DefaultAction.GetServe() != "on" {
+		t.Fatalf("rule snapshot = %s, want inherited on fallback and one rule", environment.Schedule[1])
+	}
+	if len(environment.Schedule[2].Evaluation.Rules) != 0 || environment.Schedule[2].Evaluation.DefaultAction.GetServe() != "on" {
+		t.Fatalf("complete replacement snapshot = %s, want serve on", environment.Schedule[2])
+	}
+}
+
 func TestNormalizeASTRetainsMatchesForTargetCapabilityValidation(t *testing.T) {
 	const source = `version: v1
 variant_sets:
