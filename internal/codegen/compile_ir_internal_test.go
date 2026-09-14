@@ -112,3 +112,55 @@ func TestContextTypeContractTables(t *testing.T) {
 		})
 	}
 }
+
+func TestCompileIRFlagContractTable(t *testing.T) {
+	base := func(defaultVariant string) *irv1.Flag {
+		return &irv1.Flag{
+			Variants: map[string]*irv1.VariantValue{
+				"off": {Kind: &irv1.VariantValue_StringValue{StringValue: "off"}},
+				"on":  {Kind: &irv1.VariantValue_StringValue{StringValue: "on"}},
+			},
+			Environments: map[string]*irv1.Environment{"prod": {Base: &irv1.Evaluation{DefaultAction: &irv1.Action{Kind: &irv1.Action_Serve{Serve: defaultVariant}}}}},
+		}
+	}
+	tests := []struct {
+		name     string
+		key      string
+		source   *irv1.Flag
+		accessor AccessorConfig
+		want     string
+	}{
+		{"nil source", "f", nil, AccessorConfig{}, "variants are required"},
+		{"no environments", "f", &irv1.Flag{Variants: map[string]*irv1.VariantValue{"on": {Kind: &irv1.VariantValue_BoolValue{BoolValue: true}}}}, AccessorConfig{}, "environments are required"},
+		{"missing default variant", "f", base("missing"), AccessorConfig{}, "default variant"},
+		{"custom accessor", "checkout", base("on"), AccessorConfig{Name: "CheckoutMode", VariantType: "CheckoutVariant"}, ""},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			compiled, err := compileIRFlag(test.key, test.source, test.accessor)
+			if test.want != "" {
+				if err == nil || !strings.Contains(err.Error(), test.want) {
+					t.Fatalf("compileIRFlag() = %#v, %v, want %q", compiled, err, test.want)
+				}
+				return
+			}
+			if err != nil || compiled.AccessorName != "CheckoutMode" || compiled.VariantType != "CheckoutVariant" || len(compiled.Variants) != 2 {
+				t.Fatalf("compileIRFlag() = %#v, %v", compiled, err)
+			}
+		})
+	}
+}
+
+func TestFlagIRTargetingKeyPathsIncludesScheduledActions(t *testing.T) {
+	distribution := func(path ...string) *irv1.Action {
+		return &irv1.Action{Kind: &irv1.Action_Distribute{Distribute: &irv1.Distribution{AllocationKey: &irv1.AttributePath{Segments: path}, Weights: map[string]uint32{"on": 1, "off": 1}}}}
+	}
+	docFlag := &irv1.Flag{
+		Variants:     map[string]*irv1.VariantValue{"on": {Kind: &irv1.VariantValue_BoolValue{BoolValue: true}}, "off": {Kind: &irv1.VariantValue_BoolValue{BoolValue: false}}},
+		Environments: map[string]*irv1.Environment{"prod": {Base: &irv1.Evaluation{DefaultAction: distribution("targetingKey"), Rules: []*irv1.Rule{{Action: distribution("user", "id")}}}, Schedule: []*irv1.ScheduledEvaluation{{Evaluation: &irv1.Evaluation{DefaultAction: distribution("device", "id")}}}}},
+	}
+	paths := flagIRTargetingKeyPaths(docFlag)
+	if len(paths) != 2 || paths[0] != "device.id" || paths[1] != "user.id" || flagIRRequiresTargetingKey(docFlag) != true {
+		t.Fatalf("flagIRTargetingKeyPaths() = %#v", paths)
+	}
+}
