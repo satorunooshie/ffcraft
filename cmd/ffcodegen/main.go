@@ -8,11 +8,8 @@ import (
 	"os"
 
 	irv1 "github.com/satorunooshie/ffcraft/gen/ffcraft/ir/v1"
-	"github.com/satorunooshie/ffcraft/internal/ast"
 	"github.com/satorunooshie/ffcraft/internal/codegen"
 	"github.com/satorunooshie/ffcraft/internal/gogen"
-	"github.com/satorunooshie/ffcraft/internal/normalize"
-	"github.com/satorunooshie/ffcraft/internal/normalizedyaml"
 	"github.com/satorunooshie/ffcraft/internal/normalizeir"
 	"github.com/satorunooshie/ffcraft/internal/normalizeiryaml"
 	"github.com/satorunooshie/ffcraft/internal/parse"
@@ -92,12 +89,7 @@ func runGo(args []string, stdout, stderr io.Writer) error {
 	}
 
 	if wasAuthoring && *dumpPath != "" {
-		var dump []byte
-		if doc.IR != nil {
-			dump, err = normalizeiryaml.Marshal(doc.IR)
-		} else {
-			dump, err = normalizedyaml.Marshal(doc.Legacy)
-		}
+		dump, err := normalizeiryaml.Marshal(doc.IR)
 		if err != nil {
 			return fmt.Errorf("marshal normalized yaml: %w", err)
 		}
@@ -111,28 +103,15 @@ func runGo(args []string, stdout, stderr io.Writer) error {
 		}
 	}
 
-	var output []byte
-	if doc.IR != nil {
-		output, err = gogen.CompileIR(doc.IR, gogen.Config{
-			PackageName:     target.PackageName,
-			ContextType:     target.ContextType,
-			ClientType:      target.ClientType,
-			EvaluatorType:   target.EvaluatorType,
-			ContextDefaults: target.Context.Defaults,
-			ContextFields:   target.Context.Fields,
-			Accessors:       target.Accessors,
-		})
-	} else {
-		output, err = gogen.Compile(doc.Legacy, gogen.Config{
-			PackageName:     target.PackageName,
-			ContextType:     target.ContextType,
-			ClientType:      target.ClientType,
-			EvaluatorType:   target.EvaluatorType,
-			ContextDefaults: target.Context.Defaults,
-			ContextFields:   target.Context.Fields,
-			Accessors:       target.Accessors,
-		})
-	}
+	output, err := gogen.CompileIR(doc.IR, gogen.Config{
+		PackageName:     target.PackageName,
+		ContextType:     target.ContextType,
+		ClientType:      target.ClientType,
+		EvaluatorType:   target.EvaluatorType,
+		ContextDefaults: target.Context.Defaults,
+		ContextFields:   target.Context.Fields,
+		Accessors:       target.Accessors,
+	})
 	if err != nil {
 		return fmt.Errorf("compile go code: %w", err)
 	}
@@ -141,8 +120,7 @@ func runGo(args []string, stdout, stderr io.Writer) error {
 }
 
 type loadedDocument struct {
-	IR     *irv1.Document
-	Legacy *ast.Document
+	IR *irv1.Document
 }
 
 func loadInput(input []byte, formatName string) (*loadedDocument, bool, error) {
@@ -152,10 +130,6 @@ func loadInput(input []byte, formatName string) (*loadedDocument, bool, error) {
 		if err == nil {
 			return &loadedDocument{IR: doc}, false, nil
 		}
-		legacy, legacyErr := normalizedyaml.Unmarshal(input)
-		if legacyErr == nil {
-			return &loadedDocument{Legacy: legacy}, false, nil
-		}
 		return loadAuthoring(input)
 	case "authoring":
 		return loadAuthoring(input)
@@ -164,11 +138,7 @@ func loadInput(input []byte, formatName string) (*loadedDocument, bool, error) {
 		if err == nil {
 			return &loadedDocument{IR: doc}, false, nil
 		}
-		legacy, legacyErr := normalizedyaml.Unmarshal(input)
-		if legacyErr != nil {
-			return nil, false, fmt.Errorf("read normalized yaml: %w", err)
-		}
-		return &loadedDocument{Legacy: legacy}, false, nil
+		return nil, false, fmt.Errorf("read normalized yaml: %w", err)
 	default:
 		return nil, false, fmt.Errorf("unsupported --format %q", formatName)
 	}
@@ -180,16 +150,10 @@ func loadAuthoring(input []byte) (*loadedDocument, bool, error) {
 		return nil, false, fmt.Errorf("parse input: %w", err)
 	}
 	normalizedDoc, err := normalizeir.Normalize(doc)
-	if err == nil {
-		return &loadedDocument{IR: normalizedDoc}, true, nil
-	}
-	// Pre-v1 authoring syntax is explicitly non-normative. Keep it as an
-	// isolated compatibility adapter; v1 inputs always take the IR path.
-	legacy, legacyErr := normalize.Normalize(doc)
-	if legacyErr != nil {
+	if err != nil {
 		return nil, false, fmt.Errorf("normalize input: %w", err)
 	}
-	return &loadedDocument{Legacy: legacy}, true, nil
+	return &loadedDocument{IR: normalizedDoc}, true, nil
 }
 
 func writeOutput(stdout io.Writer, outPath string, output []byte) error {

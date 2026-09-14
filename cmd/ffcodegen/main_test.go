@@ -86,6 +86,7 @@ func TestRun(t *testing.T) {
 			args: func(_ string) []string {
 				return []string{"go", "--in", collectionAuthoringPath, "--config", configCollectionDefaultsPath}
 			},
+			wantErr:        "membership target must be a variable",
 			wantStdoutFile: "go.collection.defaults.golden.go",
 		},
 		{
