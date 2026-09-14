@@ -125,6 +125,12 @@ func compileIRFlag(key string, source *irv1.Flag, accessor AccessorConfig) (comp
 	if !ok {
 		return compiledFlag{}, fmt.Errorf("codegen requires a base default_action.serve")
 	}
+	for environmentName, environment := range source.Environments {
+		other, ok := environment.Base.DefaultAction.GetKind().(*irv1.Action_Serve)
+		if !ok || other.Serve != serve.Serve {
+			return compiledFlag{}, fmt.Errorf("codegen cannot represent environment-specific default variants for flag %q: environment %q serves %q, want %q", key, environmentName, other.Serve, serve.Serve)
+		}
+	}
 	defaultValue, ok := source.Variants[serve.Serve]
 	if !ok {
 		return compiledFlag{}, fmt.Errorf("default variant %q not found", serve.Serve)
