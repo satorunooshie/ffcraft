@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 
+	irv1 "github.com/satorunooshie/ffcraft/gen/ffcraft/ir/v1"
+	"google.golang.org/protobuf/proto"
 	"gopkg.in/yaml.v3"
 )
 
@@ -75,5 +77,46 @@ func TestNormalizedYAMLScalarContracts(t *testing.T) {
 	encoded, err := preserveDoubleLexemes([]byte("double_value: 1\nitems:\n  - double_value: 2e1\n"))
 	if err != nil || !strings.Contains(string(encoded), "double_value: 1.0") || !strings.Contains(string(encoded), "double_value: 2e1") {
 		t.Fatalf("preserveDoubleLexemes() = %v, %s", err, encoded)
+	}
+}
+
+func TestRejectUnrepresentableExtensionScopes(t *testing.T) {
+	unknown := func(value proto.Message) {
+		value.ProtoReflect().SetUnknown([]byte{0x80, 0x01, 0x01})
+	}
+	tests := []struct {
+		name   string
+		mutate func(*irv1.Document)
+		want   string
+	}{
+		{"document", func(doc *irv1.Document) {
+			doc.Extensions = map[string]*irv1.ExtensionValue{"x": {}}
+			unknown(doc.Extensions["x"])
+		}, "document extension"},
+		{"flag", func(doc *irv1.Document) {
+			doc.Flags["f"].Extensions = map[string]*irv1.ExtensionValue{"x": {}}
+			unknown(doc.Flags["f"].Extensions["x"])
+		}, "flag f extension"},
+		{"environment", func(doc *irv1.Document) {
+			doc.Flags["f"].Environments["prod"].Extensions = map[string]*irv1.ExtensionValue{"x": {}}
+			unknown(doc.Flags["f"].Environments["prod"].Extensions["x"])
+		}, "environment f/prod extension"},
+		{"nested object", func(doc *irv1.Document) {
+			doc.Extensions = map[string]*irv1.ExtensionValue{"x": {Kind: &irv1.ExtensionValue_ObjectValue{ObjectValue: &irv1.ExtensionObject{Fields: map[string]*irv1.ExtensionValue{"child": {}}}}}}
+			unknown(doc.Extensions["x"].GetObjectValue().Fields["child"])
+		}, "document extension"},
+		{"nested list", func(doc *irv1.Document) {
+			doc.Extensions = map[string]*irv1.ExtensionValue{"x": {Kind: &irv1.ExtensionValue_ListValue{ListValue: &irv1.ExtensionList{Values: []*irv1.ExtensionValue{{}}}}}}
+			unknown(doc.Extensions["x"].GetListValue().Values[0])
+		}, "document extension"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			doc := &irv1.Document{Flags: map[string]*irv1.Flag{"f": {Variants: map[string]*irv1.VariantValue{"on": {Kind: &irv1.VariantValue_BoolValue{BoolValue: true}}}, Environments: map[string]*irv1.Environment{"prod": {Base: &irv1.Evaluation{DefaultAction: &irv1.Action{Kind: &irv1.Action_Serve{Serve: "on"}}}}}}}}
+			test.mutate(doc)
+			if err := rejectUnrepresentableExtensionFields(doc); err == nil || !strings.Contains(err.Error(), test.want) {
+				t.Fatalf("rejectUnrepresentableExtensionFields() = %v, want %q", err, test.want)
+			}
+		})
 	}
 }
