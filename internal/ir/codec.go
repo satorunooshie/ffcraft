@@ -4,9 +4,23 @@ import (
 	"fmt"
 
 	irv1 "github.com/satorunooshie/ffcraft/gen/ffcraft/ir/v1"
+	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
+
+const UnknownCoreFieldCode = "FFCRAFT_IR_UNKNOWN_CORE_FIELD"
+
+type CoreValidationError struct {
+	Code        string
+	Path        string
+	MessageType string
+	FieldNumber protowire.Number
+}
+
+func (e *CoreValidationError) Error() string {
+	return fmt.Sprintf("%s: unknown field %d in %s at %s", e.Code, e.FieldNumber, e.MessageType, e.Path)
+}
 
 // Marshal encodes a validated IR document using the normative protobuf wire
 // format. Unknown core fields are never emitted by this package.
@@ -35,42 +49,56 @@ func Unmarshal(data []byte) (*irv1.Document, error) {
 }
 
 func rejectUnknownCore(doc *irv1.Document) error {
-	return rejectUnknownMessage(doc.ProtoReflect(), false)
+	return rejectUnknownMessage(doc.ProtoReflect(), false, "$")
 }
 
-func rejectUnknownMessage(message protoreflect.Message, opaque bool) error {
+func rejectUnknownMessage(message protoreflect.Message, opaque bool, path string) error {
 	if !message.IsValid() {
 		return nil
 	}
 	if !opaque && len(message.GetUnknown()) != 0 {
-		return fmt.Errorf("unknown fields in %s", message.Descriptor().FullName())
+		return &CoreValidationError{
+			Code: UnknownCoreFieldCode, Path: path, MessageType: string(message.Descriptor().FullName()),
+			FieldNumber: firstUnknownFieldNumber(message.GetUnknown()),
+		}
 	}
 	var nestedErr error
 	message.Range(func(field protoreflect.FieldDescriptor, value protoreflect.Value) bool {
 		if nestedErr != nil {
 			return false
 		}
-		check := func(child protoreflect.Message) {
-			nestedErr = rejectUnknownMessage(child, opaque || isExtensionMessage(child.Descriptor().FullName()))
+		check := func(child protoreflect.Message, childPath string) {
+			nestedErr = rejectUnknownMessage(child, opaque || isExtensionMessage(child.Descriptor().FullName()), childPath)
 		}
 		switch {
 		case field.IsMap():
-			value.Map().Range(func(_ protoreflect.MapKey, item protoreflect.Value) bool {
+			value.Map().Range(func(key protoreflect.MapKey, item protoreflect.Value) bool {
 				if field.MapValue().Kind() == protoreflect.MessageKind {
-					check(item.Message())
+					check(item.Message(), fmt.Sprintf("%s.%s[%q]", path, field.Name(), key.String()))
 				}
 				return nestedErr == nil
 			})
 		case field.IsList() && field.Message() != nil:
 			for i := 0; i < value.List().Len() && nestedErr == nil; i++ {
-				check(value.List().Get(i).Message())
+				check(value.List().Get(i).Message(), fmt.Sprintf("%s.%s[%d]", path, field.Name(), i))
 			}
 		case field.Message() != nil:
-			check(value.Message())
+			check(value.Message(), path+"."+string(field.Name()))
 		}
 		return nestedErr == nil
 	})
 	return nestedErr
+}
+
+func firstUnknownFieldNumber(data []byte) protowire.Number {
+	for len(data) > 0 {
+		number, _, consumed := protowire.ConsumeField(data)
+		if consumed < 0 {
+			return 0
+		}
+		return number
+	}
+	return 0
 }
 
 func isExtensionMessage(name protoreflect.FullName) bool {

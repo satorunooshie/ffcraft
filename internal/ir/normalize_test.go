@@ -1,6 +1,7 @@
 package ir_test
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -10,6 +11,7 @@ import (
 	"github.com/satorunooshie/ffcraft/internal/authoring"
 	"github.com/satorunooshie/ffcraft/internal/ir"
 	"github.com/satorunooshie/ffcraft/internal/normalize"
+	"google.golang.org/protobuf/encoding/protowire"
 )
 
 func TestNormalizeAndProtoRoundTrip(t *testing.T) {
@@ -46,6 +48,25 @@ flags:
 	if diff := cmp.Diff(want, got, protocmp.Transform()); diff != "" {
 		t.Fatalf("IR changed across protobuf round trip (-want +got):\n%s", diff)
 	}
+}
+
+func TestUnknownCoreFieldDiagnostic(t *testing.T) {
+	doc := minimalIRForUnknownField()
+	unknown := protowire.AppendTag(nil, 99, protowire.VarintType)
+	unknown = protowire.AppendVarint(unknown, 1)
+	doc.ProtoReflect().SetUnknown(unknown)
+	if err := ir.Validate(doc); err == nil {
+		t.Fatal("Validate() accepted an unknown core field")
+	} else {
+		var diagnostic *ir.CoreValidationError
+		if !errors.As(err, &diagnostic) || diagnostic.Code != ir.UnknownCoreFieldCode || diagnostic.FieldNumber != 99 || diagnostic.Path != "$" {
+			t.Fatalf("unexpected diagnostic: %#v", err)
+		}
+	}
+}
+
+func minimalIRForUnknownField() *irv1.Document {
+	return &irv1.Document{Flags: map[string]*irv1.Flag{"f": {Variants: map[string]*irv1.VariantValue{"on": {Kind: &irv1.VariantValue_BoolValue{BoolValue: true}}}, Environments: map[string]*irv1.Environment{"prod": {Base: &irv1.Evaluation{DefaultAction: &irv1.Action{Kind: &irv1.Action_Serve{Serve: "on"}}}}}}}}
 }
 
 func TestUnknownExtensionFieldsRemainOpaque(t *testing.T) {
