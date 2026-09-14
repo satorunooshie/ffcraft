@@ -1,6 +1,8 @@
 package codegen
 
 import (
+	"go/parser"
+	"go/token"
 	"strings"
 	"testing"
 
@@ -149,6 +151,34 @@ func TestCompileIRFlagContractTable(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCodegenTemplateAndFormattingContracts(t *testing.T) {
+	if _, err := CompileIR(&irv1.Document{}, Config{}); err == nil || !strings.Contains(err.Error(), "FFCRAFT_IR_INVALID_CORE") {
+		t.Fatalf("CompileIR(empty) = %v", err)
+	}
+	template, err := templateForCodegen()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = template
+	if _, err := formatGeneratedGo([]byte("package broken\nfunc {")); err == nil || !strings.Contains(err.Error(), "format generated Go") {
+		t.Fatalf("formatGeneratedGo(invalid) = %v", err)
+	}
+	source, err := CompileIR(minimalCodegenDocument(), Config{PackageName: "generated"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := parser.ParseFile(token.NewFileSet(), "generated.go", source, parser.AllErrors); err != nil {
+		t.Fatalf("generated Go is not parseable: %v", err)
+	}
+}
+
+func minimalCodegenDocument() *irv1.Document {
+	return &irv1.Document{Flags: map[string]*irv1.Flag{"flag": {
+		Variants:     map[string]*irv1.VariantValue{"on": {Kind: &irv1.VariantValue_BoolValue{BoolValue: true}}, "off": {Kind: &irv1.VariantValue_BoolValue{BoolValue: false}}},
+		Environments: map[string]*irv1.Environment{"prod": {Base: &irv1.Evaluation{DefaultAction: &irv1.Action{Kind: &irv1.Action_Serve{Serve: "off"}}}}},
+	}}}
 }
 
 func TestFlagIRTargetingKeyPathsIncludesScheduledActions(t *testing.T) {
