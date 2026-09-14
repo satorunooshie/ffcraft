@@ -3,6 +3,8 @@ package v1_test
 import (
 	"bytes"
 	"embed"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"io/fs"
 	"slices"
@@ -21,6 +23,7 @@ import (
 	"github.com/satorunooshie/ffcraft/internal/runtimeeval"
 	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
+	"gopkg.in/yaml.v3"
 
 	irv1 "github.com/satorunooshie/ffcraft/gen/ffcraft/ir/v1"
 )
@@ -30,6 +33,9 @@ var fixtures embed.FS
 
 //go:embed testdata/authoring/*.yaml
 var authoringFixtures embed.FS
+
+//go:embed testdata/protobuf/*.hex
+var protobufFixtures embed.FS
 
 func TestV1NormalizedFixture(t *testing.T) {
 	fixtureNames, err := fs.Glob(fixtures, "testdata/*.yaml")
@@ -225,6 +231,40 @@ func TestV1UnknownCoreFieldFailsCompilation(t *testing.T) {
 	}
 }
 
+func TestV1ProtobufFixturesRejectUnknownCoreAndOneofFields(t *testing.T) {
+	base := mustFixture(t, "testdata/core_conditions.yaml")
+	for _, test := range []struct {
+		name   string
+		file   string
+		mutate func(*irv1.Document, []byte)
+	}{
+		{name: "unknown core field", file: "testdata/protobuf/unknown_core_field.hex", mutate: func(doc *irv1.Document, wire []byte) { doc.ProtoReflect().SetUnknown(wire) }},
+		{name: "unsupported condition oneof variant", file: "testdata/protobuf/unsupported_oneof_variant.hex", mutate: func(doc *irv1.Document, wire []byte) {
+			condition := &irv1.Condition{}
+			if err := proto.Unmarshal(wire, condition); err != nil {
+				panic(err)
+			}
+			doc.Flags["conditions"].Environments["prod"].Base.Rules[0].Condition = condition
+		}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			wireText, err := protobufFixtures.ReadFile(test.file)
+			if err != nil {
+				t.Fatal(err)
+			}
+			wire, err := hex.DecodeString(string(bytes.TrimSpace(wireText)))
+			if err != nil {
+				t.Fatal(err)
+			}
+			doc := proto.Clone(base).(*irv1.Document)
+			test.mutate(doc, wire)
+			if err := ir.Validate(doc); err == nil {
+				t.Fatal("protobuf fixture was accepted")
+			}
+		})
+	}
+}
+
 func TestV1TargetCompilersFailClosedForUnrepresentablePresence(t *testing.T) {
 	data, err := fixtures.ReadFile("testdata/core_conditions.yaml")
 	if err != nil {
@@ -377,12 +417,14 @@ func TestV1MultiEnvironmentScheduleSemantics(t *testing.T) {
 		wantRule   string
 		wantDist   bool
 		wantTarget string
+		wantFlagd  []string
+		wantGOFF   []string
 	}{
-		{name: "prod base", env: "prod", at: time.Date(2025, 12, 1, 0, 0, 0, 0, time.UTC), context: runtimeeval.Context{"user": map[string]any{"segment": "beta"}}, wantRule: "on", wantTarget: "user.segment"},
-		{name: "prod scheduled", env: "prod", at: time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC), context: runtimeeval.Context{"user": map[string]any{"id": "prod-1"}}, wantDist: true, wantTarget: "user.id"},
-		{name: "staging base", env: "staging", at: time.Date(2025, 12, 1, 0, 0, 0, 0, time.UTC), context: runtimeeval.Context{"app": map[string]any{"version": "2.1.0"}}, wantRule: "on", wantTarget: "app.version"},
-		{name: "staging scheduled", env: "staging", at: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), context: runtimeeval.Context{"region": "ap-northeast"}, wantRule: "on", wantTarget: "region"},
-		{name: "canary replacement", env: "canary", at: time.Date(2026, 1, 20, 0, 0, 0, 0, time.UTC), context: runtimeeval.Context{"cohort": "canary"}, wantRule: "on", wantTarget: "cohort"},
+		{name: "prod base", env: "prod", at: time.Date(2025, 12, 1, 0, 0, 0, 0, time.UTC), context: runtimeeval.Context{"user": map[string]any{"segment": "beta"}}, wantRule: "on", wantTarget: "user.segment", wantFlagd: []string{"1767225600", `"user.id"`, `"user.segment"`, `"off",`, `"on",`}, wantGOFF: []string{"2026-01-01T00:00:00.000000001Z", `user.id sw "prod-"`, `user.segment eq "beta"`}},
+		{name: "prod scheduled", env: "prod", at: time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC), context: runtimeeval.Context{"user": map[string]any{"id": "prod-1"}}, wantDist: true, wantTarget: "user.id", wantFlagd: []string{"1767225600", `"user.id"`, `"off",`, `"on",`}, wantGOFF: []string{"2026-01-01T00:00:00.000000001Z", `user.id sw "prod-"`, `"off": 33`, `"on": 67`}},
+		{name: "staging base", env: "staging", at: time.Date(2025, 12, 1, 0, 0, 0, 0, time.UTC), context: runtimeeval.Context{"app": map[string]any{"version": "2.1.0"}}, wantRule: "on", wantTarget: "app.version", wantFlagd: []string{"1767207600", `"app.version"`, `"region"`}, wantGOFF: []string{"2025-12-31T19:00:00Z", `app.version ge 2.0.0`, `region in ["ap-northeast", "us-east"]`}},
+		{name: "staging scheduled", env: "staging", at: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), context: runtimeeval.Context{"region": "ap-northeast"}, wantRule: "on", wantTarget: "region", wantFlagd: []string{"1767207600", `"region"`, `"app.version"`}, wantGOFF: []string{"2025-12-31T19:00:00Z", `region in ["ap-northeast", "us-east"]`, `app.version ge 2.0.0`}},
+		{name: "canary replacement", env: "canary", at: time.Date(2026, 1, 20, 0, 0, 0, 0, time.UTC), context: runtimeeval.Context{"cohort": "canary"}, wantRule: "on", wantTarget: "cohort", wantFlagd: []string{"1768003200", "1770681600", `"cohort"`, `"on",`, `"off"`}, wantGOFF: []string{"2026-01-10T00:00:00Z", "2026-02-10T00:00:00Z", `cohort eq "canary"`}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			environment := flag.Environments[test.env]
@@ -417,8 +459,14 @@ func TestV1MultiEnvironmentScheduleSemantics(t *testing.T) {
 				if err != nil {
 					t.Fatalf("%s compile: %v", target.name, err)
 				}
-				if !strings.Contains(string(output), test.wantTarget) {
-					t.Fatalf("%s output missing targeting path %q", target.name, test.wantTarget)
+				fragments := test.wantGOFF
+				if target.name == "flagd" {
+					fragments = test.wantFlagd
+				}
+				for _, fragment := range fragments {
+					if !strings.Contains(string(output), fragment) {
+						t.Fatalf("%s output missing exact semantic fragment %q for %s", target.name, fragment, test.name)
+					}
 				}
 			}
 		})
@@ -454,6 +502,102 @@ func TestV1AuthoringScheduleNormalizationRemovesRedundantSnapshots(t *testing.T)
 	}
 	if got := schedule[1].Evaluation.DefaultAction.GetServe(); got != "off" {
 		t.Fatalf("second normalized snapshot serves %q, want off", got)
+	}
+	flagdOutput, _, err := flagd.CompileIR(doc, "prod", flagd.CompileOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, marker := range []string{"1769904000", "1775001600"} {
+		if !bytes.Contains(flagdOutput, []byte(marker)) {
+			t.Fatalf("flagd output missing non-redundant snapshot %s", marker)
+		}
+	}
+	for _, marker := range []string{"1767225600", "1772323200"} {
+		if bytes.Contains(flagdOutput, []byte(marker)) {
+			t.Fatalf("flagd output contains redundant snapshot %s", marker)
+		}
+	}
+	goffOutput, _, err := gofeatureflag.CompileIR(doc, "prod", gofeatureflag.CompileOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, marker := range []string{"2026-02-01T00:00:00Z", "2026-04-01T00:00:00Z"} {
+		if !bytes.Contains(goffOutput, []byte(marker)) {
+			t.Fatalf("GO Feature Flag output missing non-redundant snapshot %s", marker)
+		}
+	}
+	for _, marker := range []string{"2026-01-01T00:00:00Z", "2026-03-01T00:00:00Z"} {
+		if bytes.Contains(goffOutput, []byte(marker)) {
+			t.Fatalf("GO Feature Flag output contains redundant snapshot %s", marker)
+		}
+	}
+}
+
+func TestV1AuthoringDistributionCanonicalizationReachesTargets(t *testing.T) {
+	data, err := authoringFixtures.ReadFile("testdata/authoring/gcd_distribution.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	authoringDocument, err := authoring.ParseYAML(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	astDocument, err := normalize.NormalizeAST(authoringDocument)
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc, err := ir.FromAST(astDocument)
+	if err != nil {
+		t.Fatal(err)
+	}
+	distribution := doc.Flags["gcd-rollout"].Environments["prod"].Base.Rules[0].Action.GetDistribute()
+	weights := distribution.Weights
+	if !proto.Equal(distribution, &irv1.Distribution{
+		AllocationKey: &irv1.AttributePath{Segments: []string{"user", "id"}},
+		Weights:       map[string]uint32{"on": 1, "off": 9},
+	}) {
+		t.Fatalf("canonical weights = %#v, want on=1/off=9", weights)
+	}
+	flagdOutput, _, err := flagd.CompileIR(doc, "prod", flagd.CompileOptions{})
+	if err != nil {
+		t.Fatalf("flagd compile: %v", err)
+	}
+	var flagdDocument struct {
+		Flags map[string]struct {
+			Targeting map[string]any `json:"targeting"`
+		} `json:"flags"`
+	}
+	if err := json.Unmarshal(flagdOutput, &flagdDocument); err != nil {
+		t.Fatal(err)
+	}
+	fractional := flagdDocument.Flags["gcd-rollout"].Targeting["if"].([]any)[1].(map[string]any)["fractional"].([]any)
+	bucketExpression := fractional[0].(map[string]any)["cat"].([]any)
+	if got := bucketExpression[1].(map[string]any)["var"]; got != "user.id" {
+		t.Fatalf("flagd allocation key = %#v, want user.id", got)
+	}
+	if got := fractional[1].([]any); got[0] != "off" || got[1] != float64(90) {
+		t.Fatalf("flagd off allocation = %#v, want [off 90]", got)
+	}
+	if got := fractional[2].([]any); got[0] != "on" || got[1] != float64(10) {
+		t.Fatalf("flagd on allocation = %#v, want [on 10]", got)
+	}
+
+	goffOutput, _, err := gofeatureflag.CompileIR(doc, "prod", gofeatureflag.CompileOptions{})
+	if err != nil {
+		t.Fatalf("GO Feature Flag compile: %v", err)
+	}
+	var goffDocument map[string]struct {
+		Targeting []struct {
+			Percentage map[string]uint32 `yaml:"percentage"`
+		} `yaml:"targeting"`
+		BucketingKey string `yaml:"bucketingKey"`
+	}
+	if err := yaml.Unmarshal(goffOutput, &goffDocument); err != nil {
+		t.Fatal(err)
+	}
+	rollout := goffDocument["gcd-rollout"]
+	if rollout.BucketingKey != "user.id" || len(rollout.Targeting) != 1 || rollout.Targeting[0].Percentage["off"] != 90 || rollout.Targeting[0].Percentage["on"] != 10 {
+		t.Fatalf("GO Feature Flag rollout = %#v, want off=90/on=10 and user.id", rollout)
 	}
 }
 

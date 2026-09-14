@@ -1,0 +1,23 @@
+version: v1
+variant_sets:
+  boolean:
+    on: true
+    off: false
+distributions:
+  twenty_on:
+    stickiness: user.id
+    allocations:
+      on: 10
+      off: 90
+flags:
+  - key: gcd-rollout
+    variant_set: boolean
+    default_variant: off
+    environments:
+      prod:
+        rules:
+          - if:
+              literal_bool: true
+            distribute: twenty_on
+        default_action:
+          serve: off
