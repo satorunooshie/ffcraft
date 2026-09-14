@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"sort"
 	"sync"
+	"unicode/utf8"
 
 	"buf.build/go/protovalidate"
 	irv1 "github.com/satorunooshie/ffcraft/gen/ffcraft/ir/v1"
@@ -271,11 +272,14 @@ func validateExtensions(values map[string]*irv1.ExtensionValue) error {
 	}
 	sort.Strings(names)
 	for _, name := range names {
-		if name == "" || values[name] == nil {
+		if name == "" || len(name) > 128 || !utf8.ValidString(name) || values[name] == nil {
 			return fmt.Errorf("invalid namespace %q", name)
 		}
 		if err := validateExtensionDepth(values[name], 0); err != nil {
 			return fmt.Errorf("namespace %q: %w", name, err)
+		}
+		if size := proto.Size(values[name]); size > 1<<20 {
+			return fmt.Errorf("namespace %q payload exceeds 1048576 protobuf bytes", name)
 		}
 	}
 	return nil
@@ -291,13 +295,23 @@ func validateExtensionDepth(value *irv1.ExtensionValue, depth int) error {
 		return nil
 	}
 	switch kind := value.GetKind().(type) {
+	case *irv1.ExtensionValue_StringValue:
+		if len(kind.StringValue) > 256 || !utf8.ValidString(kind.StringValue) {
+			return fmt.Errorf("string exceeds 256 bytes or is invalid UTF-8")
+		}
 	case *irv1.ExtensionValue_DoubleValue:
 		if math.IsNaN(kind.DoubleValue) || math.IsInf(kind.DoubleValue, 0) {
 			return fmt.Errorf("double is not finite")
 		}
 	case *irv1.ExtensionValue_ObjectValue:
+		if kind.ObjectValue == nil {
+			return fmt.Errorf("object value is nil")
+		}
+		if len(kind.ObjectValue.Fields) > 256 {
+			return fmt.Errorf("object field count exceeds 256")
+		}
 		for name, child := range kind.ObjectValue.Fields {
-			if name == "" {
+			if name == "" || len(name) > 256 || !utf8.ValidString(name) {
 				return fmt.Errorf("object key is empty")
 			}
 			if err := validateExtensionDepth(child, depth+1); err != nil {
@@ -305,6 +319,9 @@ func validateExtensionDepth(value *irv1.ExtensionValue, depth int) error {
 			}
 		}
 	case *irv1.ExtensionValue_ListValue:
+		if kind.ListValue == nil {
+			return fmt.Errorf("list value is nil")
+		}
 		if len(kind.ListValue.Values) > 256 {
 			return fmt.Errorf("extension list length exceeds 256")
 		}

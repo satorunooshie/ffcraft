@@ -25,8 +25,8 @@ preserved at document, flag, and environment scope; core compilers ignore them
 and external generators may consume the namespaces they own. See
 [docs/extension-spec.md](docs/extension-spec.md) for the complete contract.
 Core transport limits are 256 extension namespaces per scope, 256 members per
-object/list, and nesting depth 64; namespace contents remain opaque to core
-validation.
+object/list, nesting depth 64, and 1 MiB protobuf payload per namespace;
+namespace contents remain opaque to core validation.
 
 ## Scope
 

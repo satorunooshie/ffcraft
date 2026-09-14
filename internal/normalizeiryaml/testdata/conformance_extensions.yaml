@@ -1,0 +1,29 @@
+flags:
+    example:
+        environments:
+            prod:
+                base:
+                    default_action:
+                        serve: on
+        variants:
+            on:
+                bool_value: true
+extensions:
+    conformance:
+        object_value:
+            fields:
+                boolean:
+                    bool_value: true
+                integer:
+                    int_value: 9007199254740993
+                double:
+                    double_value: 1.0
+                "null":
+                    null_value: {}
+                list:
+                    list_value:
+                        values:
+                            - string_value: nested
+                            - object_value:
+                                fields: {}
+version: normalized/v1

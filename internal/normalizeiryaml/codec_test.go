@@ -1,6 +1,7 @@
 package normalizeiryaml_test
 
 import (
+	_ "embed"
 	"strings"
 	"testing"
 
@@ -10,6 +11,9 @@ import (
 	irv1 "github.com/satorunooshie/ffcraft/gen/ffcraft/ir/v1"
 	"github.com/satorunooshie/ffcraft/internal/normalizeiryaml"
 )
+
+//go:embed testdata/conformance_extensions.yaml
+var conformanceFixture []byte
 
 func TestRoundTripPreservesIRKinds(t *testing.T) {
 	doc := &irv1.Document{
@@ -43,5 +47,23 @@ func TestRoundTripPreservesIRKinds(t *testing.T) {
 	}
 	if diff := cmp.Diff(doc, decoded, protocmp.Transform()); diff != "" {
 		t.Fatalf("IR changed (-want +got):\n%s", diff)
+	}
+}
+
+func TestConformanceExtensionFixture(t *testing.T) {
+	doc, err := normalizeiryaml.Unmarshal(conformanceFixture)
+	if err != nil {
+		t.Fatal(err)
+	}
+	encoded, err := normalizeiryaml.Marshal(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	decoded, err := normalizeiryaml.Unmarshal(encoded)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if diff := cmp.Diff(doc, decoded, protocmp.Transform()); diff != "" {
+		t.Fatalf("fixture changed across round trip:\n%s", diff)
 	}
 }
