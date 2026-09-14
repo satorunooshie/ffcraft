@@ -34,8 +34,14 @@ func Validate(doc *irv1.Document) error {
 	core := proto.Clone(doc).(*irv1.Document)
 	core.Extensions = nil
 	for _, flag := range core.Flags {
+		if flag == nil {
+			continue
+		}
 		flag.Extensions = nil
 		for _, environment := range flag.Environments {
+			if environment == nil {
+				continue
+			}
 			environment.Extensions = nil
 		}
 	}

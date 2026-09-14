@@ -39,6 +39,9 @@ func rejectUnknownCore(doc *irv1.Document) error {
 }
 
 func rejectUnknownMessage(message protoreflect.Message, opaque bool) error {
+	if !message.IsValid() {
+		return nil
+	}
 	if !opaque && len(message.GetUnknown()) != 0 {
 		return fmt.Errorf("unknown fields in %s", message.Descriptor().FullName())
 	}

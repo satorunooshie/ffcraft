@@ -41,6 +41,27 @@ func TestValidateSemanticContracts(t *testing.T) {
 	}
 }
 
+func TestValidateMalformedMapsReturnsErrors(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name string
+		doc  *irv1.Document
+	}{
+		{name: "nil flag", doc: &irv1.Document{Flags: map[string]*irv1.Flag{"f": nil}}},
+		{name: "nil environment", doc: &irv1.Document{Flags: map[string]*irv1.Flag{"f": {
+			Variants:     map[string]*irv1.VariantValue{"on": {Kind: &irv1.VariantValue_BoolValue{BoolValue: true}}},
+			Environments: map[string]*irv1.Environment{"prod": nil},
+		}}}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if err := ir.Validate(test.doc); err == nil {
+				t.Fatal("Validate() unexpectedly accepted malformed IR")
+			}
+		})
+	}
+}
+
 func minimalIR() *irv1.Document {
 	return &irv1.Document{Flags: map[string]*irv1.Flag{"f": {Variants: map[string]*irv1.VariantValue{"on": {Kind: &irv1.VariantValue_BoolValue{BoolValue: true}}, "off": {Kind: &irv1.VariantValue_BoolValue{BoolValue: false}}}, Environments: map[string]*irv1.Environment{"prod": {Base: &irv1.Evaluation{DefaultAction: &irv1.Action{Kind: &irv1.Action_Serve{Serve: "on"}}}}}}}}
 }
