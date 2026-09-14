@@ -146,7 +146,7 @@ func progressiveSnapshots(rollout *ast.ProgressiveRolloutAction, defaultVariant 
 	out := make([]*irv1.ScheduledEvaluation, 0, rollout.Steps)
 	for index := uint32(1); index <= rollout.Steps; index++ {
 		fraction := float64(index) / float64(rollout.Steps)
-		at := start.AsTime().Add(end.AsTime().Sub(start.AsTime()) * time.Duration(float64(index-1)/float64(rollout.Steps)))
+		at := start.AsTime().Add(time.Duration(float64(end.AsTime().Sub(start.AsTime())) * float64(index-1) / float64(rollout.Steps)))
 		weights := map[string]uint32{defaultVariant: uint32(math.Max(1, math.Round((1-fraction)*100))), rollout.Variant: uint32(math.Max(1, math.Round(fraction*100)))}
 		if defaultVariant == rollout.Variant {
 			weights = map[string]uint32{rollout.Variant: 100}
