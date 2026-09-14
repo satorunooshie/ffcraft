@@ -94,6 +94,111 @@ flags:
 	}
 }
 
+func TestAuthoringToIRLoweringTable(t *testing.T) {
+	tests := []struct {
+		name   string
+		source string
+		check  func(t *testing.T, document *irv1.Document)
+	}{
+		{name: "serve and all scalar condition domains", source: `version: v1
+variant_sets:
+  values:
+    on: true
+    off: false
+flags:
+  - key: scalar
+    variant_set: values
+    default_variant: off
+    environments:
+      prod:
+        rules:
+          - if: {eq: [{var: user.id}, user-1]}
+            serve: on
+        default_action:
+          serve: off
+`, check: func(t *testing.T, document *irv1.Document) {
+			if _, ok := document.Flags["scalar"].Environments["prod"].Base.Rules[0].Condition.GetKind().(*irv1.Condition_Equality); !ok {
+				t.Fatal("expected equality condition")
+			}
+		}},
+		{name: "distribution canonicalization", source: `version: v1
+variant_sets:
+  values:
+    on: true
+    off: false
+distributions:
+  rollout:
+    stickiness: user.id
+    allocations:
+      on: 10
+      off: 90
+flags:
+  - key: distribution
+    variant_set: values
+    default_variant: off
+    environments:
+      prod:
+        rules:
+          - if: {literal_bool: true}
+            distribute: rollout
+        default_action:
+          serve: off
+`, check: func(t *testing.T, document *irv1.Document) {
+			distribution := document.Flags["distribution"].Environments["prod"].Base.Rules[0].Action.GetDistribute()
+			if distribution == nil || distribution.Weights["on"] != 1 || distribution.Weights["off"] != 9 {
+				t.Fatalf("unexpected canonical distribution: %v", distribution)
+			}
+		}},
+		{name: "progressive and scheduled snapshots", source: `version: v1
+variant_sets:
+  values:
+    on: true
+    off: false
+flags:
+  - key: rollout
+    variant_set: values
+    default_variant: off
+    environments:
+      prod:
+        default_action:
+          progressive_rollout:
+            variant: on
+            stickiness: user.id
+            start: "2026-01-01T00:00:00Z"
+            end: "2026-01-10T00:00:00Z"
+            steps: 2
+        scheduled_rollouts:
+          - date: "2026-02-01T00:00:00Z"
+            default_action:
+              serve: on
+`, check: func(t *testing.T, document *irv1.Document) {
+			schedule := document.Flags["rollout"].Environments["prod"].Schedule
+			if len(schedule) != 3 {
+				t.Fatalf("schedule length = %d, want 3", len(schedule))
+			}
+			if !schedule[0].EffectiveAt.AsTime().Before(schedule[1].EffectiveAt.AsTime()) || !schedule[1].EffectiveAt.AsTime().Before(schedule[2].EffectiveAt.AsTime()) {
+				t.Fatal("schedule is not strictly increasing")
+			}
+		}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			authoringDocument, err := authoring.ParseYAML([]byte(tt.source))
+			if err != nil {
+				t.Fatal(err)
+			}
+			document, err := normalize.Normalize(authoringDocument)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := ir.Validate(document); err != nil {
+				t.Fatal(err)
+			}
+			tt.check(t, document)
+		})
+	}
+}
+
 func minimalIRForUnknownField() *irv1.Document {
 	return &irv1.Document{Flags: map[string]*irv1.Flag{"f": {Variants: map[string]*irv1.VariantValue{"on": {Kind: &irv1.VariantValue_BoolValue{BoolValue: true}}}, Environments: map[string]*irv1.Environment{"prod": {Base: &irv1.Evaluation{DefaultAction: &irv1.Action{Kind: &irv1.Action_Serve{Serve: "on"}}}}}}}}
 }
