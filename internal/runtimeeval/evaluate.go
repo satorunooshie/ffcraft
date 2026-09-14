@@ -31,7 +31,15 @@ func Evaluate(condition *irv1.Condition, context Context) bool {
 			return false
 		}
 		value, ok := lookup(context, kind.Equality.Attribute)
-		return ok && equal(value, kind.Equality.Literal)
+		matched := ok && equal(value, kind.Equality.Literal)
+		switch kind.Equality.Operator {
+		case irv1.EqualityOperator_EQUALITY_OPERATOR_EQ:
+			return matched
+		case irv1.EqualityOperator_EQUALITY_OPERATOR_NE:
+			return ok && !matched
+		default:
+			return false
+		}
 	case *irv1.Condition_NumericComparison:
 		if kind.NumericComparison == nil {
 			return false
