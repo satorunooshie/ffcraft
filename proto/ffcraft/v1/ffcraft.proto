@@ -61,6 +61,7 @@ message VariantValue {
 
 message ObjectValue {
 	map<string, VariantValue> fields = 1 [
+		(buf.validate.field).map.max_pairs = 256,
 		(buf.validate.field).map.keys.string = {
 			min_len: 1
 			max_len: 256
@@ -69,7 +70,7 @@ message ObjectValue {
 }
 
 message ListValue {
-  repeated VariantValue values = 1;
+	repeated VariantValue values = 1 [(buf.validate.field).repeated.max_items = 256];
 }
 
 message NullValue {}

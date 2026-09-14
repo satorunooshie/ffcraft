@@ -3154,14 +3154,14 @@ const file_proto_ffcraft_v1_ffcraft_proto_rawDesc = "" +
 	"list_value\x18\x06 \x01(\v2\x15.ffcraft.v1.ListValueH\x00R\tlistValue\x126\n" +
 	"\n" +
 	"null_value\x18\a \x01(\v2\x15.ffcraft.v1.NullValueH\x00R\tnullValueB\x06\n" +
-	"\x04kind\"\xb0\x01\n" +
-	"\vObjectValue\x12L\n" +
-	"\x06fields\x18\x01 \x03(\v2#.ffcraft.v1.ObjectValue.FieldsEntryB\x0f\xbaH\f\x9a\x01\t\"\ar\x05\x10\x01\x18\x80\x02R\x06fields\x1aS\n" +
+	"\x04kind\"\xb3\x01\n" +
+	"\vObjectValue\x12O\n" +
+	"\x06fields\x18\x01 \x03(\v2#.ffcraft.v1.ObjectValue.FieldsEntryB\x12\xbaH\x0f\x9a\x01\f\x10\x80\x02\"\ar\x05\x10\x01\x18\x80\x02R\x06fields\x1aS\n" +
 	"\vFieldsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12.\n" +
-	"\x05value\x18\x02 \x01(\v2\x18.ffcraft.v1.VariantValueR\x05value:\x028\x01\"=\n" +
-	"\tListValue\x120\n" +
-	"\x06values\x18\x01 \x03(\v2\x18.ffcraft.v1.VariantValueR\x06values\"\v\n" +
+	"\x05value\x18\x02 \x01(\v2\x18.ffcraft.v1.VariantValueR\x05value:\x028\x01\"H\n" +
+	"\tListValue\x12;\n" +
+	"\x06values\x18\x01 \x03(\v2\x18.ffcraft.v1.VariantValueB\t\xbaH\x06\x92\x01\x03\x10\x80\x02R\x06values\"\v\n" +
 	"\tNullValue\"\xd2\x04\n" +
 	"\x04Flag\x127\n" +
 	"\x03key\x18\x01 \x01(\tB%\xbaH\"\xc8\x01\x01r\x1d\x10\x01\x18\x80\x012\x16^[a-z0-9][a-z0-9._-]*$R\x03key\x12.\n" +
