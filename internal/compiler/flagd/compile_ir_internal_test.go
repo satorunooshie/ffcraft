@@ -76,3 +76,57 @@ func TestCompileIRActionAndCapabilityErrors(t *testing.T) {
 		t.Fatalf("presence condition error = %v", err)
 	}
 }
+
+func TestCompileIRScalarAndPercentageContracts(t *testing.T) {
+	attribute := &irv1.AttributePath{Segments: []string{"user", "id"}}
+	for _, test := range []struct {
+		name  string
+		value *irv1.ScalarValue
+		want  string
+	}{
+		{"string", &irv1.ScalarValue{Kind: &irv1.ScalarValue_StringValue{StringValue: "x"}}, `"x"`},
+		{"bool", &irv1.ScalarValue{Kind: &irv1.ScalarValue_BoolValue{BoolValue: true}}, "true"},
+		{"int", &irv1.ScalarValue{Kind: &irv1.ScalarValue_IntValue{IntValue: 7}}, "7"},
+		{"double", &irv1.ScalarValue{Kind: &irv1.ScalarValue_DoubleValue{DoubleValue: 1.25}}, "1.25"},
+		{"null", &irv1.ScalarValue{Kind: &irv1.ScalarValue_NullValue{NullValue: &irv1.ScalarNull{}}}, "null"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			condition := &irv1.Condition{Kind: &irv1.Condition_Equality{Equality: &irv1.EqualityCondition{Operator: irv1.EqualityOperator_EQUALITY_OPERATOR_EQ, Attribute: attribute, Literal: test.value}}}
+			got, err := compileIRCondition(condition)
+			encoded, marshalErr := json.Marshal(got)
+			if err != nil || marshalErr != nil || !strings.Contains(string(encoded), test.want) {
+				t.Fatalf("compileIRCondition() = %s, %v, %v, want %q", encoded, err, marshalErr, test.want)
+			}
+		})
+	}
+	distribution, err := compileIRAction(&irv1.Action{Kind: &irv1.Action_Distribute{Distribute: &irv1.Distribution{AllocationKey: attribute, Weights: map[string]uint32{"b": 1, "a": 2}}}})
+	if err != nil || !strings.Contains(string(mustJSON(distribution)), "33") || !strings.Contains(string(mustJSON(distribution)), "67") {
+		t.Fatalf("distribution output = %#v, %v", distribution, err)
+	}
+	if got := compileIRVar(attribute); got.(map[string]any)["var"] != "user.id" {
+		t.Fatalf("compileIRVar() = %#v", got)
+	}
+}
+
+func mustJSON(value any) []byte {
+	encoded, err := json.Marshal(value)
+	if err != nil {
+		panic(err)
+	}
+	return encoded
+}
+
+func TestCompileIRConditionErrorPropagation(t *testing.T) {
+	if _, err := compileIRCondition(nil); err == nil || !strings.Contains(err.Error(), "condition is required") {
+		t.Fatalf("nil condition error = %v", err)
+	}
+	if _, err := compileIRCondition(&irv1.Condition{}); err == nil || !strings.Contains(err.Error(), "unsupported IR condition") {
+		t.Fatalf("unset condition error = %v", err)
+	}
+	if _, err := compileIRCondition(&irv1.Condition{Kind: &irv1.Condition_Equality{Equality: &irv1.EqualityCondition{Attribute: &irv1.AttributePath{Segments: []string{"x"}}, Literal: &irv1.ScalarValue{Kind: &irv1.ScalarValue_StringValue{StringValue: "x"}}}}}); err == nil || !strings.Contains(err.Error(), "unsupported equality") {
+		t.Fatalf("unset equality operator error = %v", err)
+	}
+	if _, err := compileIRCondition(&irv1.Condition{Kind: &irv1.Condition_Logical{Logical: &irv1.LogicalCondition{Operator: irv1.LogicalOperator_LOGICAL_OPERATOR_ALL, Conditions: []*irv1.Condition{{}}}}}); err == nil || !strings.Contains(err.Error(), "unsupported IR condition") {
+		t.Fatalf("nested condition error = %v", err)
+	}
+}
