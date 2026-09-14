@@ -1,19 +1,25 @@
-version: normalized/v1
 flags:
-    - key: enable-new-home
-      variants:
-        "off": false
-        "on": true
-      default_variant: "off"
-      environments:
-        prod:
-            default_action:
-                serve: "off"
-            rules:
-                - if:
-                    eq:
-                        - var: user.id
-                        - 1
-                  action:
-                    serve: "on"
-
+    enable-new-home:
+        environments:
+            prod:
+                base:
+                    default_action:
+                        serve: "off"
+                    rules:
+                        - action:
+                            serve: "on"
+                          condition:
+                            equality:
+                                attribute:
+                                    segments:
+                                        - user
+                                        - id
+                                literal:
+                                    int_value: "1"
+                                operator: EQUALITY_OPERATOR_EQ
+        variants:
+            "off":
+                bool_value: false
+            "on":
+                bool_value: true
+version: normalized/v1

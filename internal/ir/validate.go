@@ -185,6 +185,9 @@ func validateVariant(value *irv1.VariantValue) error {
 	return nil
 }
 func validateExtensions(values map[string]*irv1.ExtensionValue) error {
+	if len(values) > 256 {
+		return fmt.Errorf("extension namespace count exceeds 256")
+	}
 	names := make([]string, 0, len(values))
 	for name := range values {
 		names = append(names, name)
@@ -194,13 +197,16 @@ func validateExtensions(values map[string]*irv1.ExtensionValue) error {
 		if name == "" || values[name] == nil {
 			return fmt.Errorf("invalid namespace %q", name)
 		}
-		if err := validateExtension(values[name]); err != nil {
+		if err := validateExtensionDepth(values[name], 0); err != nil {
 			return fmt.Errorf("namespace %q: %w", name, err)
 		}
 	}
 	return nil
 }
-func validateExtension(value *irv1.ExtensionValue) error {
+func validateExtensionDepth(value *irv1.ExtensionValue, depth int) error {
+	if depth > 64 {
+		return fmt.Errorf("extension nesting depth exceeds 64")
+	}
 	switch kind := value.GetKind().(type) {
 	case *irv1.ExtensionValue_DoubleValue:
 		if math.IsNaN(kind.DoubleValue) || math.IsInf(kind.DoubleValue, 0) {
@@ -211,13 +217,16 @@ func validateExtension(value *irv1.ExtensionValue) error {
 			if name == "" {
 				return fmt.Errorf("object key is empty")
 			}
-			if err := validateExtension(child); err != nil {
+			if err := validateExtensionDepth(child, depth+1); err != nil {
 				return err
 			}
 		}
 	case *irv1.ExtensionValue_ListValue:
+		if len(kind.ListValue.Values) > 256 {
+			return fmt.Errorf("extension list length exceeds 256")
+		}
 		for _, child := range kind.ListValue.Values {
-			if err := validateExtension(child); err != nil {
+			if err := validateExtensionDepth(child, depth+1); err != nil {
 				return err
 			}
 		}
