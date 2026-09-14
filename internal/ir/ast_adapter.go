@@ -134,6 +134,20 @@ func astCondition(source *irv1.Condition) (ast.Condition, error) {
 		default:
 			return &ast.EndsWith{Target: variable, Suffix: kind.StringMatch.Literal}, nil
 		}
+	case *irv1.Condition_SemverComparison:
+		variable := &ast.Var{Path: strings.Join(kind.SemverComparison.Attribute.Segments, ".")}
+		switch kind.SemverComparison.Operator {
+		case irv1.SemVerComparisonOperator_SEM_VER_COMPARISON_OPERATOR_GT:
+			return &ast.SemverGt{Left: variable, Right: kind.SemverComparison.Semver}, nil
+		case irv1.SemVerComparisonOperator_SEM_VER_COMPARISON_OPERATOR_GTE:
+			return &ast.SemverGte{Left: variable, Right: kind.SemverComparison.Semver}, nil
+		case irv1.SemVerComparisonOperator_SEM_VER_COMPARISON_OPERATOR_LT:
+			return &ast.SemverLt{Left: variable, Right: kind.SemverComparison.Semver}, nil
+		case irv1.SemVerComparisonOperator_SEM_VER_COMPARISON_OPERATOR_LTE:
+			return &ast.SemverLte{Left: variable, Right: kind.SemverComparison.Semver}, nil
+		default:
+			return nil, fmt.Errorf("unsupported IR semver operator")
+		}
 	case *irv1.Condition_Logical:
 		children := make([]ast.Condition, 0, len(kind.Logical.Conditions))
 		for _, child := range kind.Logical.Conditions {

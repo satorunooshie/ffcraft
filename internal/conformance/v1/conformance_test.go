@@ -75,3 +75,23 @@ func TestV1CompilerOutputIgnoresExtensions(t *testing.T) {
 		t.Fatal("GO Feature Flag output changed after stripping extensions")
 	}
 }
+
+func TestV1CoreConditionCompilerFixture(t *testing.T) {
+	data, err := fixtures.ReadFile("testdata/core_conditions.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc, err := normalizedyaml.Unmarshal(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := ir.Validate(doc); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := flagd.CompileIR(doc, "prod", flagd.CompileOptions{}); err != nil {
+		t.Fatalf("flagd failed core condition fixture: %v", err)
+	}
+	if _, _, err := gofeatureflag.CompileIR(doc, "prod", gofeatureflag.CompileOptions{}); err != nil {
+		t.Fatalf("GO Feature Flag failed core condition fixture: %v", err)
+	}
+}

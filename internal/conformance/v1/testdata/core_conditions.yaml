@@ -1,0 +1,55 @@
+flags:
+  conditions:
+    environments:
+      prod:
+        base:
+          rules:
+            - condition:
+                logical:
+                  operator: LOGICAL_OPERATOR_ALL
+                  conditions:
+                    - equality:
+                        operator: EQUALITY_OPERATOR_EQ
+                        attribute:
+                          segments:
+                            - plan
+                        literal:
+                          string_value: pro
+                    - numeric_comparison:
+                        operator: NUMERIC_COMPARISON_OPERATOR_GTE
+                        attribute:
+                          segments:
+                            - score
+                        literal:
+                          double_value: 10.0
+                    - membership:
+                        attribute:
+                          segments:
+                            - region
+                        literals:
+                          values:
+                            - string_value: ap-northeast
+                            - string_value: us-east
+                    - string_match:
+                        operator: STRING_MATCH_OPERATOR_STARTS_WITH
+                        attribute:
+                          segments:
+                            - user
+                            - name
+                        literal: satoru
+                    - semver_comparison:
+                        operator: SEM_VER_COMPARISON_OPERATOR_GTE
+                        attribute:
+                          segments:
+                            - version
+                        semver: 1.2.3
+              action:
+                serve: on
+          default_action:
+            serve: off
+    variants:
+      off:
+        bool_value: false
+      on:
+        bool_value: true
+version: normalized/v1
