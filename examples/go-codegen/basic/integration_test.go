@@ -61,6 +61,7 @@ func (s *inProcessSync) Sync(ctx context.Context, out chan<- flagsync.DataSync) 
 	}
 	return nil
 }
+
 func (s *inProcessSync) ReSync(ctx context.Context, out chan<- flagsync.DataSync) error {
 	return s.Sync(ctx, out)
 }
