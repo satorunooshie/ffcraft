@@ -17,11 +17,11 @@ test:
 
 .PHONY: update-go-golden
 update-go-golden:
-	UPDATE_GOLDEN=1 $(GO) test ./internal/gogen ./cmd/ffcodegen
+	UPDATE_GOLDEN=1 $(GO) test ./cmd/ffcodegen
 
 .PHONY: update-go-example
 update-go-example:
-	mkdir -p examples/go-codegen/basic/gen examples/go-codegen/rollout/gen examples/go-codegen/withhooks/gen
+	mkdir -p examples/go-codegen/basic/gen examples/go-codegen/rollout/gen examples/go-codegen/withhooks/gen examples/go-codegen/collections/gen
 	$(GO) run ./cmd/ffcompile build flagd --in examples/go-codegen/basic/ffcompile.yaml --env prod --out examples/go-codegen/basic/gen/prod.flagd.json
 	$(GO) run ./cmd/ffcompile build gofeatureflag --in examples/go-codegen/basic/ffcompile.yaml --env prod --out examples/go-codegen/basic/gen/prod.goff.yaml
 	$(GO) run ./cmd/ffcodegen go --in examples/go-codegen/basic/ffcompile.yaml --config examples/go-codegen/basic/ffcodegen.yaml --out examples/go-codegen/basic/gen/featureflags_gen.go

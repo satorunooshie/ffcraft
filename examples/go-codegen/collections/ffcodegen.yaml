@@ -5,3 +5,12 @@ targets:
   go:
     package: featureflags
     output: ./gen/featureflags_gen.go
+    accessors:
+      starter-badges:
+        sdk_fallback_variant: empty
+      theme-config:
+        sdk_fallback_variant: default
+      numeric-object-safe:
+        sdk_fallback_variant: object_safe
+      numeric-object-list-safe:
+        sdk_fallback_variant: object_list_safe

@@ -109,7 +109,7 @@ const (
 
 func (e Evaluator) NumericObjectListSafe(ctx context.Context) (map[string]any, error) {
 	var attrs map[string]any
-	value, err := e.client.ObjectValue(ctx, FlagNumericObjectListSafe, map[string]any{"ids": []any{9.007199254740991e+15}}, newEvaluationContext(attrs))
+	value, err := e.client.ObjectValue(ctx, FlagNumericObjectListSafe, map[string]any{"ids": []any{9007199254740991}}, newEvaluationContext(attrs))
 	if err != nil {
 		return nil, err
 	}
@@ -118,7 +118,7 @@ func (e Evaluator) NumericObjectListSafe(ctx context.Context) (map[string]any, e
 
 func (e Evaluator) NumericObjectSafe(ctx context.Context) (map[string]any, error) {
 	var attrs map[string]any
-	value, err := e.client.ObjectValue(ctx, FlagNumericObjectSafe, map[string]any{"id": 9.007199254740991e+15}, newEvaluationContext(attrs))
+	value, err := e.client.ObjectValue(ctx, FlagNumericObjectSafe, map[string]any{"id": 9007199254740991}, newEvaluationContext(attrs))
 	if err != nil {
 		return nil, err
 	}
