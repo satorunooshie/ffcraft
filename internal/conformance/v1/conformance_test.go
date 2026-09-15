@@ -254,7 +254,7 @@ func TestV1CompilerOutputIgnoresExtensions(t *testing.T) {
 				}
 			}
 
-			generated, err := codegen.CompileIR(withExtensions, codegen.Config{PackageName: "flags"})
+			generated, err := codegen.CompileIR(withExtensions, codegen.Config{PackageName: "flags", InferSDKFallback: true})
 			if err != nil {
 				t.Fatal(err)
 			}
