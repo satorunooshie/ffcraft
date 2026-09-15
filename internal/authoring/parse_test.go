@@ -100,8 +100,15 @@ func TestParseYAML(t *testing.T) {
 				if env.GetScheduledRollouts()[0].GetName() != "first snapshot" {
 					t.Fatalf("unexpected first snapshot: %#v", env.GetScheduledRollouts()[0])
 				}
+				if env.GetScheduledRollouts()[0].GetDescription() != "serve on for everyone" || env.GetScheduledRollouts()[0].GetDate() != "2026-05-03T00:00:00Z" {
+					t.Fatalf("unexpected first snapshot metadata: %#v", env.GetScheduledRollouts()[0])
+				}
 				if !env.GetScheduledRollouts()[1].GetDisabled() {
 					t.Fatalf("expected second step to be disabled: %#v", env.GetScheduledRollouts()[1])
+				}
+				third := env.GetScheduledRollouts()[2]
+				if len(third.GetRules()) != 1 || third.GetRules()[0].GetAction().GetServe().GetVariant() != "on" || third.GetDefaultAction().GetServe().GetVariant() != "off" {
+					t.Fatalf("unexpected third snapshot rule/default: %#v", third)
 				}
 			},
 		},
