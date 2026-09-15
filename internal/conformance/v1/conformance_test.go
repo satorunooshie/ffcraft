@@ -579,7 +579,7 @@ func TestV1MultiEnvironmentScheduleSemantics(t *testing.T) {
 		wantGOFF   []string
 	}{
 		{name: "prod base", env: "prod", at: time.Date(2025, 12, 1, 0, 0, 0, 0, time.UTC), context: runtimeeval.Context{"user": map[string]any{"segment": "beta"}}, wantRule: "on", wantTarget: "user.segment", wantFlagd: []string{"1767225600", `"user.id"`, `"user.segment"`, `"off",`, `"on",`}, wantGOFF: []string{"2026-01-01T00:00:00.000000001Z", `user.id sw "prod-"`, `user.segment eq "beta"`}},
-		{name: "prod scheduled", env: "prod", at: time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC), context: runtimeeval.Context{"user": map[string]any{"id": "prod-1"}}, wantDist: true, wantTarget: "user.id", wantFlagd: []string{"1767225600", `"user.id"`, `"off",`, `"on",`}, wantGOFF: []string{"2026-01-01T00:00:00.000000001Z", `user.id sw "prod-"`, `"off": 33`, `"on": 67`}},
+		{name: "prod scheduled", env: "prod", at: time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC), context: runtimeeval.Context{"user": map[string]any{"id": "prod-1"}}, wantDist: true, wantTarget: "user.id", wantFlagd: []string{"1767225600", `"user.id"`, `"off",`, `"on",`}, wantGOFF: []string{"2026-01-01T00:00:00.000000001Z", `user.id sw "prod-"`, `"off": 1`, `"on": 2`}},
 		{name: "staging base", env: "staging", at: time.Date(2025, 12, 1, 0, 0, 0, 0, time.UTC), context: runtimeeval.Context{"app": map[string]any{"version": "2.1.0"}}, wantRule: "on", wantTarget: "app.version", wantFlagd: []string{"1767207600", `"app.version"`, `"region"`}, wantGOFF: []string{"2025-12-31T19:00:00Z", `app.version ge 2.0.0`, `region in ["ap-northeast", "us-east"]`}},
 		{name: "staging scheduled", env: "staging", at: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), context: runtimeeval.Context{"region": "ap-northeast"}, wantRule: "on", wantTarget: "region", wantFlagd: []string{"1767207600", `"region"`, `"app.version"`}, wantGOFF: []string{"2025-12-31T19:00:00Z", `region in ["ap-northeast", "us-east"]`, `app.version ge 2.0.0`}},
 		{name: "canary replacement", env: "canary", at: time.Date(2026, 1, 20, 0, 0, 0, 0, time.UTC), context: runtimeeval.Context{"cohort": "canary"}, wantRule: "on", wantTarget: "cohort", wantFlagd: []string{"1768003200", "1770681600", `"cohort"`, `"on",`, `"off"`}, wantGOFF: []string{"2026-01-10T00:00:00Z", "2026-02-10T00:00:00Z", `cohort eq "canary"`}},
@@ -867,11 +867,11 @@ func TestV1AuthoringDistributionCanonicalizationReachesTargets(t *testing.T) {
 	if got := bucketExpression[1].(map[string]any)["var"]; got != "user.id" {
 		t.Fatalf("flagd allocation key = %#v, want user.id", got)
 	}
-	if got := fractional[1].([]any); got[0] != "off" || got[1] != float64(90) {
-		t.Fatalf("flagd off allocation = %#v, want [off 90]", got)
+	if got := fractional[1].([]any); got[0] != "off" || got[1] != float64(9) {
+		t.Fatalf("flagd off allocation = %#v, want [off 9]", got)
 	}
-	if got := fractional[2].([]any); got[0] != "on" || got[1] != float64(10) {
-		t.Fatalf("flagd on allocation = %#v, want [on 10]", got)
+	if got := fractional[2].([]any); got[0] != "on" || got[1] != float64(1) {
+		t.Fatalf("flagd on allocation = %#v, want [on 1]", got)
 	}
 
 	goffOutput, _, err := gofeatureflag.CompileIR(doc, "prod", gofeatureflag.CompileOptions{})
@@ -888,8 +888,8 @@ func TestV1AuthoringDistributionCanonicalizationReachesTargets(t *testing.T) {
 		t.Fatal(err)
 	}
 	rollout := goffDocument["gcd-rollout"]
-	if rollout.BucketingKey != "user.id" || len(rollout.Targeting) != 1 || rollout.Targeting[0].Percentage["off"] != 90 || rollout.Targeting[0].Percentage["on"] != 10 {
-		t.Fatalf("GO Feature Flag rollout = %#v, want off=90/on=10 and user.id", rollout)
+	if rollout.BucketingKey != "user.id" || len(rollout.Targeting) != 1 || rollout.Targeting[0].Percentage["off"] != 9 || rollout.Targeting[0].Percentage["on"] != 1 {
+		t.Fatalf("GO Feature Flag rollout = %#v, want off=9/on=1 and user.id", rollout)
 	}
 }
 

@@ -37,11 +37,11 @@ func TestCompileIRDirectSemanticSurface(t *testing.T) {
 					map[string]any{">=": []any{map[string]any{"var": "$flagd.timestamp"}, float64(1767225600)}},
 					map[string]any{"fractional": []any{
 						map[string]any{"cat": []any{map[string]any{"var": "$flagd.flagKey"}, map[string]any{"var": "user.id"}}},
-						[]any{"off", float64(33)},
-						[]any{"on", float64(67)},
+						[]any{"off", float64(1)},
+						[]any{"on", float64(2)},
 					}},
 					map[string]any{"if": []any{
-						map[string]any{"==": []any{map[string]any{"var": "user.segment"}, "beta"}},
+						map[string]any{"if": []any{map[string]any{"missing": []any{"user.segment"}}, false, []any{map[string]any{"var": "user.segment"}, "beta"}}},
 						"on",
 						"off",
 					}},

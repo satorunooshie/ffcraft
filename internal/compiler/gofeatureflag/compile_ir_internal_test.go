@@ -108,6 +108,27 @@ func TestIRActionVariantScheduleAndNumericContracts(t *testing.T) {
 	}
 }
 
+func TestIRDistributionWeightsPreservePrecision(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		weights map[string]uint32
+	}{
+		{"one-to-one", map[string]uint32{"a": 1, "b": 1}},
+		{"one-to-two", map[string]uint32{"a": 1, "b": 2}},
+		{"three-variant", map[string]uint32{"a": 1, "b": 3, "c": 7}},
+		{"high-precision", map[string]uint32{"a": 1, "b": 1_000_000}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			got := compileIRPercentages(test.weights)
+			for variant, want := range test.weights {
+				if got[variant] != float64(want) {
+					t.Fatalf("weight %q = %v, want %d", variant, got[variant], want)
+				}
+			}
+		})
+	}
+}
+
 func TestIRDocumentAndBoundaryContracts(t *testing.T) {
 	if _, _, err := CompileIR(&irv1.Document{}, "prod", CompileOptions{}); err == nil || !strings.Contains(err.Error(), "FFCRAFT_IR_INVALID_CORE") {
 		t.Fatalf("invalid IR document = %v", err)

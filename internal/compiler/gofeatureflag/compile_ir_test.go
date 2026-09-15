@@ -40,7 +40,7 @@ flags:
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, fragment := range []string{"user.segment", "user.id", "scheduledRollout", "percentage", "\"off\": 33", "\"on\": 67"} {
+	for _, fragment := range []string{"user.segment", "user.id", "scheduledRollout", "percentage", "\"off\": 1", "\"on\": 2"} {
 		if !strings.Contains(string(output), fragment) {
 			t.Fatalf("GO Feature Flag output missing %q: %s", fragment, output)
 		}

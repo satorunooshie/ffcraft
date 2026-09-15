@@ -13,7 +13,7 @@ multi_env:
       targeting:
         - query: user.id sw "prod-"
           percentage:
-            "off": 33
-            "on": 67
+            "off": 1
+            "on": 2
       defaultRule:
         variation: "off"

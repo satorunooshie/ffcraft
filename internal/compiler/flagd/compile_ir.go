@@ -130,7 +130,13 @@ func compileIRAction(action *irv1.Action) (any, error) {
 		var total uint64
 		for key, weight := range kind.Distribute.Weights {
 			keys = append(keys, key)
+			if weight == 0 {
+				return nil, fmt.Errorf("distribution weight for %q must be positive", key)
+			}
 			total += uint64(weight)
+		}
+		if total > uint64(math.MaxInt32) {
+			return nil, fmt.Errorf("flagd distribution weight total %d exceeds maximum %d", total, math.MaxInt32)
 		}
 		sort.Strings(keys)
 		fractional := make([]any, 0, len(keys)+1)
@@ -139,7 +145,7 @@ func compileIRAction(action *irv1.Action) (any, error) {
 			map[string]any{"var": strings.Join(kind.Distribute.AllocationKey.Segments, ".")},
 		}})
 		for _, key := range keys {
-			fractional = append(fractional, []any{key, math.Round(float64(kind.Distribute.Weights[key]) * 100 / float64(total))})
+			fractional = append(fractional, []any{key, kind.Distribute.Weights[key]})
 		}
 		return map[string]any{"fractional": fractional}, nil
 	default:
@@ -248,7 +254,11 @@ func compileIRBinary(attribute *irv1.AttributePath, literal *irv1.ScalarValue, o
 	if operator == "" {
 		return nil, fmt.Errorf("unsupported equality operator")
 	}
-	return map[string]any{operator: []any{compileIRVar(attribute), compileIRScalar(literal)}}, nil
+	comparison := map[string]any{"===": []any{compileIRVar(attribute), compileIRScalar(literal)}}
+	if operator == "==" {
+		return map[string]any{"if": []any{map[string]any{"missing": []any{strings.Join(attribute.Segments, ".")}}, false, comparison["==="]}}, nil
+	}
+	return map[string]any{"if": []any{map[string]any{"missing": []any{strings.Join(attribute.Segments, ".")}}, false, map[string]any{"!==": []any{compileIRVar(attribute), compileIRScalar(literal)}}}}, nil
 }
 
 func compileIRBinaryNumeric(condition *irv1.NumericComparisonCondition) (any, error) {

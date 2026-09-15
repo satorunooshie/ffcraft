@@ -2,7 +2,6 @@ package gofeatureflag
 
 import (
 	"fmt"
-	"math"
 	"strconv"
 	"strings"
 
@@ -308,13 +307,9 @@ func compileIRScalar(value *irv1.ScalarValue) string {
 }
 
 func compileIRPercentages(weights map[string]uint32) map[string]float64 {
-	var total uint64
-	for _, weight := range weights {
-		total += uint64(weight)
-	}
 	out := make(map[string]float64, len(weights))
 	for variant, weight := range weights {
-		out[variant] = math.Round(float64(weight) * 100 / float64(total))
+		out[variant] = float64(weight)
 	}
 	return sortedAllocations(out)
 }

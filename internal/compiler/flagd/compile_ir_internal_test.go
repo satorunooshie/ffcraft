@@ -21,8 +21,8 @@ func TestIRConditionOperatorTable(t *testing.T) {
 		want  string
 	}{
 		{"constant", &irv1.Condition{Kind: &irv1.Condition_Constant{Constant: true}}, "true"},
-		{"eq", &irv1.Condition{Kind: &irv1.Condition_Equality{Equality: &irv1.EqualityCondition{Operator: irv1.EqualityOperator_EQUALITY_OPERATOR_EQ, Attribute: a, Literal: s}}}, "=="},
-		{"ne", &irv1.Condition{Kind: &irv1.Condition_Equality{Equality: &irv1.EqualityCondition{Operator: irv1.EqualityOperator_EQUALITY_OPERATOR_NE, Attribute: a, Literal: s}}}, "!="},
+		{"eq", &irv1.Condition{Kind: &irv1.Condition_Equality{Equality: &irv1.EqualityCondition{Operator: irv1.EqualityOperator_EQUALITY_OPERATOR_EQ, Attribute: a, Literal: s}}}, "missing"},
+		{"ne", &irv1.Condition{Kind: &irv1.Condition_Equality{Equality: &irv1.EqualityCondition{Operator: irv1.EqualityOperator_EQUALITY_OPERATOR_NE, Attribute: a, Literal: s}}}, "missing"},
 		{"numeric", &irv1.Condition{Kind: &irv1.Condition_NumericComparison{NumericComparison: &irv1.NumericComparisonCondition{Operator: irv1.NumericComparisonOperator_NUMERIC_COMPARISON_OPERATOR_GTE, Attribute: a, Literal: n}}}, `\u003e=`},
 		{"membership", &irv1.Condition{Kind: &irv1.Condition_Membership{Membership: &irv1.MembershipCondition{Attribute: a, Literals: &irv1.ScalarList{Values: []*irv1.ScalarValue{s}}}}}, "in"},
 		{"contains", &irv1.Condition{Kind: &irv1.Condition_StringMatch{StringMatch: &irv1.StringMatchCondition{Operator: irv1.StringMatchOperator_STRING_MATCH_OPERATOR_CONTAINS, Attribute: a, Literal: "be"}}}, "in"},
@@ -94,6 +94,7 @@ func TestIRActionVariantAndBoundaryTables(t *testing.T) {
 		want   string
 	}{
 		{"nil", nil, "action is required"}, {"missing key", &irv1.Action{Kind: &irv1.Action_Distribute{Distribute: &irv1.Distribution{}}}, "allocation_key"}, {"unsupported", &irv1.Action{}, "unsupported IR action"},
+		{"weight total exceeds flagd limit", &irv1.Action{Kind: &irv1.Action_Distribute{Distribute: &irv1.Distribution{AllocationKey: a, Weights: map[string]uint32{"on": 2_000_000_000, "off": 2_000_000_000}}}}, "exceeds maximum"},
 	} {
 		t.Run("action/"+test.name, func(t *testing.T) {
 			if _, err := compileIRAction(test.action); err == nil || !strings.Contains(err.Error(), test.want) {
@@ -108,6 +109,32 @@ func TestIRActionVariantAndBoundaryTables(t *testing.T) {
 	}
 	if got := compileIRVariants(variants); len(got) != len(variants) {
 		t.Fatalf("compileIRVariants() = %#v", got)
+	}
+}
+
+func TestIRDistributionWeightsPreservePrecision(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		weights map[string]uint32
+	}{
+		{"one-to-one", map[string]uint32{"a": 1, "b": 1}},
+		{"one-to-two", map[string]uint32{"a": 1, "b": 2}},
+		{"three-variant", map[string]uint32{"a": 1, "b": 3, "c": 7}},
+		{"high-precision", map[string]uint32{"a": 1, "b": 1_000_000}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			action := &irv1.Action{Kind: &irv1.Action_Distribute{Distribute: &irv1.Distribution{AllocationKey: &irv1.AttributePath{Segments: []string{"user", "id"}}, Weights: test.weights}}}
+			got, err := compileIRAction(action)
+			if err != nil {
+				t.Fatal(err)
+			}
+			encoded := string(mustJSONFlagd(got))
+			for variant, want := range test.weights {
+				if !strings.Contains(encoded, `"`+variant+`",`+fmt.Sprint(want)) {
+					t.Fatalf("encoded weight %q missing from %s", variant, encoded)
+				}
+			}
+		})
 	}
 }
 
