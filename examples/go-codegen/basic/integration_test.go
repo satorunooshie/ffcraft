@@ -195,15 +195,17 @@ func TestB8FlagdFileInitialFailureRecovery(t *testing.T) {
 		t.Fatal("expected initial provider setup to fail")
 	}
 	writeJSON(t, path, flagdConfig(false))
-	if err := openfeature.SetProviderAndWait(provider); err != nil {
-		t.Fatalf("provider did not recover after initial failure: %v", err)
-	}
 	defer openfeature.Shutdown()
 
-	value, err := openfeature.NewDefaultClient().BooleanValue(context.Background(), "enable-new-home", true, openfeature.NewEvaluationContext("ios", map[string]any{}))
-	if err != nil || value {
-		t.Fatalf("recovered provider evaluation = %v, %v; want false, nil", value, err)
-	}
+	waitFor(t, 5*time.Second, func() bool {
+		value, err := openfeature.NewDefaultClient().BooleanValue(
+			context.Background(),
+			"enable-new-home",
+			true,
+			openfeature.NewEvaluationContext("ios", map[string]any{}),
+		)
+		return err == nil && !value
+	})
 	shutdownWithin(t)
 }
 
