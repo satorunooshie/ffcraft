@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	irv1 "github.com/satorunooshie/ffcraft/gen/ffcraft/ir/v1"
 	"github.com/satorunooshie/ffcraft/internal/authoring"
 	"github.com/satorunooshie/ffcraft/internal/compiler/flagd"
 	"github.com/satorunooshie/ffcraft/internal/compiler/gofeatureflag"
+	"github.com/satorunooshie/ffcraft/internal/ir"
 	"github.com/satorunooshie/ffcraft/internal/normalize"
 	"github.com/satorunooshie/ffcraft/internal/normalizedyaml"
 )
@@ -46,6 +48,7 @@ func run(args []string, stdout, stderr io.Writer) error {
 
 type compileCommandOptions struct {
 	inPath          string
+	inputFormat     string
 	environment     string
 	outPath         string
 	dumpPath        string
@@ -57,6 +60,8 @@ func parseCompileOptions(name string, args []string, withDump bool) (compileComm
 	fs.SetOutput(io.Discard)
 
 	inPath := fs.String("in", "", "input YAML path")
+	inputAlias := fs.String("input", "", "input path")
+	inputFormat := fs.String("input-format", "yaml", "input format: yaml or protobuf")
 	env := fs.String("env", "", "environment name")
 	outPath := fs.String("out", "", "output path; stdout when omitted or '-' else")
 	allowMissingEnv := fs.Bool("allow-missing-env", false, "skip flags that do not define the requested environment and emit warnings")
@@ -67,6 +72,9 @@ func parseCompileOptions(name string, args []string, withDump bool) (compileComm
 
 	if err := fs.Parse(args); err != nil {
 		return compileCommandOptions{}, err
+	}
+	if *inputAlias != "" {
+		*inPath = *inputAlias
 	}
 	if *inPath == "" {
 		return compileCommandOptions{}, errors.New("--in is required")
@@ -79,6 +87,7 @@ func parseCompileOptions(name string, args []string, withDump bool) (compileComm
 	}
 	return compileCommandOptions{
 		inPath:          *inPath,
+		inputFormat:     *inputFormat,
 		environment:     *env,
 		outPath:         *outPath,
 		dumpPath:        *dumpPath,
@@ -87,20 +96,38 @@ func parseCompileOptions(name string, args []string, withDump bool) (compileComm
 }
 
 func runNormalize(args []string, stdout io.Writer) error {
+	positionalInput := ""
+	if len(args) > 0 && !strings.HasPrefix(args[0], "-") {
+		positionalInput, args = args[0], args[1:]
+	}
 	fs := flag.NewFlagSet("normalize", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 
 	inPath := fs.String("in", "", "input YAML path")
+	format := fs.String("format", "yaml", "output format: yaml or protobuf")
+	inputAlias := fs.String("input", "", "input YAML path")
 	outPath := fs.String("out", "", "output YAML path; stdout when omitted or '-'")
 
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
+	if *inputAlias != "" {
+		*inPath = *inputAlias
+	}
+	if *inPath == "" {
+		*inPath = positionalInput
+	}
+	if *inPath == "" && fs.NArg() == 1 {
+		*inPath = fs.Arg(0)
+	}
 	if *inPath == "" {
 		return errors.New("--in is required")
 	}
-	if fs.NArg() != 0 {
+	if fs.NArg() > 1 {
 		return fmt.Errorf("unexpected positional arguments: %v", fs.Args())
+	}
+	if *format != "yaml" && *format != "protobuf" {
+		return fmt.Errorf("unsupported normalize format %q", *format)
 	}
 
 	normalizedDoc, err := loadAuthoring(*inPath)
@@ -108,11 +135,19 @@ func runNormalize(args []string, stdout io.Writer) error {
 		return fmt.Errorf("normalize input: %w", err)
 	}
 
-	output, err := normalizedyaml.Marshal(normalizedDoc)
-	if err != nil {
-		return fmt.Errorf("marshal normalized yaml: %w", err)
+	var output []byte
+	if *format == "protobuf" {
+		output, err = ir.Marshal(normalizedDoc)
+		if err != nil {
+			return fmt.Errorf("marshal normalized protobuf: %w", err)
+		}
+	} else {
+		output, err = normalizedyaml.Marshal(normalizedDoc)
+		if err != nil {
+			return fmt.Errorf("marshal normalized yaml: %w", err)
+		}
+		output = append(output, '\n')
 	}
-	output = append(output, '\n')
 
 	if *outPath == "" || *outPath == "-" {
 		_, err = stdout.Write(output)
@@ -192,7 +227,7 @@ func runCompileFlagd(args []string, stdout, stderr io.Writer) error {
 		return err
 	}
 
-	doc, err := loadNormalized(opts.inPath)
+	doc, err := loadNormalizedInput(opts.inPath, opts.inputFormat)
 	if err != nil {
 		return err
 	}
@@ -243,7 +278,7 @@ func runCompileGOFeatureFlag(args []string, stdout, stderr io.Writer) error {
 	if err != nil {
 		return err
 	}
-	doc, err := loadNormalized(opts.inPath)
+	doc, err := loadNormalizedInput(opts.inPath, opts.inputFormat)
 	if err != nil {
 		return err
 	}
@@ -289,15 +324,30 @@ func loadAuthoring(path string) (*irv1.Document, error) {
 }
 
 func loadNormalized(path string) (*irv1.Document, error) {
+	return loadNormalizedInput(path, "yaml")
+}
+
+func loadNormalizedInput(path, format string) (*irv1.Document, error) {
 	input, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("read input: %w", err)
 	}
-	doc, err := normalizedyaml.Unmarshal(input)
-	if err != nil {
-		return nil, fmt.Errorf("read normalized yaml: %w", err)
+	switch format {
+	case "yaml":
+		doc, err := normalizedyaml.Unmarshal(input)
+		if err != nil {
+			return nil, fmt.Errorf("read normalized yaml: %w", err)
+		}
+		return doc, nil
+	case "protobuf":
+		doc, err := ir.Unmarshal(input)
+		if err != nil {
+			return nil, fmt.Errorf("read normalized protobuf: %w", err)
+		}
+		return doc, nil
+	default:
+		return nil, fmt.Errorf("unsupported input format %q", format)
 	}
-	return doc, nil
 }
 
 func writeNormalizedDump(stderr io.Writer, path string, doc *irv1.Document) error {
@@ -332,7 +382,7 @@ func printUsage(w io.Writer) {
 	fmt.Fprintln(w, "Usage:")
 	fmt.Fprintln(w, "  ffcompile build flagd --in flags.yaml --env prod [--out flagd.json] [--dump normalized.yaml]")
 	fmt.Fprintln(w, "  ffcompile build gofeatureflag --in flags.yaml --env prod [--out flags.goff.yaml] [--dump normalized.yaml]")
-	fmt.Fprintln(w, "  ffcompile normalize --in flags.yaml [--out normalized.yaml]")
-	fmt.Fprintln(w, "  ffcompile compile flagd --in normalized.yaml --env prod [--out flagd.json]")
-	fmt.Fprintln(w, "  ffcompile compile gofeatureflag --in normalized.yaml --env prod [--out flags.goff.yaml]")
+	fmt.Fprintln(w, "  ffcompile normalize flags.yaml [--format yaml|protobuf] [--out normalized.yaml]")
+	fmt.Fprintln(w, "  ffcompile compile flagd --in normalized.yaml --input-format yaml --env prod [--out flagd.json]")
+	fmt.Fprintln(w, "  ffcompile compile gofeatureflag --in normalized.pb --input-format protobuf --env prod [--out flags.goff.yaml]")
 }

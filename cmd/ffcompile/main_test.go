@@ -11,6 +11,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 
 	irv1 "github.com/satorunooshie/ffcraft/gen/ffcraft/ir/v1"
+	"github.com/satorunooshie/ffcraft/internal/ir"
 	"github.com/satorunooshie/ffcraft/internal/testhelper"
 )
 
@@ -226,6 +227,56 @@ func TestRun(t *testing.T) {
 			assertOutputFileMatchesFixture(t, outPath, tt.wantOutputFile)
 			assertDumpFileMatchesFixture(t, filepath.Join(filepath.Dir(outPath), "normalized.yaml"), tt.wantDumpFile)
 		})
+	}
+}
+
+func TestPublicProtobufNormalizeAndCompilePipeline(t *testing.T) {
+	authoringPath := writeFixture(t, "example.yaml")
+	var protobuf bytes.Buffer
+	var diagnostics bytes.Buffer
+	if err := run([]string{"normalize", authoringPath, "--format", "protobuf"}, &protobuf, &diagnostics); err != nil {
+		t.Fatal(err)
+	}
+	if diagnostics.Len() != 0 {
+		t.Fatalf("normalize protobuf wrote diagnostics to stderr: %q", diagnostics.String())
+	}
+	doc, err := ir.Unmarshal(protobuf.Bytes())
+	if err != nil {
+		t.Fatalf("normalize protobuf output is not valid IR: %v", err)
+	}
+	if len(doc.Flags) == 0 {
+		t.Fatal("normalize protobuf output contains no flags")
+	}
+
+	protobufPath := filepath.Join(t.TempDir(), "normalized.pb")
+	if err := os.WriteFile(protobufPath, protobuf.Bytes(), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var protobufOutput bytes.Buffer
+	if err := run([]string{"compile", "flagd", "--in", protobufPath, "--input-format", "protobuf", "--env", "prod"}, &protobufOutput, &diagnostics); err != nil {
+		t.Fatalf("compile protobuf = %v", err)
+	}
+	var yamlOutput bytes.Buffer
+	if err := run([]string{"build", "flagd", "--in", authoringPath, "--env", "prod"}, &yamlOutput, &diagnostics); err != nil {
+		t.Fatalf("compile authoring = %v", err)
+	}
+	if !bytes.Equal(protobufOutput.Bytes(), yamlOutput.Bytes()) {
+		t.Fatalf("protobuf compile differs from native pipeline:\nprotobuf=%s\nnative=%s", protobufOutput.Bytes(), yamlOutput.Bytes())
+	}
+}
+
+func TestNormalizeProtobufFailureDoesNotEmitPartialIR(t *testing.T) {
+	invalidPath := filepath.Join(t.TempDir(), "invalid.yaml")
+	if err := os.WriteFile(invalidPath, []byte("flags: ["), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var stdout, stderr bytes.Buffer
+	err := run([]string{"normalize", "--in", invalidPath, "--format", "protobuf"}, &stdout, &stderr)
+	if err == nil || stdout.Len() != 0 {
+		t.Fatalf("normalize failure = %v, stdout bytes = %d", err, stdout.Len())
+	}
+	if err := run([]string{"normalize", "--in", invalidPath, "--format", "unsupported"}, &stdout, &stderr); err == nil || !strings.Contains(err.Error(), "unsupported normalize format") {
+		t.Fatalf("unsupported format error = %v", err)
 	}
 }
 
