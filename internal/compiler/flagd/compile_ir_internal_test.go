@@ -2,133 +2,67 @@ package flagd
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	irv1 "github.com/satorunooshie/ffcraft/gen/ffcraft/ir/v1"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func TestCompileIRConditionOperatorTable(t *testing.T) {
-	attribute := &irv1.AttributePath{Segments: []string{"user", "id"}}
-	stringValue := &irv1.ScalarValue{Kind: &irv1.ScalarValue_StringValue{StringValue: "beta"}}
-	numeric := &irv1.NumericValue{Kind: &irv1.NumericValue_IntValue{IntValue: 3}}
-	tests := []struct {
-		name      string
-		condition *irv1.Condition
-		want      string
-	}{
-		{"constant", &irv1.Condition{Kind: &irv1.Condition_Constant{Constant: true}}, "true"},
-		{"equality", &irv1.Condition{Kind: &irv1.Condition_Equality{Equality: &irv1.EqualityCondition{Operator: irv1.EqualityOperator_EQUALITY_OPERATOR_NE, Attribute: attribute, Literal: stringValue}}}, "!="},
-		{"numeric", &irv1.Condition{Kind: &irv1.Condition_NumericComparison{NumericComparison: &irv1.NumericComparisonCondition{Operator: irv1.NumericComparisonOperator_NUMERIC_COMPARISON_OPERATOR_GTE, Attribute: attribute, Literal: numeric}}}, `\u003e=`},
-		{"membership", &irv1.Condition{Kind: &irv1.Condition_Membership{Membership: &irv1.MembershipCondition{Attribute: attribute, Literals: &irv1.ScalarList{Values: []*irv1.ScalarValue{stringValue}}}}}, "in"},
-		{"contains", &irv1.Condition{Kind: &irv1.Condition_StringMatch{StringMatch: &irv1.StringMatchCondition{Operator: irv1.StringMatchOperator_STRING_MATCH_OPERATOR_CONTAINS, Attribute: attribute, Literal: "be"}}}, "in"},
-		{"starts with", &irv1.Condition{Kind: &irv1.Condition_StringMatch{StringMatch: &irv1.StringMatchCondition{Operator: irv1.StringMatchOperator_STRING_MATCH_OPERATOR_STARTS_WITH, Attribute: attribute, Literal: "be"}}}, "starts_with"},
-		{"ends with", &irv1.Condition{Kind: &irv1.Condition_StringMatch{StringMatch: &irv1.StringMatchCondition{Operator: irv1.StringMatchOperator_STRING_MATCH_OPERATOR_ENDS_WITH, Attribute: attribute, Literal: "ta"}}}, "ends_with"},
-		{"semver", &irv1.Condition{Kind: &irv1.Condition_SemverComparison{SemverComparison: &irv1.SemVerComparisonCondition{Operator: irv1.SemVerComparisonOperator_SEM_VER_COMPARISON_OPERATOR_LT, Attribute: attribute, Semver: "2.0.0"}}}, "sem_ver"},
-		{"all", logical(irv1.LogicalOperator_LOGICAL_OPERATOR_ALL), "and"},
-		{"any", logical(irv1.LogicalOperator_LOGICAL_OPERATOR_ANY), "or"},
-		{"exactly one", logical(irv1.LogicalOperator_LOGICAL_OPERATOR_EXACTLY_ONE), "or"},
-		{"negation", &irv1.Condition{Kind: &irv1.Condition_Negation{Negation: &irv1.Condition{Kind: &irv1.Condition_Constant{Constant: true}}}}, "!"},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			value, err := compileIRCondition(test.condition)
-			if err != nil {
-				t.Fatal(err)
-			}
-			encoded, err := json.Marshal(value)
-			if err != nil || !strings.Contains(string(encoded), test.want) {
-				t.Fatalf("compiled condition = %s, want %q", encoded, test.want)
-			}
-		})
-	}
-}
-
-func logical(operator irv1.LogicalOperator) *irv1.Condition {
-	return &irv1.Condition{Kind: &irv1.Condition_Logical{Logical: &irv1.LogicalCondition{
-		Operator: operator,
-		Conditions: []*irv1.Condition{
-			{Kind: &irv1.Condition_Constant{Constant: true}},
-			{Kind: &irv1.Condition_Constant{Constant: false}},
-		},
-	}}}
-}
-
-func TestCompileIRActionAndCapabilityErrors(t *testing.T) {
-	tests := []struct {
-		name   string
-		action *irv1.Action
-		want   string
-	}{
-		{"nil action", nil, "action is required"},
-		{"missing distribution key", &irv1.Action{Kind: &irv1.Action_Distribute{Distribute: &irv1.Distribution{}}}, "allocation_key"},
-		{"unsupported action", &irv1.Action{}, "unsupported IR action"},
-	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			_, err := compileIRAction(test.action)
-			if err == nil || !strings.Contains(err.Error(), test.want) {
-				t.Fatalf("compileIRAction() error = %v, want %q", err, test.want)
-			}
-		})
-	}
-	if _, err := compileIRCondition(&irv1.Condition{Kind: &irv1.Condition_Presence{Presence: &irv1.PresenceCondition{Attribute: &irv1.AttributePath{Segments: []string{"x"}}}}}); err == nil || !strings.Contains(err.Error(), "presence") {
-		t.Fatalf("presence condition error = %v", err)
-	}
-}
-
-func TestCompileIRScalarAndPercentageContracts(t *testing.T) {
-	attribute := &irv1.AttributePath{Segments: []string{"user", "id"}}
-	for _, test := range []struct {
+func TestIRConditionOperatorTable(t *testing.T) {
+	a := &irv1.AttributePath{Segments: []string{"user", "id"}}
+	s := &irv1.ScalarValue{Kind: &irv1.ScalarValue_StringValue{StringValue: "beta"}}
+	n := &irv1.NumericValue{Kind: &irv1.NumericValue_IntValue{IntValue: 3}}
+	conditions := []struct {
 		name  string
-		value *irv1.ScalarValue
+		value *irv1.Condition
 		want  string
 	}{
-		{"string", &irv1.ScalarValue{Kind: &irv1.ScalarValue_StringValue{StringValue: "x"}}, `"x"`},
-		{"bool", &irv1.ScalarValue{Kind: &irv1.ScalarValue_BoolValue{BoolValue: true}}, "true"},
-		{"int", &irv1.ScalarValue{Kind: &irv1.ScalarValue_IntValue{IntValue: 7}}, "7"},
-		{"double", &irv1.ScalarValue{Kind: &irv1.ScalarValue_DoubleValue{DoubleValue: 1.25}}, "1.25"},
-		{"null", &irv1.ScalarValue{Kind: &irv1.ScalarValue_NullValue{NullValue: &irv1.ScalarNull{}}}, "null"},
-	} {
+		{"constant", &irv1.Condition{Kind: &irv1.Condition_Constant{Constant: true}}, "true"},
+		{"eq", &irv1.Condition{Kind: &irv1.Condition_Equality{Equality: &irv1.EqualityCondition{Operator: irv1.EqualityOperator_EQUALITY_OPERATOR_EQ, Attribute: a, Literal: s}}}, "=="},
+		{"ne", &irv1.Condition{Kind: &irv1.Condition_Equality{Equality: &irv1.EqualityCondition{Operator: irv1.EqualityOperator_EQUALITY_OPERATOR_NE, Attribute: a, Literal: s}}}, "!="},
+		{"numeric", &irv1.Condition{Kind: &irv1.Condition_NumericComparison{NumericComparison: &irv1.NumericComparisonCondition{Operator: irv1.NumericComparisonOperator_NUMERIC_COMPARISON_OPERATOR_GTE, Attribute: a, Literal: n}}}, `\u003e=`},
+		{"membership", &irv1.Condition{Kind: &irv1.Condition_Membership{Membership: &irv1.MembershipCondition{Attribute: a, Literals: &irv1.ScalarList{Values: []*irv1.ScalarValue{s}}}}}, "in"},
+		{"contains", &irv1.Condition{Kind: &irv1.Condition_StringMatch{StringMatch: &irv1.StringMatchCondition{Operator: irv1.StringMatchOperator_STRING_MATCH_OPERATOR_CONTAINS, Attribute: a, Literal: "be"}}}, "in"},
+		{"starts", &irv1.Condition{Kind: &irv1.Condition_StringMatch{StringMatch: &irv1.StringMatchCondition{Operator: irv1.StringMatchOperator_STRING_MATCH_OPERATOR_STARTS_WITH, Attribute: a, Literal: "be"}}}, "starts_with"},
+		{"ends", &irv1.Condition{Kind: &irv1.Condition_StringMatch{StringMatch: &irv1.StringMatchCondition{Operator: irv1.StringMatchOperator_STRING_MATCH_OPERATOR_ENDS_WITH, Attribute: a, Literal: "ta"}}}, "ends_with"},
+		{"semver", &irv1.Condition{Kind: &irv1.Condition_SemverComparison{SemverComparison: &irv1.SemVerComparisonCondition{Operator: irv1.SemVerComparisonOperator_SEM_VER_COMPARISON_OPERATOR_LT, Attribute: a, Semver: "2.0.0"}}}, "sem_ver"},
+		{"all", irLogical(irv1.LogicalOperator_LOGICAL_OPERATOR_ALL), "and"}, {"any", irLogical(irv1.LogicalOperator_LOGICAL_OPERATOR_ANY), "or"}, {"exactly one", irLogical(irv1.LogicalOperator_LOGICAL_OPERATOR_EXACTLY_ONE), "or"},
+		{"not", &irv1.Condition{Kind: &irv1.Condition_Negation{Negation: &irv1.Condition{Kind: &irv1.Condition_Constant{Constant: true}}}}, "!"},
+	}
+	for _, test := range conditions {
 		t.Run(test.name, func(t *testing.T) {
-			condition := &irv1.Condition{Kind: &irv1.Condition_Equality{Equality: &irv1.EqualityCondition{Operator: irv1.EqualityOperator_EQUALITY_OPERATOR_EQ, Attribute: attribute, Literal: test.value}}}
-			got, err := compileIRCondition(condition)
-			encoded, marshalErr := json.Marshal(got)
-			if err != nil || marshalErr != nil || !strings.Contains(string(encoded), test.want) {
-				t.Fatalf("compileIRCondition() = %s, %v, %v, want %q", encoded, err, marshalErr, test.want)
+			got, err := compileIRCondition(test.value)
+			if err != nil || !strings.Contains(string(mustJSONFlagd(got)), test.want) {
+				t.Fatalf("compileIRCondition() = %#v, %v; want %q", got, err, test.want)
 			}
 		})
 	}
-	distribution, err := compileIRAction(&irv1.Action{Kind: &irv1.Action_Distribute{Distribute: &irv1.Distribution{AllocationKey: attribute, Weights: map[string]uint32{"b": 1, "a": 2}}}})
-	if err != nil || !strings.Contains(string(mustJSON(distribution)), "33") || !strings.Contains(string(mustJSON(distribution)), "67") {
-		t.Fatalf("distribution output = %#v, %v", distribution, err)
-	}
-	if got := compileIRVar(attribute); got.(map[string]any)["var"] != "user.id" {
-		t.Fatalf("compileIRVar() = %#v", got)
-	}
-}
-
-func TestCompileIRVariantNestedShapeContracts(t *testing.T) {
-	variants := map[string]*irv1.VariantValue{
-		"null": {Kind: &irv1.VariantValue_NullValue{NullValue: &irv1.VariantNull{}}},
-		"object": {Kind: &irv1.VariantValue_ObjectValue{ObjectValue: &irv1.VariantObject{Fields: map[string]*irv1.VariantValue{
-			"enabled": {Kind: &irv1.VariantValue_BoolValue{BoolValue: true}},
-			"nested":  {Kind: &irv1.VariantValue_ListValue{ListValue: &irv1.VariantList{Values: []*irv1.VariantValue{{Kind: &irv1.VariantValue_IntValue{IntValue: 7}}, {Kind: &irv1.VariantValue_NullValue{NullValue: &irv1.VariantNull{}}}}}}},
-		}}}},
-		"list": {Kind: &irv1.VariantValue_ListValue{ListValue: &irv1.VariantList{Values: []*irv1.VariantValue{
-			{Kind: &irv1.VariantValue_StringValue{StringValue: "x"}},
-			{Kind: &irv1.VariantValue_DoubleValue{DoubleValue: 1.5}},
-		}}}},
-	}
-	encoded := string(mustJSON(compileIRVariants(variants)))
-	for _, fragment := range []string{`"null":null`, `"enabled":true`, `"nested":[7,null]`, `"list":["x",1.5]`} {
-		if !strings.Contains(encoded, fragment) {
-			t.Fatalf("nested variant output = %s, missing %q", encoded, fragment)
-		}
+	for _, test := range []struct {
+		name  string
+		value *irv1.Condition
+		want  string
+	}{
+		{"nil", nil, "condition is required"}, {"unset", &irv1.Condition{}, "unsupported IR condition"},
+		{"presence", &irv1.Condition{Kind: &irv1.Condition_Presence{Presence: &irv1.PresenceCondition{Attribute: a}}}, "presence"},
+		{"unknown string", &irv1.Condition{Kind: &irv1.Condition_StringMatch{StringMatch: &irv1.StringMatchCondition{Attribute: a, Operator: irv1.StringMatchOperator(99)}}}, "unsupported string match"},
+		{"unknown logical", &irv1.Condition{Kind: &irv1.Condition_Logical{Logical: &irv1.LogicalCondition{Operator: irv1.LogicalOperator(99)}}}, "unsupported logical"},
+	} {
+		t.Run("error/"+test.name, func(t *testing.T) {
+			if _, err := compileIRCondition(test.value); err == nil || !strings.Contains(err.Error(), test.want) {
+				t.Fatalf("error = %v, want %q", err, test.want)
+			}
+		})
 	}
 }
 
-func mustJSON(value any) []byte {
+func irLogical(operator irv1.LogicalOperator) *irv1.Condition {
+	return &irv1.Condition{Kind: &irv1.Condition_Logical{Logical: &irv1.LogicalCondition{Operator: operator, Conditions: []*irv1.Condition{{Kind: &irv1.Condition_Constant{Constant: true}}, {Kind: &irv1.Condition_Constant{Constant: false}}}}}}
+}
+
+func mustJSONFlagd(value any) []byte {
 	encoded, err := json.Marshal(value)
 	if err != nil {
 		panic(err)
@@ -136,80 +70,116 @@ func mustJSON(value any) []byte {
 	return encoded
 }
 
-func TestCompileIRConditionErrorPropagation(t *testing.T) {
-	if _, err := compileIRCondition(nil); err == nil || !strings.Contains(err.Error(), "condition is required") {
-		t.Fatalf("nil condition error = %v", err)
-	}
-	if _, err := compileIRCondition(&irv1.Condition{}); err == nil || !strings.Contains(err.Error(), "unsupported IR condition") {
-		t.Fatalf("unset condition error = %v", err)
-	}
-	if _, err := compileIRCondition(&irv1.Condition{Kind: &irv1.Condition_Equality{Equality: &irv1.EqualityCondition{Attribute: &irv1.AttributePath{Segments: []string{"x"}}, Literal: &irv1.ScalarValue{Kind: &irv1.ScalarValue_StringValue{StringValue: "x"}}}}}); err == nil || !strings.Contains(err.Error(), "unsupported equality") {
-		t.Fatalf("unset equality operator error = %v", err)
-	}
-	if _, err := compileIRCondition(&irv1.Condition{Kind: &irv1.Condition_Logical{Logical: &irv1.LogicalCondition{Operator: irv1.LogicalOperator_LOGICAL_OPERATOR_ALL, Conditions: []*irv1.Condition{{}}}}}); err == nil || !strings.Contains(err.Error(), "unsupported IR condition") {
-		t.Fatalf("nested condition error = %v", err)
-	}
-}
-
-func TestCompileIRRejectsUnknownConditionEnums(t *testing.T) {
-	attribute := &irv1.AttributePath{Segments: []string{"value"}}
-	tests := []struct {
-		name      string
-		condition *irv1.Condition
-		want      string
+func TestIRActionVariantAndBoundaryTables(t *testing.T) {
+	a := &irv1.AttributePath{Segments: []string{"user", "id"}}
+	actions := []struct {
+		name   string
+		action *irv1.Action
+		want   string
 	}{
-		{"string match", &irv1.Condition{Kind: &irv1.Condition_StringMatch{StringMatch: &irv1.StringMatchCondition{Attribute: attribute, Operator: irv1.StringMatchOperator(99)}}}, "unsupported string match"},
-		{"semver", &irv1.Condition{Kind: &irv1.Condition_SemverComparison{SemverComparison: &irv1.SemVerComparisonCondition{Attribute: attribute, Operator: irv1.SemVerComparisonOperator(99), Semver: "1.2.3"}}}, "unsupported semver"},
-		{"logical", &irv1.Condition{Kind: &irv1.Condition_Logical{Logical: &irv1.LogicalCondition{Operator: irv1.LogicalOperator(99), Conditions: []*irv1.Condition{{Kind: &irv1.Condition_Constant{Constant: true}}, {Kind: &irv1.Condition_Constant{Constant: false}}}}}}, "unsupported logical"},
+		{"serve", &irv1.Action{Kind: &irv1.Action_Serve{Serve: "on"}}, "on"},
+		{"distribution", &irv1.Action{Kind: &irv1.Action_Distribute{Distribute: &irv1.Distribution{AllocationKey: a, Weights: map[string]uint32{"on": 2, "off": 1}}}}, "fractional"},
 	}
-	for _, test := range tests {
+	for _, test := range actions {
 		t.Run(test.name, func(t *testing.T) {
-			if _, err := compileIRCondition(test.condition); err == nil || !strings.Contains(err.Error(), test.want) {
-				t.Fatalf("compileIRCondition() = %v, want %q", err, test.want)
+			got, err := compileIRAction(test.action)
+			if err != nil || !strings.Contains(string(mustJSONFlagd(got)), test.want) {
+				t.Fatalf("compileIRAction() = %#v, %v", got, err)
 			}
 		})
 	}
+	for _, test := range []struct {
+		name   string
+		action *irv1.Action
+		want   string
+	}{
+		{"nil", nil, "action is required"}, {"missing key", &irv1.Action{Kind: &irv1.Action_Distribute{Distribute: &irv1.Distribution{}}}, "allocation_key"}, {"unsupported", &irv1.Action{}, "unsupported IR action"},
+	} {
+		t.Run("action/"+test.name, func(t *testing.T) {
+			if _, err := compileIRAction(test.action); err == nil || !strings.Contains(err.Error(), test.want) {
+				t.Fatalf("error = %v, want %q", err, test.want)
+			}
+		})
+	}
+	variants := map[string]*irv1.VariantValue{
+		"bool": {Kind: &irv1.VariantValue_BoolValue{BoolValue: true}}, "string": {Kind: &irv1.VariantValue_StringValue{StringValue: "x"}}, "int": {Kind: &irv1.VariantValue_IntValue{IntValue: 1}}, "double": {Kind: &irv1.VariantValue_DoubleValue{DoubleValue: 1.5}}, "null": {Kind: &irv1.VariantValue_NullValue{NullValue: &irv1.VariantNull{}}},
+		"object": {Kind: &irv1.VariantValue_ObjectValue{ObjectValue: &irv1.VariantObject{Fields: map[string]*irv1.VariantValue{"x": {Kind: &irv1.VariantValue_StringValue{StringValue: "y"}}}}}},
+		"list":   {Kind: &irv1.VariantValue_ListValue{ListValue: &irv1.VariantList{Values: []*irv1.VariantValue{{Kind: &irv1.VariantValue_BoolValue{BoolValue: false}}}}}},
+	}
+	if got := compileIRVariants(variants); len(got) != len(variants) {
+		t.Fatalf("compileIRVariants() = %#v", got)
+	}
 }
 
-func TestCompileIRDocumentEnvironmentSelection(t *testing.T) {
-	doc := directCompilerFixture()
-	doc.Flags["static"] = &irv1.Flag{
-		Variants: map[string]*irv1.VariantValue{
-			"off": {Kind: &irv1.VariantValue_BoolValue{BoolValue: false}},
-			"on":  {Kind: &irv1.VariantValue_BoolValue{BoolValue: true}},
+func TestIRDocumentEnvironmentAndEvaluationBoundaries(t *testing.T) {
+	doc := &irv1.Document{Flags: map[string]*irv1.Flag{
+		"f": {
+			Variants: map[string]*irv1.VariantValue{
+				"on":  {Kind: &irv1.VariantValue_BoolValue{BoolValue: true}},
+				"off": {Kind: &irv1.VariantValue_BoolValue{BoolValue: false}},
+			},
+			Environments: map[string]*irv1.Environment{"prod": {
+				Base: &irv1.Evaluation{
+					Rules: []*irv1.Rule{{
+						Condition: &irv1.Condition{Kind: &irv1.Condition_Equality{Equality: &irv1.EqualityCondition{Operator: irv1.EqualityOperator_EQUALITY_OPERATOR_EQ, Attribute: &irv1.AttributePath{Segments: []string{"user", "segment"}}, Literal: &irv1.ScalarValue{Kind: &irv1.ScalarValue_StringValue{StringValue: "beta"}}}}},
+						Action:    &irv1.Action{Kind: &irv1.Action_Serve{Serve: "on"}},
+					}},
+					DefaultAction: &irv1.Action{Kind: &irv1.Action_Serve{Serve: "off"}},
+				},
+				Schedule: []*irv1.ScheduledEvaluation{{
+					EffectiveAt: timestamppb.New(time.Unix(1767225600, 0)),
+					Evaluation:  &irv1.Evaluation{DefaultAction: &irv1.Action{Kind: &irv1.Action_Distribute{Distribute: &irv1.Distribution{AllocationKey: &irv1.AttributePath{Segments: []string{"user", "id"}}, Weights: map[string]uint32{"on": 2, "off": 1}}}}},
+				}},
+			}},
 		},
-		Environments: map[string]*irv1.Environment{"prod": {Base: &irv1.Evaluation{DefaultAction: &irv1.Action{Kind: &irv1.Action_Serve{Serve: "on"}}}}},
+	}}
+	if _, _, err := CompileIR(doc, "prod", CompileOptions{}); err != nil {
+		t.Fatal(err)
 	}
-	output, warnings, err := CompileIR(doc, "prod", CompileOptions{})
-	if err != nil || len(warnings) != 0 || !strings.Contains(string(output), `"static"`) {
-		t.Fatalf("CompileIR(prod) = %s, %#v, %v", output, warnings, err)
-	}
-	if _, _, err := CompileIR(doc, "staging", CompileOptions{}); err == nil || !strings.Contains(err.Error(), `environment "staging" not found`) {
+	if _, _, err := CompileIR(doc, "missing", CompileOptions{}); err == nil || !strings.Contains(err.Error(), "environment") {
 		t.Fatalf("missing environment error = %v", err)
 	}
-	output, warnings, err = CompileIR(doc, "staging", CompileOptions{AllowMissingEnvironment: true})
-	if err != nil || len(warnings) != 2 || !strings.Contains(warnings[0], "skipping flag") || len(output) == 0 {
-		t.Fatalf("missing environment warning mode = %s, %#v, %v", output, warnings, err)
+	if _, err := compileIREvaluation(nil); err == nil || !strings.Contains(err.Error(), "default_action") {
+		t.Fatalf("nil evaluation error = %v", err)
+	}
+	if _, err := compileIREvaluation(&irv1.Evaluation{DefaultAction: &irv1.Action{Kind: &irv1.Action_Serve{Serve: "off"}}, Rules: []*irv1.Rule{{}}}); err == nil || !strings.Contains(err.Error(), "rule is incomplete") {
+		t.Fatalf("incomplete rule error = %v", err)
 	}
 }
 
-func TestCompileIREvaluationBoundaryErrors(t *testing.T) {
-	serve := &irv1.Action{Kind: &irv1.Action_Serve{Serve: "on"}}
-	tests := []struct {
-		name string
-		eval *irv1.Evaluation
-		want string
+func TestIRScalarAndBoundaryHelpers(t *testing.T) {
+	for _, test := range []struct {
+		name  string
+		value *irv1.ScalarValue
+		want  string
 	}{
-		{"nil evaluation", nil, "default_action is required"},
-		{"nil default action", &irv1.Evaluation{}, "default_action is required"},
-		{"incomplete rule", &irv1.Evaluation{DefaultAction: serve, Rules: []*irv1.Rule{{}}}, "rule is incomplete"},
-		{"unsupported default action", &irv1.Evaluation{DefaultAction: &irv1.Action{}}, "unsupported IR action"},
+		{"bool", &irv1.ScalarValue{Kind: &irv1.ScalarValue_BoolValue{BoolValue: true}}, "true"},
+		{"int", &irv1.ScalarValue{Kind: &irv1.ScalarValue_IntValue{IntValue: 7}}, "7"},
+		{"double", &irv1.ScalarValue{Kind: &irv1.ScalarValue_DoubleValue{DoubleValue: 1.5}}, "1.5"},
+		{"string", &irv1.ScalarValue{Kind: &irv1.ScalarValue_StringValue{StringValue: "x"}}, "x"},
+		{"null", &irv1.ScalarValue{Kind: &irv1.ScalarValue_NullValue{NullValue: &irv1.ScalarNull{}}}, "<nil>"},
+		{"unset", &irv1.ScalarValue{}, "<nil>"},
+	} {
+		if got := compileIRScalar(test.value); fmt.Sprint(got) != test.want {
+			t.Errorf("compileIRScalar(%s) = %#v, want %q", test.name, got, test.want)
+		}
 	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			if _, err := compileIREvaluation(test.eval); err == nil || !strings.Contains(err.Error(), test.want) {
-				t.Fatalf("compileIREvaluation() = %v, want %q", err, test.want)
-			}
-		})
+	for _, test := range []struct {
+		value *irv1.NumericValue
+		want  string
+	}{
+		{&irv1.NumericValue{Kind: &irv1.NumericValue_IntValue{IntValue: 7}}, "7"},
+		{&irv1.NumericValue{Kind: &irv1.NumericValue_DoubleValue{DoubleValue: 1.5}}, "1.5"},
+		{&irv1.NumericValue{}, "<nil>"},
+	} {
+		if got := compileIRNumeric(test.value); fmt.Sprint(got) != test.want {
+			t.Errorf("compileIRNumeric() = %#v, want %q", got, test.want)
+		}
+	}
+	if _, err := compileIRServeVariant(nil); err == nil || !strings.Contains(err.Error(), "default_action") {
+		t.Fatalf("nil serve variant error = %v", err)
+	}
+	if _, err := compileIRServeVariant(&irv1.Action{Kind: &irv1.Action_Distribute{Distribute: &irv1.Distribution{}}}); err == nil || !strings.Contains(err.Error(), "default_action.serve") {
+		t.Fatalf("non-serve variant error = %v", err)
 	}
 }

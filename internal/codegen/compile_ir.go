@@ -92,7 +92,6 @@ func templateForCodegen() (*template.Template, error) {
 			}
 			return out, nil
 		},
-		"goLiteral": goLiteral,
 	}).Parse(fileTemplate)
 }
 
