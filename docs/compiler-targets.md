@@ -1,6 +1,6 @@
 # Compiler Targets
 
-This document describes how `ffcraft` maps the normalized authoring model to each supported target.
+This document describes how `ffcraft` maps the normalized protobuf IR to each supported target.
 
 ## Summary
 
