@@ -14,7 +14,7 @@ message FeatureFlagDocument {
   ];
 
   map<string, VariantSet> variant_sets = 2 [
-    (buf.validate.field).map.min_pairs = 1,
+    (buf.validate.field).map.min_pairs = 2,
     (buf.validate.field).map.keys.string = {
       min_len: 1
       max_len: 128
@@ -265,7 +265,7 @@ message Distribution {
       min_len: 1
       max_len: 128
     },
-    (buf.validate.field).map.values.double = {gte: 0}
+    (buf.validate.field).map.values.double = {gt: 0}
   ];
 }
 

@@ -29,7 +29,6 @@ func TestValidate(t *testing.T) {
 		{name: "rejects duplicate flag keys", file: "testdata/error_duplicate_flag_keys.yaml", wantErr: `duplicate flag key "duplicate"`},
 		{name: "rejects unknown variant set", file: "testdata/error_unknown_variant_set.yaml", wantErr: `unknown variant_set "boolean"`},
 		{name: "rejects unknown rule reference", file: "testdata/error_unknown_rule_reference.yaml", wantErr: `referenced rule "missing_rule" not found`},
-		{name: "rejects bad distribution sum", file: "testdata/error_bad_distribution_sum.yaml", wantErr: `distribution "bad_rollout": allocation total must equal 100`},
 		{name: "rejects normalize rule cycle fixture", file: "testdata/error_rule_cycle_normalize.yaml", wantErr: "rule cycle detected"},
 		{name: "rejects invalid progressive rollout", file: "testdata/error_invalid_progressive_rollout.yaml", wantErr: `variant "missing" not found`},
 		{name: "rejects progressive rollout with zero steps", file: "testdata/error_progressive_rollout_zero_steps.yaml", wantErr: `must be between 1 and 1024`},

@@ -132,12 +132,12 @@ distributions:
   checkout_ab:
     stickiness: user.id
     allocations:
-      treatment_a: 10
-      treatment_b: 10
-      control: 80
+      treatment_a: 1
+      treatment_b: 1
+      control: 8
 ```
 
-- `allocations` must sum to `100`
+- `allocations` are positive relative weights; they must contain at least two variants and do not need to sum to `100`
 - allocation keys must exist in the target `variant_set`
 - `stickiness` is the stable bucketing key for percentage-based rollout
 

@@ -402,13 +402,13 @@
         },
         "allocations": {
           "type": "object",
-          "minProperties": 1,
+          "minProperties": 2,
           "propertyNames": {
             "$ref": "#/$defs/variantName"
           },
           "additionalProperties": {
             "type": "number",
-            "minimum": 0
+            "exclusiveMinimum": 0
           }
         }
       }

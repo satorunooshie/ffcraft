@@ -340,7 +340,7 @@ func TestFromASTRejectsDistributionWeightOverflow(t *testing.T) {
 			}},
 		}},
 	}}})
-	if err == nil || !strings.Contains(err.Error(), "positive integer") {
+	if err == nil || !strings.Contains(err.Error(), "normalized uint32 range") {
 		t.Fatalf("FromAST() error = %v, want uint32 overflow rejection", err)
 	}
 }

@@ -4,6 +4,7 @@ package ir
 import (
 	"fmt"
 	"math"
+	"math/big"
 	"sort"
 	"strings"
 	"time"
@@ -210,17 +211,60 @@ func action(value ast.Action) (*irv1.Action, error) {
 	case *ast.ServeAction:
 		return &irv1.Action{Kind: &irv1.Action_Serve{Serve: value.Variant}}, nil
 	case *ast.DistributeAction:
-		weights := make(map[string]uint32, len(value.Allocations))
-		for name, percentage := range value.Allocations {
-			if percentage <= 0 || math.IsNaN(percentage) || math.IsInf(percentage, 0) || percentage != math.Trunc(percentage) || percentage > math.MaxUint32 {
-				return nil, fmt.Errorf("distribution weight %q is not a positive integer", name)
-			}
-			weights[name] = uint32(percentage)
+		weights, err := relativeWeights(value.Allocations)
+		if err != nil {
+			return nil, err
 		}
 		return &irv1.Action{Kind: &irv1.Action_Distribute{Distribute: &irv1.Distribution{AllocationKey: path(value.Stickiness), Weights: canonicalWeights(weights)}}}, nil
 	default:
 		return nil, fmt.Errorf("unsupported action %T in normalized IR", value)
 	}
+}
+
+func relativeWeights(allocations map[string]float64) (map[string]uint32, error) {
+	if len(allocations) < 2 {
+		return nil, fmt.Errorf("distribution requires at least two allocations")
+	}
+	denominator := big.NewInt(1)
+	rats := make(map[string]*big.Rat, len(allocations))
+	for name, value := range allocations {
+		if value <= 0 || math.IsNaN(value) || math.IsInf(value, 0) {
+			return nil, fmt.Errorf("distribution weight %q is not a positive finite number", name)
+		}
+		ratio := new(big.Rat).SetFloat64(value)
+		if ratio == nil {
+			return nil, fmt.Errorf("distribution weight %q is not representable", name)
+		}
+		rats[name] = ratio
+		denominator = lcm(denominator, ratio.Denom())
+	}
+	out := make(map[string]uint32, len(rats))
+	commonGCD := big.NewInt(0)
+	for name, ratio := range rats {
+		numerator := new(big.Int).Mul(ratio.Num(), new(big.Int).Quo(denominator, ratio.Denom()))
+		rats[name] = new(big.Rat).SetInt(numerator)
+		commonGCD = gcdBig(commonGCD, numerator)
+	}
+	for name, ratio := range rats {
+		numerator := new(big.Int).Quo(ratio.Num(), commonGCD)
+		if !numerator.IsUint64() || numerator.Uint64() > math.MaxUint32 {
+			return nil, fmt.Errorf("distribution weight %q exceeds normalized uint32 range", name)
+		}
+		out[name] = uint32(numerator.Uint64())
+	}
+	return out, nil
+}
+
+func gcdBig(a, b *big.Int) *big.Int {
+	return new(big.Int).GCD(nil, nil, a, b)
+}
+
+func lcm(a, b *big.Int) *big.Int {
+	if a.Sign() == 0 || b.Sign() == 0 {
+		return big.NewInt(0)
+	}
+	gcd := new(big.Int).GCD(nil, nil, a, b)
+	return new(big.Int).Mul(new(big.Int).Quo(a, gcd), b)
 }
 
 func condition(value ast.Condition) (*irv1.Condition, error) {

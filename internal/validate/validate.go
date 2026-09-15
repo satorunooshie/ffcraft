@@ -116,12 +116,13 @@ func validateReferences(doc *ffv1.FeatureFlagDocument) error {
 		if err := validateStickiness(dist.Stickiness); err != nil {
 			errs = append(errs, fmt.Errorf("distribution %q: %w", name, err))
 		}
-		total := 0.0
-		for _, value := range dist.Allocations {
-			total += value
+		if len(dist.Allocations) < 2 {
+			errs = append(errs, fmt.Errorf("distribution %q: at least two allocations are required", name))
 		}
-		if math.Abs(total-100.0) > 1e-9 {
-			errs = append(errs, fmt.Errorf("distribution %q: allocation total must equal 100", name))
+		for variant, value := range dist.Allocations {
+			if value <= 0 || math.IsNaN(value) || math.IsInf(value, 0) {
+				errs = append(errs, fmt.Errorf("distribution %q: allocation %q must be a positive finite number", name, variant))
+			}
 		}
 	}
 
