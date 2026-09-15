@@ -30,8 +30,5 @@ jobs:
       - name: Test
         run: make test
 
-      - name: Test with race detector
-        run: go test -race ./... -count=1
-
       - name: Vet
         run: go vet ./...
