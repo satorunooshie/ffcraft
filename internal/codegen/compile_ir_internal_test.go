@@ -3,6 +3,7 @@ package codegen
 import (
 	"go/parser"
 	"go/token"
+	"slices"
 	"strings"
 	"testing"
 
@@ -286,5 +287,347 @@ func TestFlagIRTargetingKeyPathsIncludesScheduledActions(t *testing.T) {
 	paths := flagIRTargetingKeyPaths(docFlag)
 	if len(paths) != 2 || paths[0] != "device.id" || paths[1] != "user.id" || flagIRRequiresTargetingKey(docFlag) != true {
 		t.Fatalf("flagIRTargetingKeyPaths() = %#v", paths)
+	}
+}
+
+func TestLegacyContextInferenceTables(t *testing.T) {
+	tests := []struct {
+		name  string
+		value ast.Value
+		path  string
+		want  string
+	}{
+		{"bool", &ast.Scalar{Kind: ast.ScalarKindBool}, "value", "bool"},
+		{"int", &ast.Scalar{Kind: ast.ScalarKindInt}, "value", "int64"},
+		{"double", &ast.Scalar{Kind: ast.ScalarKindDouble}, "value", "float64"},
+		{"string", &ast.Scalar{Kind: ast.ScalarKindString}, "value", "string"},
+		{"id heuristic", &ast.Var{Path: "user.id"}, "user.id", "int64"},
+		{"default variable", &ast.Var{Path: "user.name"}, "user.name", "string"},
+		{"empty list", &ast.List{}, "values", "string"},
+		{"int list", &ast.List{Values: []ast.Value{&ast.Scalar{Kind: ast.ScalarKindInt}, &ast.Scalar{Kind: ast.ScalarKindInt}}}, "values", "int64"},
+		{"mixed list", &ast.List{Values: []ast.Value{&ast.Scalar{Kind: ast.ScalarKindInt}, &ast.Scalar{Kind: ast.ScalarKindString}}}, "values", "any"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := inferValueType(test.value, test.path); got != test.want {
+				t.Fatalf("inferValueType() = %q, want %q", got, test.want)
+			}
+		})
+	}
+	for _, test := range []struct {
+		name  string
+		value ast.Value
+		want  string
+	}{
+		{"scalar int", &ast.Scalar{Kind: ast.ScalarKindInt}, "[]int64"},
+		{"scalar string", &ast.Scalar{Kind: ast.ScalarKindString}, "[]string"},
+		{"list bool", &ast.List{Values: []ast.Value{&ast.Scalar{Kind: ast.ScalarKindBool}}}, "[]bool"},
+		{"list mixed", &ast.List{Values: []ast.Value{&ast.Scalar{Kind: ast.ScalarKindBool}, &ast.Scalar{Kind: ast.ScalarKindString}}}, "[]any"},
+		{"unknown", &ast.Var{Path: "value"}, "[]string"},
+	} {
+		t.Run("collection/"+test.name, func(t *testing.T) {
+			if got := inferCollectionType(test.value); got != test.want {
+				t.Fatalf("inferCollectionType() = %q, want %q", got, test.want)
+			}
+		})
+	}
+}
+
+func TestLegacyConditionContextFieldContracts(t *testing.T) {
+	variable := &ast.Var{Path: "user.value"}
+	scalar := &ast.Scalar{Kind: ast.ScalarKindString, String: "x"}
+	list := &ast.List{Values: []ast.Value{scalar}}
+	tests := []struct {
+		name      string
+		condition ast.Condition
+		wantPath  string
+		wantType  string
+	}{
+		{"binary left", &ast.Eq{Left: variable, Right: scalar}, "user.value", "string"},
+		{"binary right", &ast.Ne{Left: scalar, Right: variable}, "user.value", "string"},
+		{"membership target", &ast.In{Target: variable, Candidate: list}, "user.value", "string"},
+		{"membership candidate", &ast.In{Target: scalar, Candidate: variable}, "user.value", "[]string"},
+		{"contains container", &ast.Contains{Container: variable, Value: scalar}, "user.value", "[]string"},
+		{"contains value", &ast.Contains{Container: list, Value: variable}, "user.value", "string"},
+		{"starts with", &ast.StartsWith{Target: variable}, "user.value", "string"},
+		{"ends with", &ast.EndsWith{Target: variable}, "user.value", "string"},
+		{"matches", &ast.Matches{Target: variable}, "user.value", "string"},
+		{"semver gt", &ast.SemverGt{Left: variable}, "user.value", "string"},
+		{"semver gte", &ast.SemverGte{Left: variable}, "user.value", "string"},
+		{"semver lt", &ast.SemverLt{Left: variable}, "user.value", "string"},
+		{"semver lte", &ast.SemverLte{Left: variable}, "user.value", "string"},
+		{"nested all", &ast.AllOf{Conditions: []ast.Condition{&ast.Eq{Left: variable, Right: scalar}}}, "user.value", "string"},
+		{"nested any", &ast.AnyOf{Conditions: []ast.Condition{&ast.Eq{Left: variable, Right: scalar}}}, "user.value", "string"},
+		{"nested one", &ast.OneOf{Conditions: []ast.Condition{&ast.Eq{Left: variable, Right: scalar}}}, "user.value", "string"},
+		{"nested not", &ast.Not{Condition: &ast.Eq{Left: variable, Right: scalar}}, "user.value", "string"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var gotPath, gotType string
+			collectContextFieldsFromCondition(test.condition, func(path, inferredType string) {
+				gotPath, gotType = path, inferredType
+			})
+			if gotPath != test.wantPath || gotType != test.wantType {
+				t.Fatalf("collectContextFieldsFromCondition() = %q, %q; want %q, %q", gotPath, gotType, test.wantPath, test.wantType)
+			}
+		})
+	}
+	var path string
+	collectContextFieldsFromCondition(nil, func(value, _ string) { path = value })
+	if path != "" {
+		t.Fatalf("nil condition emitted path %q", path)
+	}
+}
+
+func TestContextTypeKeyAndTargetingPathContracts(t *testing.T) {
+	for _, test := range []struct {
+		value string
+		want  string
+	}{
+		{"string", "string"}, {"bool", "bool"}, {"int", "int"}, {"int64", "int"}, {"float64", "float"}, {"unknown", ""},
+	} {
+		if got := inferredScalarTypeKey(test.value); got != test.want {
+			t.Errorf("inferredScalarTypeKey(%q) = %q, want %q", test.value, got, test.want)
+		}
+	}
+	for _, test := range []struct {
+		value string
+		want  string
+	}{
+		{"[]string", "string"}, {"[]bool", "bool"}, {"[]int", "int"}, {"[]int64", "int"}, {"[]float64", "float"}, {"[]any", "any"}, {"unknown", ""},
+	} {
+		if got := inferredCollectionTypeKey(test.value); got != test.want {
+			t.Errorf("inferredCollectionTypeKey(%q) = %q, want %q", test.value, got, test.want)
+		}
+	}
+	paths := map[string]struct{}{}
+	for _, value := range []string{"", "targetingKey", "user.id"} {
+		addTargetingKeyPath(value, paths)
+	}
+	if !slices.Equal([]string{"user.id"}, func() []string {
+		out := make([]string, 0, len(paths))
+		for path := range paths {
+			out = append(out, path)
+		}
+		return out
+	}()) {
+		t.Fatalf("addTargetingKeyPath() = %#v", paths)
+	}
+}
+
+func TestLegacyGoLiteralTables(t *testing.T) {
+	tests := []struct {
+		name  string
+		value ast.VariantValue
+		want  string
+	}{
+		{"bool", ast.VariantValue{Kind: ast.VariantValueKindBool, Bool: true}, "true"},
+		{"string", ast.VariantValue{Kind: ast.VariantValueKindString, String: "x"}, `"x"`},
+		{"int", ast.VariantValue{Kind: ast.VariantValueKindInt, Int: 7}, "7"},
+		{"double", ast.VariantValue{Kind: ast.VariantValueKindDouble, Double: 1.5}, "1.5"},
+		{"null", ast.VariantValue{Kind: ast.VariantValueKindNull}, "nil"},
+		{"object", ast.VariantValue{Kind: ast.VariantValueKindObject, Object: map[string]any{"b": false, "a": "x"}}, `map[string]any{"a": "x", "b": false}`},
+		{"list", ast.VariantValue{Kind: ast.VariantValueKindList, List: []ast.VariantValue{{Kind: ast.VariantValueKindInt, Int: 1}, {Kind: ast.VariantValueKindNull}}}, "[]any{1, nil}"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := goLiteral(test.value); got != test.want {
+				t.Fatalf("goLiteral() = %q, want %q", got, test.want)
+			}
+		})
+	}
+	for _, test := range []struct {
+		name  string
+		value any
+		want  string
+	}{
+		{"nil", nil, "nil"}, {"bool", true, "true"}, {"string", "x", `"x"`},
+		{"int", int(2), "2"}, {"int8", int8(2), "2"}, {"int16", int16(2), "2"}, {"int32", int32(2), "2"}, {"int64", int64(2), "2"},
+		{"uint", uint(3), "3"}, {"uint8", uint8(3), "3"}, {"uint16", uint16(3), "3"}, {"uint32", uint32(3), "3"}, {"uint64", uint64(3), "3"},
+		{"float32", float32(1.25), "1.25"}, {"float64", float64(1.25), "1.25"},
+		{"empty map", map[string]any{}, "map[string]any{}"}, {"map", map[string]any{"x": int64(1)}, `map[string]any{"x": 1}`},
+		{"empty list", []any{}, "[]any{}"}, {"list", []any{true, "x"}, `[]any{true, "x"}`},
+	} {
+		t.Run("any/"+test.name, func(t *testing.T) {
+			if got := goAnyLiteral(test.value); got != test.want {
+				t.Fatalf("goAnyLiteral() = %q, want %q", got, test.want)
+			}
+		})
+	}
+}
+
+func TestLegacyBooleanDefaultTable(t *testing.T) {
+	for _, test := range []struct {
+		input string
+		want  string
+	}{
+		{"on", "true"}, {"ON", "true"}, {"true", "true"}, {"off", "false"}, {"false", "false"}, {"", "false"},
+	} {
+		t.Run(test.input, func(t *testing.T) {
+			if got := boolDefault(test.input); got != test.want {
+				t.Fatalf("boolDefault(%q) = %q, want %q", test.input, got, test.want)
+			}
+		})
+	}
+}
+
+func TestLegacyContextAndTargetingHelperContracts(t *testing.T) {
+	contextRule := &ast.Rule{Condition: &ast.Eq{Left: &ast.Var{Path: "user.id"}, Right: &ast.Scalar{Kind: ast.ScalarKindString, String: "x"}}, Action: &ast.ServeAction{Variant: "on"}}
+	flag := &ast.Flag{
+		Environments: map[string]*ast.Environment{"prod": {
+			Rules:             []*ast.Rule{contextRule},
+			DefaultAction:     &ast.DistributeAction{Stickiness: "user.id", Allocations: map[string]float64{"on": 1, "off": 1}},
+			ScheduledRollouts: []*ast.ScheduledStep{{DefaultAction: &ast.ProgressiveRolloutAction{Stickiness: "device.id", Variant: "on"}}},
+		}},
+	}
+	if !flagUsesContext(flag) || !environmentUsesContext(flag.Environments["prod"]) {
+		t.Fatal("context helper failed to detect targeting condition")
+	}
+	if !flagRequiresTargetingKey(flag) || !environmentRequiresTargetingKey(flag.Environments["prod"]) {
+		t.Fatal("targeting key helper failed to detect distribution")
+	}
+	if got := flagTargetingKeyPaths(flag); !slices.Equal(got, []string{"device.id", "user.id"}) {
+		t.Fatalf("flagTargetingKeyPaths() = %#v", got)
+	}
+	if !valueUsesContext(&ast.List{Values: []ast.Value{&ast.Var{Path: "items"}}}) || valueUsesContext(&ast.Var{}) {
+		t.Fatal("valueUsesContext() contract violated")
+	}
+	if !actionRequiresTargetingKey(&ast.ProgressiveRolloutAction{}) || actionRequiresTargetingKey(&ast.ServeAction{}) {
+		t.Fatal("actionRequiresTargetingKey() contract violated")
+	}
+	if flagUsesContext(&ast.Flag{Environments: map[string]*ast.Environment{"prod": {}}}) {
+		t.Fatal("empty environment unexpectedly uses context")
+	}
+}
+
+func TestIRContextInferenceTables(t *testing.T) {
+	attribute := &irv1.AttributePath{Segments: []string{"value"}}
+	literal := &irv1.ScalarValue{Kind: &irv1.ScalarValue_StringValue{StringValue: "x"}}
+	condition := func(kind any) *irv1.Condition {
+		result := &irv1.Condition{}
+		switch kind := kind.(type) {
+		case *irv1.Condition_Constant:
+			result.Kind = kind
+		case *irv1.Condition_Equality:
+			result.Kind = kind
+		case *irv1.Condition_Logical:
+			result.Kind = kind
+		case *irv1.Condition_Negation:
+			result.Kind = kind
+		case *irv1.Condition_Presence:
+			result.Kind = kind
+		default:
+			t.Fatalf("unsupported test condition kind %T", kind)
+		}
+		return result
+	}
+	tests := []struct {
+		name      string
+		condition *irv1.Condition
+		want      bool
+	}{
+		{"nil", nil, false},
+		{"constant", condition(&irv1.Condition_Constant{Constant: true}), false},
+		{"equality", condition(&irv1.Condition_Equality{Equality: &irv1.EqualityCondition{Attribute: attribute, Literal: literal}}), true},
+		{"logical constant", condition(&irv1.Condition_Logical{Logical: &irv1.LogicalCondition{Conditions: []*irv1.Condition{condition(&irv1.Condition_Constant{Constant: true})}}}), false},
+		{"logical context", condition(&irv1.Condition_Logical{Logical: &irv1.LogicalCondition{Conditions: []*irv1.Condition{condition(&irv1.Condition_Equality{Equality: &irv1.EqualityCondition{Attribute: attribute, Literal: literal}})}}}), true},
+		{"negation constant", condition(&irv1.Condition_Negation{Negation: condition(&irv1.Condition_Constant{Constant: false})}), false},
+		{"negation context", condition(&irv1.Condition_Negation{Negation: condition(&irv1.Condition_Presence{Presence: &irv1.PresenceCondition{Attribute: attribute}})}), true},
+	}
+	for _, test := range tests {
+		t.Run("condition/"+test.name, func(t *testing.T) {
+			if got := irConditionUsesContext(test.condition); got != test.want {
+				t.Fatalf("irConditionUsesContext() = %v, want %v", got, test.want)
+			}
+		})
+	}
+	for _, test := range []struct {
+		name    string
+		literal *irv1.ScalarValue
+		want    string
+	}{
+		{"bool", &irv1.ScalarValue{Kind: &irv1.ScalarValue_BoolValue{BoolValue: true}}, "bool"},
+		{"int", &irv1.ScalarValue{Kind: &irv1.ScalarValue_IntValue{IntValue: 1}}, "int64"},
+		{"double", &irv1.ScalarValue{Kind: &irv1.ScalarValue_DoubleValue{DoubleValue: 1}}, "float"},
+		{"string", literal, "string"},
+		{"null", &irv1.ScalarValue{Kind: &irv1.ScalarValue_NullValue{NullValue: &irv1.ScalarNull{}}}, "any"},
+		{"nil", nil, "any"},
+	} {
+		t.Run("scalar/"+test.name, func(t *testing.T) {
+			if got := irScalarType(test.literal); got != test.want {
+				t.Fatalf("irScalarType() = %q, want %q", got, test.want)
+			}
+		})
+	}
+}
+
+func TestLegacyConditionContextDetectionTable(t *testing.T) {
+	variable := &ast.Var{Path: "user.value"}
+	scalar := &ast.Scalar{Kind: ast.ScalarKindString, String: "x"}
+	tests := []struct {
+		name      string
+		condition ast.Condition
+		want      bool
+	}{
+		{"eq", &ast.Eq{Left: variable, Right: scalar}, true},
+		{"ne", &ast.Ne{Left: scalar, Right: variable}, true},
+		{"gt", &ast.Gt{Left: variable, Right: scalar}, true},
+		{"gte", &ast.Gte{Left: scalar, Right: variable}, true},
+		{"lt", &ast.Lt{Left: variable, Right: scalar}, true},
+		{"lte", &ast.Lte{Left: scalar, Right: variable}, true},
+		{"in", &ast.In{Target: variable, Candidate: &ast.List{Values: []ast.Value{scalar}}}, true},
+		{"contains", &ast.Contains{Container: variable, Value: scalar}, true},
+		{"starts with", &ast.StartsWith{Target: variable, Prefix: "x"}, true},
+		{"ends with", &ast.EndsWith{Target: variable, Suffix: "x"}, true},
+		{"matches", &ast.Matches{Target: variable, Pattern: "x"}, true},
+		{"semver gt", &ast.SemverGt{Left: variable, Right: "1.2.3"}, true},
+		{"semver gte", &ast.SemverGte{Left: variable, Right: "1.2.3"}, true},
+		{"semver lt", &ast.SemverLt{Left: variable, Right: "1.2.3"}, true},
+		{"semver lte", &ast.SemverLte{Left: variable, Right: "1.2.3"}, true},
+		{"all", &ast.AllOf{Conditions: []ast.Condition{&ast.LiteralBool{Value: false}, &ast.Eq{Left: variable, Right: scalar}}}, true},
+		{"any", &ast.AnyOf{Conditions: []ast.Condition{&ast.LiteralBool{Value: false}, &ast.Eq{Left: variable, Right: scalar}}}, true},
+		{"one", &ast.OneOf{Conditions: []ast.Condition{&ast.LiteralBool{Value: false}, &ast.Eq{Left: variable, Right: scalar}}}, true},
+		{"not", &ast.Not{Condition: &ast.Eq{Left: variable, Right: scalar}}, true},
+		{"literal", &ast.LiteralBool{Value: true}, false},
+		{"constant comparison", &ast.Eq{Left: scalar, Right: scalar}, false},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := conditionUsesContext(test.condition); got != test.want {
+				t.Fatalf("conditionUsesContext() = %v, want %v", got, test.want)
+			}
+		})
+	}
+}
+
+func TestLegacyVariantSetKindTable(t *testing.T) {
+	tests := []struct {
+		name string
+		kind ast.VariantValueKind
+		want flagKind
+	}{
+		{"bool", ast.VariantValueKindBool, flagKindBool},
+		{"string", ast.VariantValueKindString, flagKindString},
+		{"int", ast.VariantValueKindInt, flagKindInt},
+		{"float", ast.VariantValueKindDouble, flagKindFloat},
+		{"object", ast.VariantValueKindObject, flagKindObject},
+		{"list", ast.VariantValueKindList, flagKindList},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			kind, err := variantSetKind(&ast.Flag{Variants: map[string]ast.VariantValue{"value": {Kind: test.kind}}})
+			if err != nil || kind != test.want {
+				t.Fatalf("variantSetKind() = %v, %v; want %v", kind, err, test.want)
+			}
+		})
+	}
+	if _, err := variantSetKind(&ast.Flag{}); err == nil || !strings.Contains(err.Error(), "supports only") {
+		t.Fatalf("variantSetKind(empty) = %v, want unsupported error", err)
+	}
+	if _, err := variantSetKind(&ast.Flag{Variants: map[string]ast.VariantValue{
+		"bool":   {Kind: ast.VariantValueKindBool},
+		"string": {Kind: ast.VariantValueKindString},
+	}}); err == nil || !strings.Contains(err.Error(), "supports only") {
+		t.Fatalf("variantSetKind(mixed) = %v, want unsupported error", err)
 	}
 }
