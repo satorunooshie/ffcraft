@@ -372,10 +372,8 @@ func conditionHasSemver(condition *irv1.Condition) bool {
 	case *irv1.Condition_SemverComparison:
 		return true
 	case *irv1.Condition_Logical:
-		for _, child := range kind.Logical.Conditions {
-			if conditionHasSemver(child) {
-				return true
-			}
+		if slices.ContainsFunc(kind.Logical.Conditions, conditionHasSemver) {
+			return true
 		}
 	case *irv1.Condition_Negation:
 		return conditionHasSemver(kind.Negation)
@@ -400,10 +398,8 @@ func conditionHasPresence(condition *irv1.Condition) bool {
 	case *irv1.Condition_Presence:
 		return true
 	case *irv1.Condition_Logical:
-		for _, child := range kind.Logical.Conditions {
-			if conditionHasPresence(child) {
-				return true
-			}
+		if slices.ContainsFunc(kind.Logical.Conditions, conditionHasPresence) {
+			return true
 		}
 	case *irv1.Condition_Negation:
 		return conditionHasPresence(kind.Negation)
@@ -550,7 +546,6 @@ func TestV1TargetCompilersFailClosedForUnrepresentablePresence(t *testing.T) {
 
 func TestV1ConditionCapabilityMatrixIsConnectedToCompilers(t *testing.T) {
 	for _, entry := range capability.ConditionCapabilityMatrix() {
-		entry := entry
 		t.Run(string(entry.Target)+"/"+string(entry.Condition), func(t *testing.T) {
 			doc := conditionCapabilityFixture(entry.Condition)
 			var err error
@@ -776,7 +771,6 @@ func TestV1EveryEnvironmentScheduleBoundaryUsesExpectedSnapshot(t *testing.T) {
 		"canary":  {"cohort": "canary"},
 	}
 	for environmentName, environment := range flag.Environments {
-		environmentName, environment := environmentName, environment
 		t.Run(environmentName, func(t *testing.T) {
 			context := contexts[environmentName]
 			boundaries := make([]struct {

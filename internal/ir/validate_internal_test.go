@@ -194,21 +194,21 @@ func TestValidateAcceptsEverySemanticKind(t *testing.T) {
 
 func TestValidateDepthAndSizeLimits(t *testing.T) {
 	deepVariant := &irv1.VariantValue{Kind: &irv1.VariantValue_BoolValue{BoolValue: true}}
-	for index := 0; index < 66; index++ {
+	for range 66 {
 		deepVariant = &irv1.VariantValue{Kind: &irv1.VariantValue_ListValue{ListValue: &irv1.VariantList{Values: []*irv1.VariantValue{deepVariant}}}}
 	}
 	if err := validateVariant(deepVariant); err == nil || !strings.Contains(err.Error(), "nesting depth") {
 		t.Fatalf("deep variant error = %v", err)
 	}
 	deepCondition := &irv1.Condition{Kind: &irv1.Condition_Constant{Constant: true}}
-	for index := 0; index < 66; index++ {
+	for range 66 {
 		deepCondition = &irv1.Condition{Kind: &irv1.Condition_Negation{Negation: deepCondition}}
 	}
 	if err := validateCondition(deepCondition); err == nil || !strings.Contains(err.Error(), "nesting depth") {
 		t.Fatalf("deep condition error = %v", err)
 	}
 	deepExtension := &irv1.ExtensionValue{Kind: &irv1.ExtensionValue_StringValue{StringValue: "x"}}
-	for index := 0; index < 66; index++ {
+	for range 66 {
 		deepExtension = &irv1.ExtensionValue{Kind: &irv1.ExtensionValue_ListValue{ListValue: &irv1.ExtensionList{Values: []*irv1.ExtensionValue{deepExtension}}}}
 	}
 	if err := validateExtensionDepth(deepExtension, 0); err == nil || !strings.Contains(err.Error(), "nesting depth") {
@@ -216,14 +216,14 @@ func TestValidateDepthAndSizeLimits(t *testing.T) {
 	}
 
 	manyNamespaces := make(map[string]*irv1.ExtensionValue, 257)
-	for index := 0; index < 257; index++ {
+	for index := range 257 {
 		manyNamespaces[fmt.Sprintf("ns-%d", index)] = &irv1.ExtensionValue{Kind: &irv1.ExtensionValue_BoolValue{BoolValue: true}}
 	}
 	if err := validateExtensions(manyNamespaces); err == nil || !strings.Contains(err.Error(), "namespace count") {
 		t.Fatalf("namespace limit error = %v", err)
 	}
 	manyFields := make(map[string]*irv1.ExtensionValue, 257)
-	for index := 0; index < 257; index++ {
+	for index := range 257 {
 		manyFields[fmt.Sprintf("field-%d", index)] = &irv1.ExtensionValue{Kind: &irv1.ExtensionValue_BoolValue{BoolValue: true}}
 	}
 	if err := validateExtensionDepth(&irv1.ExtensionValue{Kind: &irv1.ExtensionValue_ObjectValue{ObjectValue: &irv1.ExtensionObject{Fields: manyFields}}}, 0); err == nil || !strings.Contains(err.Error(), "field count") {

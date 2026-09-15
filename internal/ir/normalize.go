@@ -3,6 +3,7 @@ package ir
 
 import (
 	"fmt"
+	"maps"
 	"math"
 	"sort"
 	"strings"
@@ -230,9 +231,7 @@ func relativeWeights(weights map[string]uint32) (map[string]uint32, error) {
 		}
 	}
 	out := make(map[string]uint32, len(weights))
-	for name, weight := range weights {
-		out[name] = weight
-	}
+	maps.Copy(out, weights)
 	return out, nil
 }
 
@@ -562,8 +561,6 @@ func greatestCommonDivisor(a, b uint32) uint32 {
 }
 func cloneExtensions(values map[string]*irv1.ExtensionValue) map[string]*irv1.ExtensionValue {
 	out := make(map[string]*irv1.ExtensionValue, len(values))
-	for key, value := range values {
-		out[key] = value
-	}
+	maps.Copy(out, values)
 	return out
 }

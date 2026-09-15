@@ -3,6 +3,7 @@ package codegen
 import (
 	"fmt"
 	"go/format"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -407,12 +408,7 @@ func irConditionUsesContext(condition *irv1.Condition) bool {
 	case *irv1.Condition_Constant:
 		return false
 	case *irv1.Condition_Logical:
-		for _, child := range kind.Logical.Conditions {
-			if irConditionUsesContext(child) {
-				return true
-			}
-		}
-		return false
+		return slices.ContainsFunc(kind.Logical.Conditions, irConditionUsesContext)
 	case *irv1.Condition_Negation:
 		return irConditionUsesContext(kind.Negation)
 	default:

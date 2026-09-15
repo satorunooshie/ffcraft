@@ -60,8 +60,8 @@ func compileIREnvironment(env *irv1.Environment) (any, error) {
 		return nil, err
 	}
 	active := base
-	for index := len(env.Schedule) - 1; index >= 0; index-- {
-		scheduled := env.Schedule[index]
+	for index, scheduled := range slices.Backward(env.Schedule) {
+
 		condition := map[string]any{">=": []any{
 			map[string]any{"var": "$flagd.timestamp"},
 			scheduled.EffectiveAt.AsTime().Unix(),

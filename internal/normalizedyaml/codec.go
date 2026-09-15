@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"math"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -94,10 +95,8 @@ func extensionHasUnknown(value *irv1.ExtensionValue) bool {
 		if kind.ListValue == nil || len(kind.ListValue.ProtoReflect().GetUnknown()) != 0 {
 			return true
 		}
-		for _, child := range kind.ListValue.Values {
-			if extensionHasUnknown(child) {
-				return true
-			}
+		if slices.ContainsFunc(kind.ListValue.Values, extensionHasUnknown) {
+			return true
 		}
 	case *irv1.ExtensionValue_NullValue:
 		return kind.NullValue != nil && len(kind.NullValue.ProtoReflect().GetUnknown()) != 0
