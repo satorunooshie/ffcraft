@@ -111,20 +111,9 @@ message Flag {
     }
   ];
 
-  Metadata metadata = 5;
-  map<string, ffcraft.ir.v1.ExtensionValue> extensions = 6 [
+  map<string, ffcraft.ir.v1.ExtensionValue> extensions = 5 [
     (buf.validate.field).map.keys.string = {min_len: 1, max_bytes: 128}
   ];
-}
-
-message Metadata {
-  string owner = 1 [(buf.validate.field).string.max_len = 128];
-  string description = 2 [(buf.validate.field).string.max_len = 2048];
-  string expiry = 3 [(buf.validate.field).string.max_len = 32];
-  repeated string tags = 4 [(buf.validate.field).repeated.items.string = {
-    min_len: 1
-    max_len: 64
-  }];
 }
 
 message Environment {

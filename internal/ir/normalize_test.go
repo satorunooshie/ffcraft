@@ -52,6 +52,52 @@ flags:
 	}
 }
 
+func TestNormalizePreservesExtensionsAtEveryAuthoringScope(t *testing.T) {
+	doc, err := authoring.ParseYAML([]byte(`version: v1
+variant_sets:
+  values:
+    on: true
+flags:
+  - key: example
+    variant_set: values
+    default_variant: on
+    extensions:
+      flag_meta:
+        enabled: true
+        nested: [1, 2.5, null]
+    environments:
+      prod:
+        default_action: {serve: on}
+        extensions:
+          environment_meta: {region: jp}
+extensions:
+  document_meta: {owner: platform}
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	normalized, err := normalize.Normalize(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	flag := normalized.Flags["example"]
+	environment := flag.Environments["prod"]
+	if normalized.Extensions["document_meta"].GetObjectValue().Fields["owner"].GetStringValue() != "platform" {
+		t.Fatal("document extension was not preserved")
+	}
+	if !normalized.Flags["example"].Extensions["flag_meta"].GetObjectValue().Fields["enabled"].GetBoolValue() {
+		t.Fatal("flag extension was not preserved")
+	}
+	if environment.Extensions["environment_meta"].GetObjectValue().Fields["region"].GetStringValue() != "jp" {
+		t.Fatal("environment extension was not preserved")
+	}
+	items := flag.Extensions["flag_meta"].GetObjectValue().Fields["nested"].GetListValue().Values
+	if len(items) != 3 || items[0].GetIntValue() != 1 || items[1].GetDoubleValue() != 2.5 || items[2].GetNullValue() == nil {
+		t.Fatalf("nested extension value was not preserved: %#v", items)
+	}
+}
+
 func TestUnknownCoreFieldDiagnostic(t *testing.T) {
 	doc := minimalIRForUnknownField()
 	unknown := protowire.AppendTag(nil, 99, protowire.VarintType)

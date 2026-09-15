@@ -43,11 +43,12 @@ flags:
   - key: enable-new-home
     variant_set: boolean
     default_variant: off
-    metadata:
-      owner: checkout-team
-      description: enable the new home experience
-      expiry: "2026-12-31"
-      tags: [homepage, growth]
+    extensions:
+      com.example.metadata.v1:
+        owner: checkout-team
+        description: enable the new home experience
+        expiry: "2026-12-31"
+        tags: [homepage, growth]
     environments:
       local:
         serve: on

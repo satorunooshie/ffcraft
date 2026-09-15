@@ -12,15 +12,7 @@ type Flag struct {
 	Variants       map[string]VariantValue
 	DefaultVariant string
 	Environments   map[string]*Environment
-	Metadata       *Metadata
 	Extensions     map[string]*irv1.ExtensionValue
-}
-
-type Metadata struct {
-	Owner       string
-	Description string
-	Expiry      string
-	Tags        []string
 }
 
 type VariantValue struct {

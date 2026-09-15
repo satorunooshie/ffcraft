@@ -171,15 +171,3 @@ func astVariantAny(value ast.VariantValue) any {
 		return nil
 	}
 }
-
-func normalizeMetadata(metadata *ffv1.Metadata) *ast.Metadata {
-	if metadata == nil {
-		return nil
-	}
-	return &ast.Metadata{
-		Owner:       metadata.Owner,
-		Description: metadata.Description,
-		Expiry:      metadata.Expiry,
-		Tags:        append([]string(nil), metadata.Tags...),
-	}
-}

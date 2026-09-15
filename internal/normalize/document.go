@@ -36,7 +36,6 @@ func normalizeFlag(doc *ffv1.FeatureFlagDocument, flag *ffv1.Flag) (*ast.Flag, e
 		Variants:       normalizeVariantSet(doc.VariantSets[flag.VariantSet]),
 		DefaultVariant: flag.DefaultVariant,
 		Environments:   map[string]*ast.Environment{},
-		Metadata:       normalizeMetadata(flag.Metadata),
 		Extensions:     cloneExtensions(flag.Extensions),
 	}
 	for envName, env := range flag.Environments {

@@ -174,7 +174,7 @@ func parseFlags(node *yaml.Node, path string) ([]*ffv1.Flag, error) {
 }
 
 func parseFlag(node *yaml.Node, path string) (*ffv1.Flag, error) {
-	fields, err := strictMapping(node, path, "key", "variant_set", "default_variant", "metadata", "environments", "extensions")
+	fields, err := strictMapping(node, path, "key", "variant_set", "default_variant", "environments", "extensions")
 	if err != nil {
 		return nil, err
 	}
@@ -198,50 +198,11 @@ func parseFlag(node *yaml.Node, path string) (*ffv1.Flag, error) {
 			return nil, err
 		}
 	}
-	if metaNode := fields["metadata"]; metaNode != nil {
-		out.Metadata, err = parseMetadata(metaNode, path+".metadata")
-		if err != nil {
-			return nil, err
-		}
-	}
 	if out.Extensions, err = parseExtensions(fields["extensions"], path+".extensions"); err != nil {
 		return nil, err
 	}
 	if envNode := fields["environments"]; envNode != nil {
 		out.Environments, err = parseEnvironments(envNode, path+".environments")
-		if err != nil {
-			return nil, err
-		}
-	}
-	return out, nil
-}
-
-func parseMetadata(node *yaml.Node, path string) (*ffv1.Metadata, error) {
-	fields, err := strictMapping(node, path, "owner", "description", "expiry", "tags")
-	if err != nil {
-		return nil, err
-	}
-	out := &ffv1.Metadata{}
-	if scalar := fields["owner"]; scalar != nil {
-		out.Owner, err = scalarString(scalar, path+".owner")
-		if err != nil {
-			return nil, err
-		}
-	}
-	if scalar := fields["description"]; scalar != nil {
-		out.Description, err = scalarString(scalar, path+".description")
-		if err != nil {
-			return nil, err
-		}
-	}
-	if scalar := fields["expiry"]; scalar != nil {
-		out.Expiry, err = scalarString(scalar, path+".expiry")
-		if err != nil {
-			return nil, err
-		}
-	}
-	if tagsNode := fields["tags"]; tagsNode != nil {
-		out.Tags, err = stringSequence(tagsNode, path+".tags")
 		if err != nil {
 			return nil, err
 		}

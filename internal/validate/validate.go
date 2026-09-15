@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -13,8 +12,6 @@ import (
 
 	ffv1 "github.com/satorunooshie/ffcraft/gen/ffcraft/v1"
 )
-
-var expiryPattern = regexp.MustCompile(`^[0-9]{4}-[0-9]{2}-[0-9]{2}$`)
 
 var (
 	validatorOnce sync.Once
@@ -60,10 +57,6 @@ func validateReferences(doc *ffv1.FeatureFlagDocument) error {
 		if _, ok := vs.Variants[flag.DefaultVariant]; !ok {
 			errs = append(errs, fmt.Errorf("flag %q: default_variant %q not found in variant_set %q", flag.Key, flag.DefaultVariant, flag.VariantSet))
 		}
-		if metadata := flag.Metadata; metadata != nil && metadata.Expiry != "" && !expiryPattern.MatchString(metadata.Expiry) {
-			errs = append(errs, fmt.Errorf("flag %q: metadata.expiry must be YYYY-MM-DD", flag.Key))
-		}
-
 		for envName, env := range flag.Environments {
 			if fixed := env.GetFixedServe(); fixed != nil {
 				if _, ok := vs.Variants[fixed.Variant]; !ok {

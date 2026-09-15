@@ -79,7 +79,7 @@ func TestParseYAML(t *testing.T) {
 			},
 		},
 		{
-			name: "parses rollout extensions",
+			name: "parses rollout features",
 			file: "testdata/valid_rollouts.yaml",
 			assert: func(t *testing.T, doc *ffv1.FeatureFlagDocument) {
 				t.Helper()
@@ -137,6 +137,23 @@ func TestParseYAML(t *testing.T) {
 			}
 			tt.assert(t, doc)
 		})
+	}
+}
+
+func TestParseYAMLRejectsLegacyMetadataField(t *testing.T) {
+	_, err := ParseYAML([]byte(`version: v1
+variant_sets:
+  values: {on: true}
+flags:
+  - key: example
+    variant_set: values
+    default_variant: on
+    metadata: {owner: platform}
+    environments:
+      prod: {serve: on}
+`))
+	if err == nil || !strings.Contains(err.Error(), "unknown field") {
+		t.Fatalf("ParseYAML() error = %v, want unknown field", err)
 	}
 }
 

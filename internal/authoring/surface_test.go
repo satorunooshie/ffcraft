@@ -21,12 +21,12 @@ flags:
   - key: surface
     variant_set: values
     default_variant: off
-    metadata:
-      owner: platform
-      description: surface coverage
-      expiry: 2030-01-01
-      tags: [critical, rollout]
     extensions:
+      com.example.metadata.v1:
+        owner: platform
+        description: surface coverage
+        expiry: 2030-01-01
+        tags: [critical, rollout]
       source: {team: platform, enabled: true, limit: 42}
     environments:
       fixed:
@@ -60,8 +60,9 @@ flags:
 		t.Fatal(err)
 	}
 	flag := doc.Flags[0]
-	if flag.Metadata == nil || flag.Metadata.Owner != "platform" || len(flag.Metadata.Tags) != 2 {
-		t.Fatalf("metadata was not preserved: %#v", flag.Metadata)
+	metadata := flag.Extensions["com.example.metadata.v1"].GetObjectValue().Fields
+	if metadata["owner"].GetStringValue() != "platform" || len(metadata["tags"].GetListValue().Values) != 2 {
+		t.Fatalf("metadata extension was not preserved: %#v", flag.Extensions)
 	}
 	if _, ok := flag.Environments["fixed"].GetKind().(*ffv1.Environment_FixedServe); !ok {
 		t.Fatalf("fixed environment kind = %T", flag.Environments["fixed"].GetKind())

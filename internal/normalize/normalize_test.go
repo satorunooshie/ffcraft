@@ -215,7 +215,7 @@ flags:
 	}
 }
 
-func TestNormalizeASTPreservesNestedVariantsAndMetadata(t *testing.T) {
+func TestNormalizeASTPreservesNestedVariantsAndExtensions(t *testing.T) {
 	const source = `version: v1
 variant_sets:
   objects:
@@ -229,11 +229,12 @@ flags:
   - key: config
     variant_set: objects
     default_variant: a
-    metadata:
-      owner: platform
-      description: nested config
-      expiry: "2027-01-01"
-      tags: [config, nested]
+    extensions:
+      com.example.metadata.v1:
+        owner: platform
+        description: nested config
+        expiry: "2027-01-01"
+        tags: [config, nested]
     environments:
       prod:
         default_action:
@@ -256,8 +257,9 @@ flags:
 	if !ok || len(nested) != 2 || nested[0] != int64(7) || nested[1] != nil {
 		t.Fatalf("nested variant values = %#v", value.Object["nested"])
 	}
-	if flag.Metadata == nil || flag.Metadata.Owner != "platform" || flag.Metadata.Description != "nested config" || len(flag.Metadata.Tags) != 2 {
-		t.Fatalf("metadata = %#v", flag.Metadata)
+	metadata := flag.Extensions["com.example.metadata.v1"].GetObjectValue().Fields
+	if metadata["owner"].GetStringValue() != "platform" || metadata["description"].GetStringValue() != "nested config" || len(metadata["tags"].GetListValue().Values) != 2 {
+		t.Fatalf("metadata extension = %#v", flag.Extensions)
 	}
 }
 
