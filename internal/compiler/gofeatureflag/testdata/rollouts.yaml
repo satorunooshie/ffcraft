@@ -22,9 +22,6 @@ flags:
             start: "2026-05-01T00:00:00Z"
             end: "2026-05-10T00:00:00Z"
             steps: 3
-        experimentation:
-          start: "2026-05-01T00:00:00Z"
-          end: "2026-05-20T00:00:00Z"
         scheduled_rollouts:
           - name: first snapshot
             description: serve on for everyone

@@ -227,13 +227,13 @@ func parseEnvironments(node *yaml.Node, path string) (map[string]*ffv1.Environme
 }
 
 func parseEnvironment(node *yaml.Node, path string) (*ffv1.Environment, error) {
-	fields, err := strictMapping(node, path, "serve", "rules", "default_action", "experimentation", "scheduled_rollouts", "extensions")
+	fields, err := strictMapping(node, path, "serve", "rules", "default_action", "scheduled_rollouts", "extensions")
 	if err != nil {
 		return nil, err
 	}
 	if serveNode := fields["serve"]; serveNode != nil {
-		if fields["rules"] != nil || fields["default_action"] != nil || fields["experimentation"] != nil || fields["scheduled_rollouts"] != nil {
-			return nil, fmt.Errorf("%s: serve cannot be combined with rules, default_action, experimentation, or scheduled_rollouts", path)
+		if fields["rules"] != nil || fields["default_action"] != nil || fields["scheduled_rollouts"] != nil {
+			return nil, fmt.Errorf("%s: serve cannot be combined with rules, default_action, or scheduled_rollouts", path)
 		}
 		variant, err := scalarString(serveNode, path+".serve")
 		if err != nil {
@@ -272,12 +272,6 @@ func parseRuleEvaluation(fields map[string]*yaml.Node, path string) (*ffv1.RuleE
 	}
 	if defaultNode := fields["default_action"]; defaultNode != nil {
 		out.DefaultAction, err = parseActionNode(defaultNode, path+".default_action")
-		if err != nil {
-			return nil, err
-		}
-	}
-	if expNode := fields["experimentation"]; expNode != nil {
-		out.Experimentation, err = parseExperimentation(expNode, path+".experimentation")
 		if err != nil {
 			return nil, err
 		}
@@ -415,27 +409,6 @@ func parseProgressiveRollout(node *yaml.Node, path string) (*ffv1.ProgressiveRol
 	return out, nil
 }
 
-func parseExperimentation(node *yaml.Node, path string) (*ffv1.Experimentation, error) {
-	fields, err := strictMapping(node, path, "start", "end")
-	if err != nil {
-		return nil, err
-	}
-	out := &ffv1.Experimentation{}
-	if startNode := fields["start"]; startNode != nil {
-		out.Start, err = scalarString(startNode, path+".start")
-		if err != nil {
-			return nil, err
-		}
-	}
-	if endNode := fields["end"]; endNode != nil {
-		out.End, err = scalarString(endNode, path+".end")
-		if err != nil {
-			return nil, err
-		}
-	}
-	return out, nil
-}
-
 func parseScheduledSteps(node *yaml.Node, path string) ([]*ffv1.ScheduledStep, error) {
 	if node.Kind != yaml.SequenceNode {
 		return nil, fmt.Errorf("%s: expected sequence", path)
@@ -452,7 +425,7 @@ func parseScheduledSteps(node *yaml.Node, path string) ([]*ffv1.ScheduledStep, e
 }
 
 func parseScheduledStep(node *yaml.Node, path string) (*ffv1.ScheduledStep, error) {
-	fields, err := strictMapping(node, path, "name", "description", "disabled", "date", "default_action", "experimentation", "rules")
+	fields, err := strictMapping(node, path, "name", "description", "disabled", "date", "default_action", "rules")
 	if err != nil {
 		return nil, err
 	}
@@ -489,12 +462,6 @@ func parseScheduledStep(node *yaml.Node, path string) (*ffv1.ScheduledStep, erro
 	}
 	if defaultNode := fields["default_action"]; defaultNode != nil {
 		out.DefaultAction, err = parseActionNode(defaultNode, path+".default_action")
-		if err != nil {
-			return nil, err
-		}
-	}
-	if expNode := fields["experimentation"]; expNode != nil {
-		out.Experimentation, err = parseExperimentation(expNode, path+".experimentation")
 		if err != nil {
 			return nil, err
 		}

@@ -47,25 +47,6 @@ func TestValidateReferenceAndScheduleContracts(t *testing.T) {
 }
 
 func TestValidateTimeAndScheduleTables(t *testing.T) {
-	for _, test := range []struct {
-		name string
-		exp  *ffv1.Experimentation
-		want string
-	}{
-		{"invalid start", &ffv1.Experimentation{Start: "not-time", End: "2026-01-02T00:00:00Z"}, "start"},
-		{"reversed", &ffv1.Experimentation{Start: "2026-01-02T00:00:00Z", End: "2026-01-01T00:00:00Z"}, "before end"},
-		{"valid", &ffv1.Experimentation{Start: "2026-01-01T00:00:00Z", End: "2026-01-02T00:00:00Z"}, ""},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			err := validateExperimentation(test.exp)
-			if test.want == "" && err != nil {
-				t.Fatalf("validateExperimentation() = %v", err)
-			}
-			if test.want != "" && (err == nil || !strings.Contains(err.Error(), test.want)) {
-				t.Fatalf("validateExperimentation() = %v, want %q", err, test.want)
-			}
-		})
-	}
 	steps := func(first, second string) []*ffv1.ScheduledStep {
 		return []*ffv1.ScheduledStep{{Date: first, DefaultAction: &ffv1.Action{Kind: &ffv1.Action_Serve{Serve: &ffv1.Serve{Variant: "on"}}}}, {Date: second, DefaultAction: &ffv1.Action{Kind: &ffv1.Action_Serve{Serve: &ffv1.Serve{Variant: "on"}}}}}
 	}

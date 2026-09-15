@@ -273,47 +273,6 @@ Evaluation is fixed:
 - the newest eligible step is used
 - if no step is active yet, evaluation uses the base environment `rules` and `default_action`
 
-## experimentation
-
-`experimentation` can appear at the environment level and on `scheduled_rollouts` steps as
-authoring-only sugar. It is validated while parsing authoring YAML and then consumed before
-semantic IR normalization; the normalized protobuf has no experimentation field and neither
-target receives experimentation semantics.
-
-Environment-level experimentation:
-
-```yaml
-environments:
-  prod:
-    default_action:
-      distribute: checkout_ab
-    experimentation:
-      start: "2026-05-01T00:00:00Z"
-      end: "2026-05-20T00:00:00Z"
-```
-
-Scheduled-step experimentation:
-
-```yaml
-scheduled_rollouts:
-  - date: "2026-05-08T09:00:00Z"
-    rules:
-      - if:
-          rule: is_beta_user
-        serve: on
-    default_action:
-      distribute: ten_percent_on
-    experimentation:
-      start: "2026-05-08T09:00:00Z"
-      end: "2026-05-15T09:00:00Z"
-```
-
-- `start` and `end` must be RFC3339 timestamps
-- `start` must be before `end`
-
-The timestamps are authoring metadata only. They do not change the semantic IR or compiled
-target behavior.
-
 ## Validation
 
 At minimum, `ffcompile` validates:
@@ -321,16 +280,14 @@ At minimum, `ffcompile` validates:
 - uniqueness of `flags[].key`
 - existence of referenced `variant_set`, `rule`, and `distribution`
 - variant consistency for `default_variant`, `serve`, and action/default-action references
-- distribution totals equal `100`
+- distribution allocations are positive relative weights with at least two variants
 - distribution allocation keys exist in the target `variant_set`
 - rule cycle detection
 - `scheduled_rollouts` are ascending by date with no duplicates
 - `scheduled_rollouts[].default_action` is present
 - `progressive_rollout.steps > 0`
 - `progressive_rollout.start < progressive_rollout.end`
-- `experimentation.start < experimentation.end`
 
 ## Unsupported / Not Yet Compiled
 
 - YAML aliases and anchors
-- `experimentation` is authoring-only and is not represented in semantic IR

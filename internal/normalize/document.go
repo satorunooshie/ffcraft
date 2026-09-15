@@ -68,7 +68,6 @@ func normalizeEnvironment(doc *ffv1.FeatureFlagDocument, flag *ffv1.Flag, env *f
 	}
 	out := &ast.Environment{
 		DefaultAction:     defaultAction,
-		Experimentation:   normalizeExperimentation(eval.Experimentation),
 		ScheduledRollouts: make([]*ast.ScheduledStep, 0, len(eval.ScheduledRollouts)),
 		Rules:             make([]*ast.Rule, 0, len(eval.Rules)),
 		Extensions:        cloneExtensions(env.Extensions),
@@ -93,7 +92,7 @@ func normalizeEnvironment(doc *ffv1.FeatureFlagDocument, flag *ffv1.Flag, env *f
 		}
 		out.ScheduledRollouts = append(out.ScheduledRollouts, normalized)
 	}
-	if len(out.Rules) == 0 && out.Experimentation == nil && len(out.ScheduledRollouts) == 0 {
+	if len(out.Rules) == 0 && len(out.ScheduledRollouts) == 0 {
 		if serve, ok := out.DefaultAction.(*ast.ServeAction); ok {
 			out.StaticVariant = serve.Variant
 		}
@@ -131,12 +130,11 @@ func normalizeRuleEntry(doc *ffv1.FeatureFlagDocument, entry *ffv1.RuleEntry) (*
 
 func normalizeScheduledStep(doc *ffv1.FeatureFlagDocument, step *ffv1.ScheduledStep) (*ast.ScheduledStep, error) {
 	out := &ast.ScheduledStep{
-		Name:            step.Name,
-		Description:     step.Description,
-		Disabled:        step.Disabled,
-		Date:            step.Date,
-		Experimentation: normalizeExperimentation(step.Experimentation),
-		Rules:           make([]*ast.Rule, 0, len(step.Rules)),
+		Name:        step.Name,
+		Description: step.Description,
+		Disabled:    step.Disabled,
+		Date:        step.Date,
+		Rules:       make([]*ast.Rule, 0, len(step.Rules)),
 	}
 	if step.DefaultAction != nil {
 		action, err := normalizeAction(doc, step.DefaultAction)

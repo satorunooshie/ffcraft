@@ -25,9 +25,6 @@ flags:
         scheduled_rollouts:
           - name: experiment window
             date: "2026-05-08T09:00:00Z"
-            experimentation:
-              start: "2026-05-10T09:00:00Z"
-              end: "2026-05-20T09:00:00Z"
             rules:
               - if:
                   rule: is_beta_user

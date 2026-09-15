@@ -44,7 +44,6 @@ flags:
               end: 2028-01-02T00:00:00Z
               steps: 4
         default_action: {serve: off}
-        experimentation: {start: 2028-02-01T00:00:00Z, end: 2028-02-02T00:00:00Z}
         scheduled_rollouts:
           - name: snapshot
             description: first
@@ -68,7 +67,7 @@ flags:
 		t.Fatalf("fixed environment kind = %T", flag.Environments["fixed"].GetKind())
 	}
 	dynamic := flag.Environments["dynamic"].GetRuleEvaluation()
-	if dynamic == nil || len(dynamic.Rules) != 2 || dynamic.Experimentation == nil || len(dynamic.ScheduledRollouts) != 1 {
+	if dynamic == nil || len(dynamic.Rules) != 2 || len(dynamic.ScheduledRollouts) != 1 {
 		t.Fatalf("dynamic environment was not fully parsed: %#v", dynamic)
 	}
 	if dynamic.Rules[0].Action.GetDistribute() == nil || dynamic.Rules[1].Action.GetProgressiveRollout() == nil {

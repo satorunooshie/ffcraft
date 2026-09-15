@@ -14,7 +14,6 @@ This document describes how `ffcraft` maps the normalized protobuf IR to each su
 - `distribute` compiles to a `fractional` operation
 - `scheduled_rollouts` compile to nested `if` expressions ordered by descending effective date
 - progressive rollout is lowered during normalization into scheduled IR snapshots
-- authoring-only `experimentation` is consumed before semantic IR normalization
 - top-level array variant values are not supported by the flagd compiler
 
 ### Scheduled Rollout Semantics
@@ -44,7 +43,6 @@ For example, `all: [anonymous, google]` is not supported for flagd, while
 - `serve` compiles to `variation`
 - `distribute` compiles to `percentage`
 - normalized progressive rollout snapshots compile to scheduled `defaultRule` entries
-- authoring-only `experimentation` is absent from normalized IR and output
 - `scheduled_rollouts` compile to native `scheduledRollout`
 
 ### Bucketing
@@ -64,7 +62,6 @@ Normalized YAML is target-neutral. It keeps:
 - explicit `default_action`
 - explicit `scheduled_rollouts`
 - progressive rollout stages lowered to scheduled IR entries
-- authoring-only `experimentation` is not part of normalized YAML
 
 Progressive rollout lowering happens during normalization; target compilers consume the resulting scheduled snapshots.
 

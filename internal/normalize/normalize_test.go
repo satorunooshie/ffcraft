@@ -169,8 +169,8 @@ func TestNormalizeRejectsInvalidDistributionTable(t *testing.T) {
 		allocations string
 		want        string
 	}{
-		{"zero weight", "on: true\n    off: false", "on: 0\n      off: 100", "positive finite number"},
-		{"one entry", "on: true", "on: 100", "at least two allocations"},
+		{"zero weight", "on: true\n    off: false", "on: 0\n      off: 100", "must be greater than 0"},
+		{"one entry", "on: true", "on: 100", "map must be at least 2 entries"},
 		{"unknown variant", "on: true\n    off: false", "on: 50\n      off: 25\n      missing: 25", "unknown variant"},
 	}
 	for _, test := range tests {
@@ -328,8 +328,5 @@ flags:
             start: "2026-01-01T00:00:00Z"
             end: "2026-01-10T00:00:00Z"
             steps: 2
-        experimentation:
-          start: "2026-02-01T00:00:00Z"
-          end: "2026-02-10T00:00:00Z"
 `
 }

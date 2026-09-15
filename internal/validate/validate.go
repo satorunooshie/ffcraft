@@ -70,8 +70,8 @@ func validateReferences(doc *ffv1.FeatureFlagDocument) error {
 				errs = append(errs, fmt.Errorf("flag %q env %q: environment must define serve or rules", flag.Key, envName))
 				continue
 			}
-			if len(eval.Rules) == 0 && eval.DefaultAction == nil && eval.Experimentation == nil && len(eval.ScheduledRollouts) == 0 {
-				errs = append(errs, fmt.Errorf("flag %q env %q: rule_evaluation must define rules, default_action, experimentation, or scheduled_rollouts", flag.Key, envName))
+			if len(eval.Rules) == 0 && eval.DefaultAction == nil && len(eval.ScheduledRollouts) == 0 {
+				errs = append(errs, fmt.Errorf("flag %q env %q: rule_evaluation must define rules, default_action, or scheduled_rollouts", flag.Key, envName))
 				continue
 			}
 			if eval.DefaultAction == nil {
@@ -81,11 +81,6 @@ func validateReferences(doc *ffv1.FeatureFlagDocument) error {
 			if eval.DefaultAction != nil {
 				if err := validateActionRefs(doc, vs, eval.DefaultAction, true); err != nil {
 					errs = append(errs, fmt.Errorf("flag %q env %q: default action: %w", flag.Key, envName, err))
-				}
-			}
-			if eval.Experimentation != nil {
-				if err := validateExperimentation(eval.Experimentation); err != nil {
-					errs = append(errs, fmt.Errorf("flag %q env %q: experimentation: %w", flag.Key, envName, err))
 				}
 			}
 
@@ -297,21 +292,6 @@ func validateProgressiveRollout(variants *ffv1.VariantSet, rollout *ffv1.Progres
 	return nil
 }
 
-func validateExperimentation(exp *ffv1.Experimentation) error {
-	start, err := parseTimestamp(exp.Start)
-	if err != nil {
-		return fmt.Errorf("start: %w", err)
-	}
-	end, err := parseTimestamp(exp.End)
-	if err != nil {
-		return fmt.Errorf("end: %w", err)
-	}
-	if !start.Before(end) {
-		return fmt.Errorf("start must be before end")
-	}
-	return nil
-}
-
 func validateScheduledStep(doc *ffv1.FeatureFlagDocument, variants *ffv1.VariantSet, step *ffv1.ScheduledStep) error {
 	if step == nil {
 		return errors.New("scheduled step is required")
@@ -333,11 +313,6 @@ func validateScheduledStep(doc *ffv1.FeatureFlagDocument, variants *ffv1.Variant
 	if step.DefaultAction != nil {
 		if err := validateActionRefs(doc, variants, step.DefaultAction, false); err != nil {
 			return fmt.Errorf("default action: %w", err)
-		}
-	}
-	if step.Experimentation != nil {
-		if err := validateExperimentation(step.Experimentation); err != nil {
-			return fmt.Errorf("experimentation: %w", err)
 		}
 	}
 	return nil

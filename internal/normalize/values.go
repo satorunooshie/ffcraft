@@ -47,13 +47,6 @@ func normalizeAction(doc *ffv1.FeatureFlagDocument, action *ffv1.Action) (ast.Ac
 	}
 }
 
-func normalizeExperimentation(exp *ffv1.Experimentation) *ast.Experimentation {
-	if exp == nil {
-		return nil
-	}
-	return &ast.Experimentation{Start: exp.Start, End: exp.End}
-}
-
 func normalizeBinaryValues(left, right *ffv1.Value) (ast.Value, ast.Value, error) {
 	nleft, err := normalizeValue(left)
 	if err != nil {

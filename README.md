@@ -40,13 +40,11 @@ Supported today:
 - per-environment `serve`, `rules`, and `default_action`
 - `scheduled_rollouts`
 - `progressive_rollout`
-- authoring-only `experimentation` sugar (discarded before semantic IR)
 - comparison, logical, collection, string, and semver operators
 
 Current limitations:
 
 - YAML aliases and anchors are not supported
-- `experimentation` has no semantic IR representation and therefore does not affect either target
 
 ## Install
 
@@ -157,7 +155,6 @@ See [docs/ffcodegen.md](docs/ffcodegen.md) for configuration and usage.
 | Percentage rollout | `fractional` targeting | native `percentage` |
 | Progressive rollout | expanded at normalization into time-based steps | consumes scheduled IR snapshots |
 | Scheduled rollout | compiled into timestamp-ordered `if` chain | native `scheduledRollout` |
-| Experimentation sugar | discarded before semantic IR | discarded before semantic IR |
 | Mixed stickiness in one flag | allowed per action | rejected because `bucketingKey` is flag-scoped |
 
 For the full target notes, see [docs/compiler-targets.md](docs/compiler-targets.md).
@@ -171,7 +168,6 @@ fixtures for core behavior:
 - [rule-targeting](examples/rule-targeting): conditions and rules
 - [scheduled-rollouts](examples/scheduled-rollouts): scheduled snapshots
 - [progressive-rollouts](examples/progressive-rollouts): progressive rollout
-- [experimentation-rollouts](examples/experimentation-rollouts): authoring-only sugar
 - [extensions](examples/extensions): client/backend/team namespace ownership
 - [go-codegen](examples/go-codegen): typed Go code and runtime adapters
 

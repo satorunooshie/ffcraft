@@ -23,7 +23,7 @@ func TestValidate(t *testing.T) {
 		{name: "accepts valid document", file: "testdata/valid_document.yaml"},
 		{name: "rejects distribution unknown variant", file: "testdata/error_distribution_unknown_variant.yaml", wantErr: `distribution "rollout" references unknown variant "missing"`},
 		{name: "rejects default action unknown variant", file: "testdata/error_fallback_unknown_variant.yaml", wantErr: `default action: serve variant "missing" not found`},
-		{name: "rejects environment without branch", file: "testdata/error_environment_without_branch.yaml", wantErr: `rule_evaluation must define rules, default_action, experimentation, or scheduled_rollouts`},
+		{name: "rejects environment without branch", file: "testdata/error_environment_without_branch.yaml", wantErr: `rule_evaluation must define rules, default_action, or scheduled_rollouts`},
 		{name: "rejects environment without default action", file: "testdata/error_environment_missing_default_action.yaml", wantErr: `default_action is required`},
 		{name: "rejects rule cycle", file: "testdata/error_rule_cycle.yaml", wantErr: "rule cycle detected"},
 		{name: "rejects duplicate flag keys", file: "testdata/error_duplicate_flag_keys.yaml", wantErr: `duplicate flag key "duplicate"`},

@@ -87,9 +87,6 @@ func TestParseYAML(t *testing.T) {
 				if env.GetDefaultAction().GetProgressiveRollout() == nil {
 					t.Fatalf("unexpected default action: %#v", env.GetDefaultAction())
 				}
-				if env.GetExperimentation().GetStart() == "" || env.GetExperimentation().GetEnd() == "" {
-					t.Fatalf("expected experimentation, got %#v", env.GetExperimentation())
-				}
 				if len(env.GetScheduledRollouts()) != 3 {
 					t.Fatalf("expected three scheduled steps, got %d", len(env.GetScheduledRollouts()))
 				}

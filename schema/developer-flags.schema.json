@@ -438,19 +438,6 @@
         }
       }
     },
-    "experimentation": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["start", "end"],
-      "properties": {
-        "start": {
-          "$ref": "#/$defs/timestamp"
-        },
-        "end": {
-          "$ref": "#/$defs/timestamp"
-        }
-      }
-    },
     "serveAction": {
       "type": "object",
       "additionalProperties": false,
@@ -574,9 +561,6 @@
         "default_action": {
           "$ref": "#/$defs/action"
         },
-        "experimentation": {
-          "$ref": "#/$defs/experimentation"
-        }
       }
     },
     "ruleEvaluation": {
@@ -592,9 +576,6 @@
         "default_action": {
           "$ref": "#/$defs/action"
         },
-        "experimentation": {
-          "$ref": "#/$defs/experimentation"
-        },
         "scheduled_rollouts": {
           "type": "array",
           "items": {
@@ -608,9 +589,6 @@
         },
         {
           "required": ["default_action"]
-        },
-        {
-          "required": ["experimentation"]
         },
         {
           "required": ["scheduled_rollouts"]

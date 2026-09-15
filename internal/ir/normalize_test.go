@@ -147,8 +147,8 @@ func TestUnknownCoreFieldDiagnostic(t *testing.T) {
 	}
 }
 
-func TestAuthoringExperimentationIsConsumedBeforeIR(t *testing.T) {
-	doc, err := authoring.ParseYAML([]byte(`version: v1
+func TestAuthoringRejectsExperimentation(t *testing.T) {
+	_, err := authoring.ParseYAML([]byte(`version: v1
 variant_sets:
   values:
     on: true
@@ -164,15 +164,8 @@ flags:
         default_action:
           serve: on
 `))
-	if err != nil {
-		t.Fatal(err)
-	}
-	normalized, err := normalize.Normalize(doc)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, ok := normalized.Flags["experiment"].Environments["prod"].Base.DefaultAction.GetKind().(*irv1.Action_Serve); !ok {
-		t.Fatal("experiment authoring sugar changed the semantic default action")
+	if err == nil {
+		t.Fatal("experimentation must not be accepted by v1 authoring")
 	}
 }
 
