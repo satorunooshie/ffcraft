@@ -16,6 +16,8 @@ func TestParseYAMLCoreScalars(t *testing.T) {
 		wantErr string
 	}{
 		{name: "plain edge cases are strings", yaml: "yes", want: assertExtensionString("yes")},
+		{name: "yaml 1.2 boolean-like token is string", yaml: "ON", want: assertExtensionString("ON")},
+		{name: "date-like scalar is string", yaml: "2026-01-02", want: assertExtensionString("2026-01-02")},
 		{name: "leading zero is string", yaml: "01", want: assertExtensionString("01")},
 		{name: "hexadecimal is string", yaml: "0x10", want: assertExtensionString("0x10")},
 		{name: "decimal is double", yaml: "1.0", want: assertExtensionDouble(1)},
