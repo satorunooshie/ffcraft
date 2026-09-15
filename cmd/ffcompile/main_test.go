@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
+	irv1 "github.com/satorunooshie/ffcraft/gen/ffcraft/ir/v1"
 	"github.com/satorunooshie/ffcraft/internal/testhelper"
 )
 
@@ -224,6 +225,39 @@ func TestRun(t *testing.T) {
 			assertBufferMatchesFixture(t, stderr.Bytes(), tt.wantStderrFile, "stderr")
 			assertOutputFileMatchesFixture(t, outPath, tt.wantOutputFile)
 			assertDumpFileMatchesFixture(t, filepath.Join(filepath.Dir(outPath), "normalized.yaml"), tt.wantDumpFile)
+		})
+	}
+}
+
+func TestInputLoaderBoundaryContracts(t *testing.T) {
+	authoringPath := filepath.Join(t.TempDir(), "authoring.yaml")
+	if err := os.WriteFile(authoringPath, []byte("version: v1\nvariant_sets: {}\nflags: []\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	normalizedPath := filepath.Join(t.TempDir(), "normalized.yaml")
+	normalized, err := testdataFS.ReadFile("testdata/normalized.golden.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(normalizedPath, normalized, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	tests := []struct {
+		name string
+		load func(string) (*irv1.Document, error)
+		path string
+		want string
+	}{
+		{"authoring missing file", loadAuthoring, filepath.Join(t.TempDir(), "missing.yaml"), "read input"},
+		{"normalized missing file", loadNormalized, filepath.Join(t.TempDir(), "missing.yaml"), "read input"},
+		{"authoring invalid document", loadAuthoring, normalizedPath, "parse input"},
+		{"normalized invalid document", loadNormalized, authoringPath, "read normalized yaml"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if _, err := test.load(test.path); err == nil || !strings.Contains(err.Error(), test.want) {
+				t.Fatalf("loader error = %v, want %q", err, test.want)
+			}
 		})
 	}
 }
