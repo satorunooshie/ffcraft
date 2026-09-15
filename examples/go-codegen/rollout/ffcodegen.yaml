@@ -11,7 +11,9 @@ targets:
     accessors:
       experiment_rollout:
         name: ExperimentRollout
+        sdk_fallback_variant: control
         variant_type: ExperimentVariant
       homepage_theme:
         name: HomepageTheme
+        sdk_fallback_variant: default
         variant_type: HomepageThemeVariant

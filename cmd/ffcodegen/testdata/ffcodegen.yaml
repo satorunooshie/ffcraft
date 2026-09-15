@@ -11,3 +11,4 @@ targets:
     accessors:
       enable-new-home:
         name: EnableNewHome
+        sdk_fallback_variant: off

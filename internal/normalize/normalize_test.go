@@ -188,7 +188,7 @@ func TestNormalizeRejectsInvalidDistributionTable(t *testing.T) {
 	}
 }
 
-func TestNormalizeASTRetainsMatchesForTargetCapabilityValidation(t *testing.T) {
+func TestAuthoringRejectsMatches(t *testing.T) {
 	const source = `version: v1
 variant_sets:
   boolean:
@@ -206,12 +206,9 @@ flags:
         default_action:
           serve: off
 `
-	doc, err := authoring.ParseYAML([]byte(source))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := NormalizeAST(doc); err != nil {
-		t.Fatal(err)
+	_, err := authoring.ParseYAML([]byte(source))
+	if err == nil {
+		t.Fatal("matches must not be accepted by v1 authoring")
 	}
 }
 

@@ -24,8 +24,9 @@ func CompileIR(doc *irv1.Document, cfg Config) ([]byte, error) {
 }
 
 type AccessorConfig struct {
-	Name        string `yaml:"name"`
-	VariantType string `yaml:"variant_type"`
+	Name               string `yaml:"name"`
+	VariantType        string `yaml:"variant_type"`
+	SDKFallbackVariant string `yaml:"sdk_fallback_variant"`
 }
 
 type ContextFieldConfig struct {

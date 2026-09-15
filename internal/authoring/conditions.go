@@ -100,10 +100,6 @@ func parseConditionOperator(operator string, node *yaml.Node, path string) (*ffv
 		return parseValueStringCondition(node, path+".ends_with", func(target *ffv1.Value, literal string) *ffv1.Condition {
 			return &ffv1.Condition{Kind: &ffv1.Condition_EndsWith{EndsWith: &ffv1.EndsWith{Target: target, Suffix: literal}}}
 		})
-	case "matches":
-		return parseValueStringCondition(node, path+".matches", func(target *ffv1.Value, literal string) *ffv1.Condition {
-			return &ffv1.Condition{Kind: &ffv1.Condition_Matches{Matches: &ffv1.Matches{Target: target, Pattern: literal}}}
-		})
 	case "semver_gt":
 		return parseValueStringCondition(node, path+".semver_gt", func(target *ffv1.Value, literal string) *ffv1.Condition {
 			return &ffv1.Condition{Kind: &ffv1.Condition_SemverGt{SemverGt: &ffv1.SemverGt{Left: target, Right: literal}}}

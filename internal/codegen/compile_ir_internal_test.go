@@ -39,6 +39,25 @@ func TestIRVariantKindAndLiteralTables(t *testing.T) {
 	}
 }
 
+func TestCompileIRRejectsUnrepresentableEnvironmentAction(t *testing.T) {
+	doc := &irv1.Document{Flags: map[string]*irv1.Flag{"f": {
+		Variants: map[string]*irv1.VariantValue{
+			"on":  {Kind: &irv1.VariantValue_BoolValue{BoolValue: true}},
+			"off": {Kind: &irv1.VariantValue_BoolValue{BoolValue: false}},
+		},
+		Environments: map[string]*irv1.Environment{
+			"a": {Base: &irv1.Evaluation{DefaultAction: &irv1.Action{Kind: &irv1.Action_Serve{Serve: "off"}}}},
+			"b": {Base: &irv1.Evaluation{DefaultAction: &irv1.Action{Kind: &irv1.Action_Distribute{Distribute: &irv1.Distribution{
+				AllocationKey: &irv1.AttributePath{Segments: []string{"user", "id"}},
+				Weights:       map[string]uint32{"on": 1, "off": 1},
+			}}}}},
+		},
+	}}}
+	if _, err := CompileIR(doc, Config{PackageName: "generated"}); err == nil || !strings.Contains(err.Error(), "requires sdk_fallback_variant") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestIRCompileFlagContracts(t *testing.T) {
 	base := func(defaultVariant string) *irv1.Flag {
 		return &irv1.Flag{
@@ -51,7 +70,7 @@ func TestIRCompileFlagContracts(t *testing.T) {
 		source *irv1.Flag
 		want   string
 	}{
-		{"nil", nil, "variants are required"}, {"no variants", &irv1.Flag{Environments: map[string]*irv1.Environment{}}, "variants are required"}, {"no environments", &irv1.Flag{Variants: map[string]*irv1.VariantValue{"on": {Kind: &irv1.VariantValue_StringValue{StringValue: "on"}}}}, "environments are required"}, {"missing default", base("missing"), "default variant"},
+		{"nil", nil, "variants are required"}, {"no variants", &irv1.Flag{Environments: map[string]*irv1.Environment{}}, "variants are required"}, {"no environments", &irv1.Flag{Variants: map[string]*irv1.VariantValue{"on": {Kind: &irv1.VariantValue_StringValue{StringValue: "on"}}}}, "environments are required"}, {"missing fallback", base("on"), "requires sdk_fallback_variant"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			if _, err := compileIRFlag("f", test.source, AccessorConfig{}); err == nil || !strings.Contains(err.Error(), test.want) {
@@ -59,14 +78,11 @@ func TestIRCompileFlagContracts(t *testing.T) {
 			}
 		})
 	}
-	compiled, err := compileIRFlag("checkout", base("on"), AccessorConfig{Name: "CheckoutMode", VariantType: "CheckoutVariant"})
+	compiled, err := compileIRFlag("checkout", base("on"), AccessorConfig{Name: "CheckoutMode", VariantType: "CheckoutVariant", SDKFallbackVariant: "on"})
 	if err != nil || compiled.AccessorName != "CheckoutMode" || compiled.VariantType != "CheckoutVariant" || len(compiled.Variants) != 2 {
 		t.Fatalf("compiled flag = %#v, %v", compiled, err)
 	}
 	base("on").Environments["staging"] = &irv1.Environment{Base: &irv1.Evaluation{DefaultAction: &irv1.Action{Kind: &irv1.Action_Serve{Serve: "off"}}}}
-	if _, err := compileIRFlag("f", base("on"), AccessorConfig{}); err != nil {
-		t.Fatalf("same environment default unexpectedly failed = %v", err)
-	}
 }
 
 func TestIRContextConditionTraversal(t *testing.T) {

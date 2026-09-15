@@ -23,8 +23,8 @@ func TestCompileIRRejectsEnvironmentSpecificDefaults(t *testing.T) {
 		},
 	}}
 	_, err := CompileIR(doc, Config{PackageName: "flags"})
-	if err == nil || !strings.Contains(err.Error(), "environment-specific default variants") {
-		t.Fatalf("CompileIR() error = %v, want environment-specific default rejection", err)
+	if err == nil || !strings.Contains(err.Error(), "requires sdk_fallback_variant") {
+		t.Fatalf("CompileIR() error = %v, want explicit SDK fallback requirement", err)
 	}
 }
 
@@ -77,7 +77,7 @@ func TestCompileIRScansMatchingDefaultsAcrossEnvironments(t *testing.T) {
 			},
 		}}}
 
-	output, err := CompileIR(doc, Config{PackageName: "flags"})
+	output, err := CompileIR(doc, Config{PackageName: "flags", Accessors: map[string]AccessorConfig{"checkout": {SDKFallbackVariant: "off"}}})
 	if err != nil {
 		t.Fatal(err)
 	}

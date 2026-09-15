@@ -11,6 +11,8 @@ targets:
     accessors:
       enable-new-home:
         name: EnableNewHome
+        sdk_fallback_variant: off
       checkout-mode:
         name: CheckoutMode
         variant_type: CheckoutModeVariant
+        sdk_fallback_variant: control

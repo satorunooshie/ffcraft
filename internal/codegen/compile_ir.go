@@ -34,7 +34,14 @@ func compileIRDocument(doc *irv1.Document, cfg Config) ([]byte, error) {
 	}
 	flags := make([]compiledFlag, 0, len(doc.Flags))
 	for key, source := range doc.Flags {
-		compiled, err := compileIRFlag(key, source, cfg.Accessors[key])
+		accessor := cfg.Accessors[key]
+		// Preserve the direct-library API's historical behavior when no
+		// accessor configuration is supplied. Config-file based codegen must
+		// provide sdk_fallback_variant explicitly.
+		if cfg.Accessors == nil {
+			accessor = inferredLegacyAccessor(source)
+		}
+		compiled, err := compileIRFlag(key, source, accessor)
 		if err != nil {
 			return nil, fmt.Errorf("flag %q: %w", key, err)
 		}
@@ -56,6 +63,28 @@ func compileIRDocument(doc *irv1.Document, cfg Config) ([]byte, error) {
 		Flags:                   flags,
 	}
 	return renderTemplate(data)
+}
+
+func inferredLegacyAccessor(source *irv1.Flag) AccessorConfig {
+	if source == nil || len(source.Environments) == 0 {
+		return AccessorConfig{}
+	}
+	keys := make([]string, 0, len(source.Environments))
+	for key := range source.Environments {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	first, ok := source.Environments[keys[0]].Base.DefaultAction.GetKind().(*irv1.Action_Serve)
+	if !ok {
+		return AccessorConfig{}
+	}
+	for _, key := range keys[1:] {
+		serve, ok := source.Environments[key].Base.DefaultAction.GetKind().(*irv1.Action_Serve)
+		if !ok || serve.Serve != first.Serve {
+			return AccessorConfig{}
+		}
+	}
+	return AccessorConfig{SDKFallbackVariant: first.Serve}
 }
 
 func renderTemplate(data templateData) ([]byte, error) {
@@ -119,20 +148,12 @@ func compileIRFlag(key string, source *irv1.Flag, accessor AccessorConfig) (comp
 		variantNames = append(variantNames, name)
 	}
 	sort.Strings(variantNames)
-	baseEnvironment := firstIREnvironment(source.Environments)
-	serve, ok := baseEnvironment.Base.DefaultAction.GetKind().(*irv1.Action_Serve)
-	if !ok {
-		return compiledFlag{}, fmt.Errorf("codegen requires a base default_action.serve")
+	if accessor.SDKFallbackVariant == "" {
+		return compiledFlag{}, fmt.Errorf("codegen requires sdk_fallback_variant for flag %q", key)
 	}
-	for environmentName, environment := range source.Environments {
-		other, ok := environment.Base.DefaultAction.GetKind().(*irv1.Action_Serve)
-		if !ok || other.Serve != serve.Serve {
-			return compiledFlag{}, fmt.Errorf("codegen cannot represent environment-specific default variants for flag %q: environment %q serves %q, want %q", key, environmentName, other.Serve, serve.Serve)
-		}
-	}
-	defaultValue, ok := source.Variants[serve.Serve]
+	defaultValue, ok := source.Variants[accessor.SDKFallbackVariant]
 	if !ok {
-		return compiledFlag{}, fmt.Errorf("default variant %q not found", serve.Serve)
+		return compiledFlag{}, fmt.Errorf("sdk fallback variant %q not found", accessor.SDKFallbackVariant)
 	}
 	accessorName := accessor.Name
 	if accessorName == "" {
@@ -142,7 +163,7 @@ func compileIRFlag(key string, source *irv1.Flag, accessor AccessorConfig) (comp
 		Key:                  key,
 		AccessorName:         accessorName,
 		ConstName:            "Flag" + accessorName,
-		DefaultVariant:       serve.Serve,
+		DefaultVariant:       accessor.SDKFallbackVariant,
 		DefaultLiteral:       goLiteralIR(defaultValue),
 		Kind:                 variantKind,
 		UsesContext:          flagIRUsesContext(source),
@@ -160,15 +181,6 @@ func compileIRFlag(key string, source *irv1.Flag, accessor AccessorConfig) (comp
 		}
 	}
 	return compiled, nil
-}
-
-func firstIREnvironment(environments map[string]*irv1.Environment) *irv1.Environment {
-	keys := make([]string, 0, len(environments))
-	for key := range environments {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-	return environments[keys[0]]
 }
 
 func variantKindIR(variants map[string]*irv1.VariantValue) (flagKind, error) {

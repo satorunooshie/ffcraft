@@ -57,12 +57,6 @@ func normalizeCondition(doc *ffv1.FeatureFlagDocument, cond *ffv1.Condition) (as
 			return nil, err
 		}
 		return &ast.EndsWith{Target: target, Suffix: kind.EndsWith.Suffix}, nil
-	case *ffv1.Condition_Matches:
-		target, err := normalizeValue(kind.Matches.Target)
-		if err != nil {
-			return nil, err
-		}
-		return &ast.Matches{Target: target, Pattern: kind.Matches.Pattern}, nil
 	case *ffv1.Condition_SemverGt:
 		return normalizeSemverCondition(kind.SemverGt.Left, kind.SemverGt.Right, func(left ast.Value, right string) ast.Condition {
 			return &ast.SemverGt{Left: left, Right: right}

@@ -32,7 +32,7 @@ func TestValidate(t *testing.T) {
 		{name: "rejects bad distribution sum", file: "testdata/error_bad_distribution_sum.yaml", wantErr: `distribution "bad_rollout": allocation total must equal 100`},
 		{name: "rejects normalize rule cycle fixture", file: "testdata/error_rule_cycle_normalize.yaml", wantErr: "rule cycle detected"},
 		{name: "rejects invalid progressive rollout", file: "testdata/error_invalid_progressive_rollout.yaml", wantErr: `variant "missing" not found`},
-		{name: "rejects progressive rollout with zero steps", file: "testdata/error_progressive_rollout_zero_steps.yaml", wantErr: `steps: must be greater than or equal to 1`},
+		{name: "rejects progressive rollout with zero steps", file: "testdata/error_progressive_rollout_zero_steps.yaml", wantErr: `must be between 1 and 1024`},
 		{name: "rejects progressive rollout invalid window", file: "testdata/error_progressive_rollout_invalid_window.yaml", wantErr: `start must be before end`},
 		{name: "rejects progressive rollout in rule action", file: "testdata/error_progressive_rollout_in_rule.yaml", wantErr: `progressive_rollout is only supported in default_action`},
 		{name: "rejects targetingKey stickiness", file: "testdata/error_targeting_key_stickiness.yaml", wantErr: `stickiness "targetingKey" is not supported`},
@@ -51,6 +51,9 @@ func TestValidate(t *testing.T) {
 			}
 			doc, err := authoring.ParseYAML(src)
 			if err != nil {
+				if tt.wantErr != "" && strings.Contains(err.Error(), tt.wantErr) {
+					return
+				}
 				t.Fatalf("parse failed: %v", err)
 			}
 

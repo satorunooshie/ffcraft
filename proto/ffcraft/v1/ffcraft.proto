@@ -282,7 +282,6 @@ message Condition {
     Contains contains = 9;
     StartsWith starts_with = 10;
     EndsWith ends_with = 11;
-    Matches matches = 12;
     SemverGt semver_gt = 13;
     SemverGte semver_gte = 14;
     SemverLt semver_lt = 15;
@@ -378,14 +377,6 @@ message EndsWith {
   string suffix = 2 [
     (buf.validate.field).required = true,
     (buf.validate.field).string.max_len = 256
-  ];
-}
-
-message Matches {
-  Value target = 1 [(buf.validate.field).required = true];
-  string pattern = 2 [
-    (buf.validate.field).required = true,
-    (buf.validate.field).string.max_len = 1024
   ];
 }
 

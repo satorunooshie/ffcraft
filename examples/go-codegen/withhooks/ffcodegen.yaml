@@ -11,3 +11,4 @@ targets:
     accessors:
       show_sample_banner:
         name: ShowSampleBanner
+        sdk_fallback_variant: off

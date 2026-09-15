@@ -407,6 +407,9 @@ func parseProgressiveRollout(node *yaml.Node, path string) (*ffv1.ProgressiveRol
 		if err != nil {
 			return nil, err
 		}
+		if value < 1 || value > 1024 {
+			return nil, fmt.Errorf("%s.steps: must be between 1 and 1024", path)
+		}
 		out.Steps = uint32(value)
 	}
 	return out, nil

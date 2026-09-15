@@ -351,16 +351,6 @@
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["matches"],
-          "properties": {
-            "matches": {
-              "$ref": "#/$defs/valueAndStringOperands"
-            }
-          }
-        },
-        {
-          "type": "object",
-          "additionalProperties": false,
           "required": ["semver_gt"],
           "properties": {
             "semver_gt": {
