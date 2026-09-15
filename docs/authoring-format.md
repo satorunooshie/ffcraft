@@ -327,7 +327,6 @@ At minimum, `ffcompile` validates:
 - distribution totals equal `100`
 - distribution allocation keys exist in the target `variant_set`
 - rule cycle detection
-- `metadata.expiry` matches `YYYY-MM-DD`
 - `scheduled_rollouts` are ascending by date with no duplicates
 - `scheduled_rollouts[].default_action` is present
 - `progressive_rollout.steps > 0`
