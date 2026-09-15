@@ -237,6 +237,11 @@ func TestV1CompilerOutputIgnoresExtensions(t *testing.T) {
 					assertUnsupportedPresence(t, withoutErr)
 					continue
 				}
+				if environmentHasSemverCondition(withExtensions, environment) {
+					assertUnsupportedSemver(t, err)
+					assertUnsupportedSemver(t, withoutErr)
+					continue
+				}
 				if err != nil || withoutErr != nil {
 					t.Fatalf("flagd environment %q: with extensions: %v, without extensions: %v", environment, err, withoutErr)
 				}
@@ -287,8 +292,16 @@ func fixtureEnvironments(doc *irv1.Document) []string {
 func assertUnsupportedPresence(t *testing.T, err error) {
 	t.Helper()
 	var unsupported *capability.UnsupportedConditionError
-	if !errors.As(err, &unsupported) || unsupported.Code() != capability.UnsupportedConditionCode {
+	if !errors.Is(err, capability.ErrUnsupportedCondition) || !errors.As(err, &unsupported) {
 		t.Fatalf("error = %v, want unsupported presence diagnostic", err)
+	}
+}
+
+func assertUnsupportedSemver(t *testing.T, err error) {
+	t.Helper()
+	var unsupported *capability.UnsupportedConditionError
+	if !errors.Is(err, capability.ErrUnsupportedCondition) || !errors.As(err, &unsupported) || unsupported.Condition != capability.ConditionSemver {
+		t.Fatalf("error = %v, want unsupported semver diagnostic", err)
 	}
 }
 
@@ -304,6 +317,68 @@ func hasPresenceCondition(doc *irv1.Document) bool {
 				}
 			}
 		}
+	}
+	return false
+}
+
+func hasSemverCondition(doc *irv1.Document) bool {
+	for _, flag := range doc.Flags {
+		for _, environment := range flag.Environments {
+			if evaluationHasSemver(environment.Base) {
+				return true
+			}
+			for _, scheduled := range environment.Schedule {
+				if evaluationHasSemver(scheduled.Evaluation) {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+func environmentHasSemverCondition(doc *irv1.Document, name string) bool {
+	for _, flag := range doc.Flags {
+		environment, ok := flag.Environments[name]
+		if !ok {
+			continue
+		}
+		if evaluationHasSemver(environment.Base) {
+			return true
+		}
+		for _, scheduled := range environment.Schedule {
+			if evaluationHasSemver(scheduled.Evaluation) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func evaluationHasSemver(evaluation *irv1.Evaluation) bool {
+	if evaluation == nil {
+		return false
+	}
+	for _, rule := range evaluation.Rules {
+		if conditionHasSemver(rule.Condition) {
+			return true
+		}
+	}
+	return false
+}
+
+func conditionHasSemver(condition *irv1.Condition) bool {
+	switch kind := condition.GetKind().(type) {
+	case *irv1.Condition_SemverComparison:
+		return true
+	case *irv1.Condition_Logical:
+		for _, child := range kind.Logical.Conditions {
+			if conditionHasSemver(child) {
+				return true
+			}
+		}
+	case *irv1.Condition_Negation:
+		return conditionHasSemver(kind.Negation)
 	}
 	return false
 }
@@ -466,10 +541,7 @@ func TestV1TargetCompilersFailClosedForUnrepresentablePresence(t *testing.T) {
 			if !errors.As(err, &capabilityError) {
 				t.Fatalf("error = %v, want UnsupportedConditionError", err)
 			}
-			if capabilityError.Code() != capability.UnsupportedConditionCode {
-				t.Fatalf("diagnostic code = %q, want %q", capabilityError.Code(), capability.UnsupportedConditionCode)
-			}
-			if err == nil {
+			if !errors.Is(err, capability.ErrUnsupportedCondition) || capabilityError.Condition != capability.ConditionPresence {
 				t.Fatal("expected unsupported presence condition to fail closed")
 			}
 		})
@@ -497,7 +569,7 @@ func TestV1ConditionCapabilityMatrixIsConnectedToCompilers(t *testing.T) {
 				}
 				return
 			}
-			if !errors.As(err, &unsupported) || unsupported.Code() != capability.UnsupportedConditionCode {
+			if !errors.Is(err, capability.ErrUnsupportedCondition) || !errors.As(err, &unsupported) {
 				t.Fatalf("error = %v, want %s", err, capability.UnsupportedConditionCode)
 			}
 		})
@@ -536,6 +608,7 @@ func TestV1RuntimeSemanticFixtures(t *testing.T) {
 
 	withoutPresence := proto.Clone(doc).(*irv1.Document)
 	delete(withoutPresence.Flags, "null_and_presence")
+	delete(withoutPresence.Flags, "semver_runtime")
 	for _, target := range []struct {
 		name string
 		call func(*irv1.Document) ([]byte, error)
@@ -614,6 +687,10 @@ func TestV1MultiEnvironmentScheduleSemantics(t *testing.T) {
 				}},
 			} {
 				output, err := target.call(doc, test.env)
+				if target.name == "flagd" && test.env == "staging" {
+					assertUnsupportedSemver(t, err)
+					continue
+				}
 				if err != nil {
 					t.Fatalf("%s compile: %v", target.name, err)
 				}
@@ -863,8 +940,8 @@ func TestV1AuthoringDistributionCanonicalizationReachesTargets(t *testing.T) {
 		t.Fatal(err)
 	}
 	fractional := flagdDocument.Flags["gcd-rollout"].Targeting["if"].([]any)[1].(map[string]any)["fractional"].([]any)
-	bucketExpression := fractional[0].(map[string]any)["cat"].([]any)
-	if got := bucketExpression[1].(map[string]any)["var"]; got != "user.id" {
+	bucketExpression := fractional[0].(map[string]any)
+	if got := bucketExpression["var"]; got != "user.id" {
 		t.Fatalf("flagd allocation key = %#v, want user.id", got)
 	}
 	if got := fractional[1].([]any); got[0] != "off" || got[1] != float64(9) {

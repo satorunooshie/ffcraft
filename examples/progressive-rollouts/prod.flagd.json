@@ -55,16 +55,7 @@
                   "on",
                   {
                     "fractional": [
-                      {
-                        "cat": [
-                          {
-                            "var": "$flagd.flagKey"
-                          },
-                          {
-                            "var": "user.id"
-                          }
-                        ]
-                      },
+                      {"var": "user.id"},
                       [
                         "off",
                         25
@@ -100,16 +91,7 @@
                       "on",
                       {
                         "fractional": [
-                          {
-                            "cat": [
-                              {
-                                "var": "$flagd.flagKey"
-                              },
-                              {
-                                "var": "user.id"
-                              }
-                            ]
-                          },
+                          {"var": "user.id"},
                           [
                             "off",
                             50
@@ -145,16 +127,7 @@
                           "on",
                           {
                             "fractional": [
-                              {
-                                "cat": [
-                                  {
-                                    "var": "$flagd.flagKey"
-                                  },
-                                  {
-                                    "var": "user.id"
-                                  }
-                                ]
-                              },
+                              {"var": "user.id"},
                               [
                                 "off",
                                 75

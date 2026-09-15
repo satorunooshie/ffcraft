@@ -27,7 +27,6 @@ func TestIRConditionOperatorTable(t *testing.T) {
 		{"contains", &irv1.Condition{Kind: &irv1.Condition_StringMatch{StringMatch: &irv1.StringMatchCondition{Operator: irv1.StringMatchOperator_STRING_MATCH_OPERATOR_CONTAINS, Attribute: a, Literal: "be"}}}, "in"},
 		{"starts", &irv1.Condition{Kind: &irv1.Condition_StringMatch{StringMatch: &irv1.StringMatchCondition{Operator: irv1.StringMatchOperator_STRING_MATCH_OPERATOR_STARTS_WITH, Attribute: a, Literal: "be"}}}, "starts_with"},
 		{"ends", &irv1.Condition{Kind: &irv1.Condition_StringMatch{StringMatch: &irv1.StringMatchCondition{Operator: irv1.StringMatchOperator_STRING_MATCH_OPERATOR_ENDS_WITH, Attribute: a, Literal: "ta"}}}, "ends_with"},
-		{"semver", &irv1.Condition{Kind: &irv1.Condition_SemverComparison{SemverComparison: &irv1.SemVerComparisonCondition{Operator: irv1.SemVerComparisonOperator_SEM_VER_COMPARISON_OPERATOR_LT, Attribute: a, Semver: "2.0.0"}}}, "sem_ver"},
 		{"all", irLogical(irv1.LogicalOperator_LOGICAL_OPERATOR_ALL), "and"}, {"any", irLogical(irv1.LogicalOperator_LOGICAL_OPERATOR_ANY), "or"}, {"exactly one", irLogical(irv1.LogicalOperator_LOGICAL_OPERATOR_EXACTLY_ONE), "or"},
 		{"not", &irv1.Condition{Kind: &irv1.Condition_Negation{Negation: &irv1.Condition{Kind: &irv1.Condition_Constant{Constant: true}}}}, "!"},
 	}
@@ -46,6 +45,7 @@ func TestIRConditionOperatorTable(t *testing.T) {
 	}{
 		{"nil", nil, "condition is required"}, {"unset", &irv1.Condition{}, "unsupported IR condition"},
 		{"presence", &irv1.Condition{Kind: &irv1.Condition_Presence{Presence: &irv1.PresenceCondition{Attribute: a}}}, "presence"},
+		{"semver", &irv1.Condition{Kind: &irv1.Condition_SemverComparison{SemverComparison: &irv1.SemVerComparisonCondition{Operator: irv1.SemVerComparisonOperator_SEM_VER_COMPARISON_OPERATOR_LT, Attribute: a, Semver: "2.0.0"}}}, "semver_comparison"},
 		{"inequality", &irv1.Condition{Kind: &irv1.Condition_Equality{Equality: &irv1.EqualityCondition{Operator: irv1.EqualityOperator_EQUALITY_OPERATOR_NE, Attribute: a, Literal: s}}}, "inequality"},
 		{"unknown string", &irv1.Condition{Kind: &irv1.Condition_StringMatch{StringMatch: &irv1.StringMatchCondition{Attribute: a, Operator: irv1.StringMatchOperator(99)}}}, "unsupported string match"},
 		{"unknown logical", &irv1.Condition{Kind: &irv1.Condition_Logical{Logical: &irv1.LogicalCondition{Operator: irv1.LogicalOperator(99)}}}, "unsupported logical"},

@@ -2,13 +2,13 @@ numeric-object-list-safe:
     variations:
         object_list_safe:
             ids:
-                - 9.007199254740991e+15
+                - 9007199254740991
     defaultRule:
         variation: object_list_safe
 numeric-object-safe:
     variations:
         object_safe:
-            id: 9.007199254740991e+15
+            id: 9007199254740991
     defaultRule:
         variation: object_safe
 starter-badges:

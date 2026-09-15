@@ -4,8 +4,8 @@ checkout-mode:
         treatment: treatment
     defaultRule:
         percentage:
-            control: 50
-            treatment: 50
+            control: 1
+            treatment: 1
     bucketingKey: user.id
 enable-new-home:
     variations:

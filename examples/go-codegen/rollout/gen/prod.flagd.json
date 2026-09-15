@@ -11,24 +11,27 @@
       "targeting": {
         "if": [
           {
-            "==": [
+            "if": [
               {
-                "var": "user.type"
+                "missing": [
+                  "user.type"
+                ]
               },
-              "internal"
+              false,
+              {
+                "===": [
+                  {
+                    "var": "user.type"
+                  },
+                  "internal"
+                ]
+              }
             ]
           },
           {
             "fractional": [
               {
-                "cat": [
-                  {
-                    "var": "$flagd.flagKey"
-                  },
-                  {
-                    "var": "user.id"
-                  }
-                ]
+                "var": "user.id"
               },
               [
                 "control",
@@ -55,36 +58,39 @@
       "targeting": {
         "if": [
           {
-            "==": [
+            "if": [
               {
-                "var": "user.country"
+                "missing": [
+                  "user.country"
+                ]
               },
-              "JP"
+              false,
+              {
+                "===": [
+                  {
+                    "var": "user.country"
+                  },
+                  "JP"
+                ]
+              }
             ]
           },
           {
             "fractional": [
               {
-                "cat": [
-                  {
-                    "var": "$flagd.flagKey"
-                  },
-                  {
-                    "var": "user.id"
-                  }
-                ]
+                "var": "user.id"
               },
               [
                 "default",
-                50
+                5
               ],
               [
                 "high_contrast",
-                10
+                1
               ],
               [
                 "modern",
-                40
+                4
               ]
             ]
           },

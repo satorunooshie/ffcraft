@@ -20,8 +20,8 @@ homepage_theme:
     targeting:
         - query: user.country eq "JP"
           percentage:
-            default: 50
-            high_contrast: 10
-            modern: 40
+            default: 5
+            high_contrast: 1
+            modern: 4
     bucketingKey: user.id
 

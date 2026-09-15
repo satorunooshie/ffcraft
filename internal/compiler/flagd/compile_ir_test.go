@@ -36,7 +36,7 @@ func TestCompileIRDirectSemanticSurface(t *testing.T) {
 				"targeting": map[string]any{"if": []any{
 					map[string]any{">=": []any{map[string]any{"var": "$flagd.timestamp"}, float64(1767225600)}},
 					map[string]any{"fractional": []any{
-						map[string]any{"cat": []any{map[string]any{"var": "$flagd.flagKey"}, map[string]any{"var": "user.id"}}},
+						map[string]any{"var": "user.id"},
 						[]any{"off", float64(1)},
 						[]any{"on", float64(2)},
 					}},
@@ -51,6 +51,33 @@ func TestCompileIRDirectSemanticSurface(t *testing.T) {
 	}
 	if !reflect.DeepEqual(decoded, want) {
 		t.Fatalf("compiled flagd structure = %#v, want %#v", decoded, want)
+	}
+}
+
+func TestCompileIRSupportsBaseDistributionWithoutDefaultVariant(t *testing.T) {
+	doc := &irv1.Document{Flags: map[string]*irv1.Flag{"distributed": {
+		Variants: map[string]*irv1.VariantValue{
+			"off": {Kind: &irv1.VariantValue_BoolValue{BoolValue: false}},
+			"on":  {Kind: &irv1.VariantValue_BoolValue{BoolValue: true}},
+		},
+		Environments: map[string]*irv1.Environment{"prod": {Base: &irv1.Evaluation{DefaultAction: &irv1.Action{Kind: &irv1.Action_Distribute{Distribute: &irv1.Distribution{
+			AllocationKey: &irv1.AttributePath{Segments: []string{"user", "id"}}, Weights: map[string]uint32{"off": 1, "on": 1},
+		}}}}}},
+	}}}
+	output, _, err := CompileIR(doc, "prod", CompileOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var decoded map[string]any
+	if err := json.Unmarshal(output, &decoded); err != nil {
+		t.Fatal(err)
+	}
+	flag := decoded["flags"].(map[string]any)["distributed"].(map[string]any)
+	if _, ok := flag["defaultVariant"]; ok {
+		t.Fatal("base distribution must not require defaultVariant")
+	}
+	if flag["targeting"] == nil {
+		t.Fatal("base distribution must be emitted as targeting")
 	}
 }
 

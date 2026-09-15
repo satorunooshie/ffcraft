@@ -29,13 +29,9 @@ func compileIRDocument(doc *irv1.Document, environment string, opts CompileOptio
 			return nil, nil, fmt.Errorf("flag %q: environment %q not found", key, environment)
 		}
 		compiled := &flag{State: "ENABLED", Variants: compileIRVariants(source.Variants)}
-		baseVariant, err := compileIRServeVariant(env.Base.DefaultAction)
-		if err == nil && len(env.Base.Rules) == 0 && len(env.Schedule) == 0 {
-			compiled.DefaultVariant = baseVariant
-		} else if err == nil {
-			compiled.DefaultVariant = baseVariant
-		} else {
-			return nil, nil, fmt.Errorf("flag %q: %w", key, err)
+		var err error
+		if baseVariant, ok := env.Base.DefaultAction.GetKind().(*irv1.Action_Serve); ok {
+			compiled.DefaultVariant = baseVariant.Serve
 		}
 		if len(env.Base.Rules) > 0 || len(env.Schedule) > 0 {
 			compiled.Targeting, err = compileIREnvironment(env)
@@ -140,10 +136,7 @@ func compileIRAction(action *irv1.Action) (any, error) {
 		}
 		sort.Strings(keys)
 		fractional := make([]any, 0, len(keys)+1)
-		fractional = append(fractional, map[string]any{"cat": []any{
-			map[string]any{"var": "$flagd.flagKey"},
-			map[string]any{"var": strings.Join(kind.Distribute.AllocationKey.Segments, ".")},
-		}})
+		fractional = append(fractional, map[string]any{"var": strings.Join(kind.Distribute.AllocationKey.Segments, ".")})
 		for _, key := range keys {
 			fractional = append(fractional, []any{key, kind.Distribute.Weights[key]})
 		}
@@ -184,16 +177,7 @@ func compileIRCondition(condition *irv1.Condition) (any, error) {
 		}
 		return map[string]any{operator: []any{compileIRVar(kind.StringMatch.Attribute), kind.StringMatch.Literal}}, nil
 	case *irv1.Condition_SemverComparison:
-		operator, ok := map[irv1.SemVerComparisonOperator]string{
-			irv1.SemVerComparisonOperator_SEM_VER_COMPARISON_OPERATOR_GT:  ">",
-			irv1.SemVerComparisonOperator_SEM_VER_COMPARISON_OPERATOR_GTE: ">=",
-			irv1.SemVerComparisonOperator_SEM_VER_COMPARISON_OPERATOR_LT:  "<",
-			irv1.SemVerComparisonOperator_SEM_VER_COMPARISON_OPERATOR_LTE: "<=",
-		}[kind.SemverComparison.Operator]
-		if !ok {
-			return nil, fmt.Errorf("unsupported semver comparison operator")
-		}
-		return map[string]any{"sem_ver": []any{compileIRVar(kind.SemverComparison.Attribute), operator, kind.SemverComparison.Semver}}, nil
+		return nil, &capability.UnsupportedConditionError{Target: capability.TargetFlagd, Condition: capability.ConditionSemver}
 	case *irv1.Condition_Presence:
 		return nil, &capability.UnsupportedConditionError{Target: capability.TargetFlagd, Condition: capability.ConditionPresence}
 	case *irv1.Condition_Logical:

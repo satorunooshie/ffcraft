@@ -12,7 +12,7 @@ type document struct {
 type flag struct {
 	State          string         `json:"state"`
 	Variants       map[string]any `json:"variants"`
-	DefaultVariant string         `json:"defaultVariant"`
+	DefaultVariant string         `json:"defaultVariant,omitempty"`
 	Targeting      any            `json:"targeting,omitempty"`
 }
 
