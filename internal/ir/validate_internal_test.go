@@ -60,6 +60,31 @@ func TestValidateRejectsUnknownConditionEnums(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsNilOneofPayloads(t *testing.T) {
+	tests := []struct {
+		name  string
+		check func() error
+		want  string
+	}{
+		{"equality", func() error { return validateCondition(&irv1.Condition{Kind: &irv1.Condition_Equality{}}) }, "equality condition is nil"},
+		{"numeric", func() error { return validateCondition(&irv1.Condition{Kind: &irv1.Condition_NumericComparison{}}) }, "numeric comparison condition is nil"},
+		{"membership", func() error { return validateCondition(&irv1.Condition{Kind: &irv1.Condition_Membership{}}) }, "membership condition is nil"},
+		{"string match", func() error { return validateCondition(&irv1.Condition{Kind: &irv1.Condition_StringMatch{}}) }, "string match condition is nil"},
+		{"semver", func() error { return validateCondition(&irv1.Condition{Kind: &irv1.Condition_SemverComparison{}}) }, "semver comparison condition is nil"},
+		{"presence", func() error { return validateCondition(&irv1.Condition{Kind: &irv1.Condition_Presence{}}) }, "presence condition is nil"},
+		{"logical", func() error { return validateCondition(&irv1.Condition{Kind: &irv1.Condition_Logical{}}) }, "logical condition is nil"},
+		{"object variant", func() error { return validateVariant(&irv1.VariantValue{Kind: &irv1.VariantValue_ObjectValue{}}) }, "object value is nil"},
+		{"list variant", func() error { return validateVariant(&irv1.VariantValue{Kind: &irv1.VariantValue_ListValue{}}) }, "list value is nil"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if err := test.check(); err == nil || !strings.Contains(err.Error(), test.want) {
+				t.Fatalf("validation error = %v, want %q", err, test.want)
+			}
+		})
+	}
+}
+
 func TestValidateValueAndExtensionContracts(t *testing.T) {
 	tests := []struct {
 		name  string

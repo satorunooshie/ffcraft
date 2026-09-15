@@ -175,11 +175,17 @@ func validateConditionDepth(condition *irv1.Condition, depth int) error {
 	case *irv1.Condition_Constant:
 		return nil
 	case *irv1.Condition_Equality:
+		if kind.Equality == nil {
+			return fmt.Errorf("equality condition is nil")
+		}
 		if !validEqualityOperator(kind.Equality.Operator) {
 			return fmt.Errorf("unsupported equality operator %d", kind.Equality.Operator)
 		}
 		return validateAttributeLiteral(kind.Equality.Attribute, kind.Equality.Literal)
 	case *irv1.Condition_NumericComparison:
+		if kind.NumericComparison == nil {
+			return fmt.Errorf("numeric comparison condition is nil")
+		}
 		if !validNumericComparisonOperator(kind.NumericComparison.Operator) {
 			return fmt.Errorf("unsupported numeric comparison operator %d", kind.NumericComparison.Operator)
 		}
@@ -190,6 +196,9 @@ func validateConditionDepth(condition *irv1.Condition, depth int) error {
 			return fmt.Errorf("numeric comparison literal is not finite")
 		}
 	case *irv1.Condition_Membership:
+		if kind.Membership == nil {
+			return fmt.Errorf("membership condition is nil")
+		}
 		if kind.Membership.Attribute == nil || kind.Membership.Literals == nil || len(kind.Membership.Literals.Values) == 0 {
 			return fmt.Errorf("membership is incomplete")
 		}
@@ -197,6 +206,9 @@ func validateConditionDepth(condition *irv1.Condition, depth int) error {
 			return err
 		}
 	case *irv1.Condition_StringMatch:
+		if kind.StringMatch == nil {
+			return fmt.Errorf("string match condition is nil")
+		}
 		if !validStringMatchOperator(kind.StringMatch.Operator) {
 			return fmt.Errorf("unsupported string match operator %d", kind.StringMatch.Operator)
 		}
@@ -204,6 +216,9 @@ func validateConditionDepth(condition *irv1.Condition, depth int) error {
 			return fmt.Errorf("string match attribute is required")
 		}
 	case *irv1.Condition_SemverComparison:
+		if kind.SemverComparison == nil {
+			return fmt.Errorf("semver comparison condition is nil")
+		}
 		if !validSemverComparisonOperator(kind.SemverComparison.Operator) {
 			return fmt.Errorf("unsupported semver comparison operator %d", kind.SemverComparison.Operator)
 		}
@@ -214,10 +229,16 @@ func validateConditionDepth(condition *irv1.Condition, depth int) error {
 			return fmt.Errorf("invalid SemVer literal %q", kind.SemverComparison.Semver)
 		}
 	case *irv1.Condition_Presence:
+		if kind.Presence == nil {
+			return fmt.Errorf("presence condition is nil")
+		}
 		if kind.Presence.Attribute == nil {
 			return fmt.Errorf("presence attribute is required")
 		}
 	case *irv1.Condition_Logical:
+		if kind.Logical == nil {
+			return fmt.Errorf("logical condition is nil")
+		}
 		if !validLogicalOperator(kind.Logical.Operator) {
 			return fmt.Errorf("unsupported logical operator %d", kind.Logical.Operator)
 		}
@@ -303,6 +324,9 @@ func validateVariantDepth(value *irv1.VariantValue, depth int) error {
 			return fmt.Errorf("double is not finite")
 		}
 	case *irv1.VariantValue_ObjectValue:
+		if kind.ObjectValue == nil {
+			return fmt.Errorf("object value is nil")
+		}
 		for name, child := range kind.ObjectValue.Fields {
 			if name == "" {
 				return fmt.Errorf("object key is empty")
@@ -312,6 +336,9 @@ func validateVariantDepth(value *irv1.VariantValue, depth int) error {
 			}
 		}
 	case *irv1.VariantValue_ListValue:
+		if kind.ListValue == nil {
+			return fmt.Errorf("list value is nil")
+		}
 		for _, child := range kind.ListValue.Values {
 			if err := validateVariantDepth(child, depth+1); err != nil {
 				return err
