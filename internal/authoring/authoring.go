@@ -378,6 +378,15 @@ func parseActionNode(node *yaml.Node, path string) (*ffv1.Action, error) {
 }
 
 func parseActionMap(fields map[string]*yaml.Node, path string) (*ffv1.Action, error) {
+	count := 0
+	for _, name := range []string{"serve", "distribute", "progressive_rollout"} {
+		if fields[name] != nil {
+			count++
+		}
+	}
+	if count > 1 {
+		return nil, fmt.Errorf("%s: exactly one of serve, distribute, or progressive_rollout is allowed", path)
+	}
 	if serveNode := fields["serve"]; serveNode != nil {
 		variant, err := scalarString(serveNode, path+".serve")
 		if err != nil {
