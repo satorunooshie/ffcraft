@@ -134,6 +134,32 @@ flags:
 	}
 }
 
+func TestNormalizeRejectsInvalidDistributionTable(t *testing.T) {
+	tests := []struct {
+		name        string
+		variants    string
+		allocations string
+		want        string
+	}{
+		{"floating point weight", "on: true\n    off: false", "on: 50.5\n      off: 49.5", "positive integer"},
+		{"zero weight", "on: true\n    off: false", "on: 0\n      off: 100", "positive integer"},
+		{"one entry", "on: true", "on: 100", "map must be at least 2 entries"},
+		{"unknown variant", "on: true\n    off: false", "on: 50\n      off: 25\n      missing: 25", "unknown variant"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			source := "version: v1\nvariant_sets:\n  values:\n    " + test.variants + "\ndistributions:\n  rollout:\n    stickiness: user.id\n    allocations:\n      " + test.allocations + "\nflags:\n  - key: invalid\n    variant_set: values\n    default_variant: on\n    environments:\n      prod:\n        default_action:\n          distribute: rollout\n"
+			doc, err := authoring.ParseYAML([]byte(source))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := Normalize(doc); err == nil || !strings.Contains(err.Error(), test.want) {
+				t.Fatalf("Normalize() error = %v, want %q", err, test.want)
+			}
+		})
+	}
+}
+
 func TestNormalizeASTRetainsMatchesForTargetCapabilityValidation(t *testing.T) {
 	const source = `version: v1
 variant_sets:
