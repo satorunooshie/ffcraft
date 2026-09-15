@@ -256,7 +256,7 @@ func compileIRBinary(attribute *irv1.AttributePath, literal *irv1.ScalarValue, o
 	}
 	comparison := map[string]any{"===": []any{compileIRVar(attribute), compileIRScalar(literal)}}
 	if operator == "==" {
-		return map[string]any{"if": []any{map[string]any{"missing": []any{strings.Join(attribute.Segments, ".")}}, false, comparison["==="]}}, nil
+		return map[string]any{"if": []any{map[string]any{"missing": []any{strings.Join(attribute.Segments, ".")}}, false, comparison}}, nil
 	}
 	return map[string]any{"if": []any{map[string]any{"missing": []any{strings.Join(attribute.Segments, ".")}}, false, map[string]any{"!==": []any{compileIRVar(attribute), compileIRScalar(literal)}}}}, nil
 }

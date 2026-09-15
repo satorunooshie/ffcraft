@@ -41,7 +41,7 @@ func TestCompileIRDirectSemanticSurface(t *testing.T) {
 						[]any{"on", float64(2)},
 					}},
 					map[string]any{"if": []any{
-						map[string]any{"if": []any{map[string]any{"missing": []any{"user.segment"}}, false, []any{map[string]any{"var": "user.segment"}, "beta"}}},
+						map[string]any{"if": []any{map[string]any{"missing": []any{"user.segment"}}, false, map[string]any{"===": []any{map[string]any{"var": "user.segment"}, "beta"}}}},
 						"on",
 						"off",
 					}},
