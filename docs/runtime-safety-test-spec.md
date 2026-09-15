@@ -1,5 +1,9 @@
 # ffcraft Runtime Safety Test Specification v5
 
+> Note: the normalized IR now represents recursive objects and lists with
+> `VariantValue`. References to `google.protobuf.Struct` below describe a
+> target/runtime transport boundary, not the normalized IR schema.
+
 ## 0. Guarantee Scope
 
 This specification limits the guaranteed scope of "runtime safety" to the following:

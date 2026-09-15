@@ -27,6 +27,12 @@ jobs:
       - name: Download modules
         run: go mod download
 
+      - name: Set up Buf
+        uses: bufbuild/buf-setup-action@v1
+
+      - name: Regenerate protobuf files
+        run: make proto
+
       - name: Regenerate generated files
         run: go generate ./...
 

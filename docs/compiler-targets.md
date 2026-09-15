@@ -13,7 +13,7 @@ This document describes how `ffcraft` maps the normalized protobuf IR to each su
 - `serve` compiles to a fixed variant result
 - `distribute` compiles to a `fractional` operation
 - `scheduled_rollouts` compile to nested `if` expressions ordered by descending effective date
-- `progressive_rollout` is expanded during compilation into synthetic scheduled steps
+- progressive rollout is lowered during normalization into scheduled IR snapshots
 - authoring-only `experimentation` is consumed before semantic IR normalization
 - top-level array variant values are not supported by the flagd compiler
 
@@ -29,10 +29,9 @@ This document describes how `ffcraft` maps the normalized protobuf IR to each su
 
 - `default_action` is required for rule-evaluation environments
 - `default_action.progressive_rollout` is accepted only as an environment `default_action`
-- `matches` currently returns a compile error
 
-`flagd` object values are backed by `google.protobuf.Struct` at runtime and
-therefore must be top-level objects. Object fields may still contain arrays.
+Normalized object values use recursive `VariantValue`; target runtime encoding
+constraints still apply. Object fields may contain arrays.
 For example, `all: [anonymous, google]` is not supported for flagd, while
 `all: {providers: [anonymous, google]}` is supported.
 
@@ -44,7 +43,7 @@ For example, `all: [anonymous, google]` is not supported for flagd, while
 
 - `serve` compiles to `variation`
 - `distribute` compiles to `percentage`
-- environment `default_action.progressive_rollout` compiles to native `defaultRule.progressiveRollout`
+- normalized progressive rollout snapshots compile to scheduled `defaultRule` entries
 - authoring-only `experimentation` is absent from normalized IR and output
 - `scheduled_rollouts` compile to native `scheduledRollout`
 
@@ -57,7 +56,6 @@ GO Feature Flag scopes bucketing at the flag level through `bucketingKey`.
 
 ### Constraints
 
-- `matches` currently returns a compile error
 
 ## Normalized YAML
 
@@ -65,7 +63,11 @@ Normalized YAML is target-neutral. It keeps:
 
 - explicit `default_action`
 - explicit `scheduled_rollouts`
-- explicit `progressive_rollout`
+- progressive rollout stages lowered to scheduled IR entries
 - authoring-only `experimentation` is not part of normalized YAML
 
-Target-specific expansion happens in the compiler, not in the normalized representation.
+Progressive rollout lowering happens during normalization; target compilers consume the resulting scheduled snapshots.
+
+An IR action-resolution failure is an evaluation error. A target runtime may
+return an application fallback value, but must preserve the error in evaluation
+metadata when that metadata is exposed.

@@ -75,7 +75,6 @@ Collection and string:
 - `contains`
 - `starts_with`
 - `ends_with`
-- `matches`
 
 Semver:
 
@@ -117,8 +116,7 @@ List:
 ```
 
 For the `flagd` target, a variant value whose top-level value is a list is not
-supported because flagd resolves object values through `google.protobuf.Struct`.
-Use an object when the value contains arrays:
+supported by the target representation. Use an object when the value contains arrays:
 
 ```yaml
 all:
@@ -230,10 +228,9 @@ default_action:
 - `start` and `end` must be RFC3339 timestamps
 - `steps` is the total number of rollout stages, including the final 100% stage
 
-Normalized YAML keeps `progressive_rollout` as-is. Expansion is compiler-specific:
+Normalization lowers `progressive_rollout` to scheduled IR snapshots. The final snapshot is effective at `end` and serves the target variant at 100%:
 
-- `flagd` expands it into generated time-based snapshots
-- `gofeatureflag` compiles it to native `progressiveRollout`
+- both target compilers consume the resulting scheduled snapshots
 
 ## scheduled_rollouts
 
@@ -336,7 +333,4 @@ At minimum, `ffcompile` validates:
 ## Unsupported / Not Yet Compiled
 
 - YAML aliases and anchors
-- `matches` compilation for both `flagd` and `gofeatureflag`
 - `experimentation` is authoring-only and is not represented in semantic IR
-
-`matches` is accepted by parse, validate, and normalize, but compilation currently fails.

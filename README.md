@@ -45,7 +45,6 @@ Supported today:
 
 Current limitations:
 
-- `matches` parses and validates, but does not compile for `flagd` or `gofeatureflag`
 - YAML aliases and anchors are not supported
 - `experimentation` has no semantic IR representation and therefore does not affect either target
 
@@ -56,7 +55,7 @@ go install github.com/satorunooshie/ffcraft/cmd/ffcompile@latest
 go install github.com/satorunooshie/ffcraft/cmd/ffcodegen@latest
 ```
 
-The canonical schema lives in [proto/ffcraft/v1/ffcraft.proto](proto/ffcraft/v1/ffcraft.proto). A JSON Schema for editor and tooling integration lives in [schema/developer-flags.schema.json](schema/developer-flags.schema.json). Generated Go code lives in [gen/ffcraft/v1/ffcompile.pb.go](gen/ffcraft/v1/ffcompile.pb.go).
+The canonical schema lives in [proto/ffcraft/v1/ffcraft.proto](proto/ffcraft/v1/ffcraft.proto). A JSON Schema for editor and tooling integration lives in [schema/developer-flags.schema.json](schema/developer-flags.schema.json). Generated Go code lives in [gen/ffcraft/v1/ffcraft.pb.go](gen/ffcraft/v1/ffcraft.pb.go).
 
 The public compilation pipeline is intentionally one-way: authoring YAML is decoded into authoring protobuf, normalized into semantic IR defined by [proto/ffcraft/ir/v1/normalized.proto](proto/ffcraft/ir/v1/normalized.proto), then compiled directly to each target or to Go source. `build` is the convenience command that performs the authoring-to-target steps together; `compile` starts from the protobuf IR and does not accept normalized YAML. Targets do not consume the legacy AST model.
 
@@ -156,7 +155,7 @@ See [docs/ffcodegen.md](docs/ffcodegen.md) for configuration and usage.
 | --- | --- | --- |
 | Fixed serve | native | native |
 | Percentage rollout | `fractional` targeting | native `percentage` |
-| Progressive rollout | expanded at compile time into time-based steps | native `progressiveRollout` |
+| Progressive rollout | expanded at normalization into time-based steps | consumes scheduled IR snapshots |
 | Scheduled rollout | compiled into timestamp-ordered `if` chain | native `scheduledRollout` |
 | Experimentation sugar | discarded before semantic IR | discarded before semantic IR |
 | Mixed stickiness in one flag | allowed per action | rejected because `bucketingKey` is flag-scoped |

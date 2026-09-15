@@ -39,6 +39,7 @@ When `--config` is omitted, `ffcodegen go` uses:
 - package: `featureflags`
 - context fields: auto-extracted from `var` references
 - accessor names: auto-generated from flag keys
+- SDK fallback variants: inferred only when no config is supplied and all base defaults are the same `serve`; config-file codegen requires an explicit `sdk_fallback_variant`
 - output: stdout unless `--out` is given
 
 Default target values:
@@ -83,9 +84,11 @@ targets:
     accessors:
       enable-new-home:
         name: EnableNewHome
+        sdk_fallback_variant: off
       checkout-mode:
         name: CheckoutMode
         variant_type: CheckoutModeVariant
+        sdk_fallback_variant: control
 ```
 
 Top-level fields:
@@ -97,6 +100,7 @@ Top-level fields:
 Go target fields:
 
 - `targets.go.package`: generated package name
+- `targets.go.accessors.<flag>.sdk_fallback_variant`: explicit variant used as the SDK/application fallback when evaluation fails
 - `targets.go.output`: suggested output path
 - `targets.go.context_type`: generated context struct name
 - `targets.go.client_type`: generated client interface name
