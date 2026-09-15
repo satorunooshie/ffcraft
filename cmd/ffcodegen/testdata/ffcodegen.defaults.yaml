@@ -12,3 +12,6 @@ targets:
       defaults:
         scalar_types:
           int: int
+    accessors:
+      enable-new-home:
+        sdk_fallback_variant: off

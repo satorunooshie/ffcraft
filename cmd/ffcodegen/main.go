@@ -63,6 +63,7 @@ func runGo(args []string, stdout, stderr io.Writer) error {
 	target := codegen.Target{
 		PackageName: "featureflags",
 	}
+	inferSDKFallback := *configPath == ""
 	if *configPath != "" {
 		cfg, err := codegen.Load(*configPath)
 		if err != nil {
@@ -104,13 +105,14 @@ func runGo(args []string, stdout, stderr io.Writer) error {
 	}
 
 	output, err := codegen.CompileIR(doc.IR, codegen.Config{
-		PackageName:     target.PackageName,
-		ContextType:     target.ContextType,
-		ClientType:      target.ClientType,
-		EvaluatorType:   target.EvaluatorType,
-		ContextDefaults: target.Context.Defaults,
-		ContextFields:   target.Context.Fields,
-		Accessors:       target.Accessors,
+		PackageName:      target.PackageName,
+		ContextType:      target.ContextType,
+		ClientType:       target.ClientType,
+		EvaluatorType:    target.EvaluatorType,
+		ContextDefaults:  target.Context.Defaults,
+		ContextFields:    target.Context.Fields,
+		Accessors:        target.Accessors,
+		InferSDKFallback: inferSDKFallback,
 	})
 	if err != nil {
 		return fmt.Errorf("compile go code: %w", err)

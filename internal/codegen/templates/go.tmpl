@@ -233,7 +233,7 @@ const (
 func (e {{ $.EvaluatorType }}) {{ .AccessorName }}(ctx context.Context{{- if .UsesContext }}, ec {{ $.ContextType }}{{- end }}{{- if .RequiresTargetingKey }}, targetingKey string{{- end }}) ({{ $flag.VariantType }}, error) {
 {{- template "targetingGuard" (dict "Flag" . "Root" $) }}
 {{- template "attrsSetup" (dict "Flag" . "Root" $) }}
-	v, err := e.client.StringValue(ctx, {{ .ConstName }}, {{ printf "%q" .DefaultVariant }}, {{- if .RequiresTargetingKey }}newEvaluationContextWithTargetingKey(attrs, targetingKey){{- else }}newEvaluationContext(attrs){{- end }})
+	v, err := e.client.StringValue(ctx, {{ .ConstName }}, {{ .DefaultLiteral }}, {{- if .RequiresTargetingKey }}newEvaluationContextWithTargetingKey(attrs, targetingKey){{- else }}newEvaluationContext(attrs){{- end }})
 	if err != nil {
 		return "", err
 	}

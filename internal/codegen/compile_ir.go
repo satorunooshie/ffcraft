@@ -38,7 +38,7 @@ func compileIRDocument(doc *irv1.Document, cfg Config) ([]byte, error) {
 		// Preserve the direct-library API's historical behavior when no
 		// accessor configuration is supplied. Config-file based codegen must
 		// provide sdk_fallback_variant explicitly.
-		if cfg.Accessors == nil {
+		if cfg.InferSDKFallback {
 			accessor = inferredLegacyAccessor(source)
 		}
 		compiled, err := compileIRFlag(key, source, accessor)

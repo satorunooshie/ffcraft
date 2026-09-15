@@ -9,13 +9,14 @@ import (
 )
 
 type Config struct {
-	PackageName     string
-	ContextType     string
-	ClientType      string
-	EvaluatorType   string
-	ContextDefaults ContextDefaultsConfig
-	ContextFields   []ContextFieldConfig
-	Accessors       map[string]AccessorConfig
+	PackageName      string
+	ContextType      string
+	ClientType       string
+	EvaluatorType    string
+	ContextDefaults  ContextDefaultsConfig
+	ContextFields    []ContextFieldConfig
+	Accessors        map[string]AccessorConfig
+	InferSDKFallback bool
 }
 
 // CompileIR compiles normalized semantic IR into Go source.

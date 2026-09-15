@@ -141,7 +141,7 @@ func TestIRTargetingAndConfigContracts(t *testing.T) {
 }
 
 func TestIRGeneratedSourceIsParseable(t *testing.T) {
-	source, err := CompileIR(&irv1.Document{Flags: map[string]*irv1.Flag{"f": {Variants: map[string]*irv1.VariantValue{"on": {Kind: &irv1.VariantValue_BoolValue{BoolValue: true}}, "off": {Kind: &irv1.VariantValue_BoolValue{BoolValue: false}}}, Environments: map[string]*irv1.Environment{"prod": {Base: &irv1.Evaluation{DefaultAction: &irv1.Action{Kind: &irv1.Action_Serve{Serve: "off"}}}}}}}}, Config{PackageName: "generated"})
+	source, err := CompileIR(&irv1.Document{Flags: map[string]*irv1.Flag{"f": {Variants: map[string]*irv1.VariantValue{"on": {Kind: &irv1.VariantValue_BoolValue{BoolValue: true}}, "off": {Kind: &irv1.VariantValue_BoolValue{BoolValue: false}}}, Environments: map[string]*irv1.Environment{"prod": {Base: &irv1.Evaluation{DefaultAction: &irv1.Action{Kind: &irv1.Action_Serve{Serve: "off"}}}}}}}}, Config{PackageName: "generated", InferSDKFallback: true})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -168,7 +168,7 @@ func TestIRGeneratedVariantKinds(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			doc := &irv1.Document{Flags: map[string]*irv1.Flag{"f": {Variants: test.variants, Environments: map[string]*irv1.Environment{"prod": {Base: &irv1.Evaluation{DefaultAction: &irv1.Action{Kind: &irv1.Action_Serve{Serve: test.defaultV}}}}}}}}
-			if _, err := CompileIR(doc, Config{PackageName: "generated"}); err != nil {
+			if _, err := CompileIR(doc, Config{PackageName: "generated", InferSDKFallback: true}); err != nil {
 				t.Fatal(err)
 			}
 		})
