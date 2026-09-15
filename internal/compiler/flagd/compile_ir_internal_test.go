@@ -112,6 +112,9 @@ func TestIRActionVariantAndBoundaryTables(t *testing.T) {
 }
 
 func TestIRDocumentEnvironmentAndEvaluationBoundaries(t *testing.T) {
+	if _, _, err := CompileIR(&irv1.Document{}, "prod", CompileOptions{}); err == nil || !strings.Contains(err.Error(), "FFCRAFT_IR_INVALID_CORE") {
+		t.Fatalf("invalid IR document = %v", err)
+	}
 	doc := &irv1.Document{Flags: map[string]*irv1.Flag{
 		"f": {
 			Variants: map[string]*irv1.VariantValue{
@@ -139,11 +142,26 @@ func TestIRDocumentEnvironmentAndEvaluationBoundaries(t *testing.T) {
 	if _, _, err := CompileIR(doc, "missing", CompileOptions{}); err == nil || !strings.Contains(err.Error(), "environment") {
 		t.Fatalf("missing environment error = %v", err)
 	}
+	if output, warnings, err := CompileIR(doc, "missing", CompileOptions{AllowMissingEnvironment: true}); err != nil || len(warnings) != 1 || len(output) == 0 {
+		t.Fatalf("missing environment warning mode = %s, %#v, %v", output, warnings, err)
+	}
 	if _, err := compileIREvaluation(nil); err == nil || !strings.Contains(err.Error(), "default_action") {
 		t.Fatalf("nil evaluation error = %v", err)
 	}
 	if _, err := compileIREvaluation(&irv1.Evaluation{DefaultAction: &irv1.Action{Kind: &irv1.Action_Serve{Serve: "off"}}, Rules: []*irv1.Rule{{}}}); err == nil || !strings.Contains(err.Error(), "rule is incomplete") {
 		t.Fatalf("incomplete rule error = %v", err)
+	}
+	if _, err := compileIRBinaryNumeric(&irv1.NumericComparisonCondition{Operator: irv1.NumericComparisonOperator(99)}); err == nil || !strings.Contains(err.Error(), "unsupported numeric") {
+		t.Fatalf("unknown numeric operator = %v", err)
+	}
+	if _, err := compileIRBinary(&irv1.AttributePath{}, &irv1.ScalarValue{}, ""); err == nil || !strings.Contains(err.Error(), "unsupported equality") {
+		t.Fatalf("empty binary operator = %v", err)
+	}
+	if _, err := compileIRCondition(&irv1.Condition{Kind: &irv1.Condition_Equality{Equality: &irv1.EqualityCondition{Operator: irv1.EqualityOperator(99)}}}); err == nil || !strings.Contains(err.Error(), "unsupported equality") {
+		t.Fatalf("unknown equality operator = %v", err)
+	}
+	if _, err := compileIREvaluation(&irv1.Evaluation{DefaultAction: &irv1.Action{}}); err == nil || !strings.Contains(err.Error(), "unsupported IR action") {
+		t.Fatalf("unsupported evaluation action = %v", err)
 	}
 }
 

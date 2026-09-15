@@ -51,6 +51,23 @@ func TestIRConditionExpressionTable(t *testing.T) {
 			}
 		})
 	}
+	for _, test := range []struct {
+		name  string
+		value *irv1.Condition
+	}{
+		{"numeric gte", &irv1.Condition{Kind: &irv1.Condition_NumericComparison{NumericComparison: &irv1.NumericComparisonCondition{Operator: irv1.NumericComparisonOperator_NUMERIC_COMPARISON_OPERATOR_GTE, Attribute: a, Literal: &irv1.NumericValue{Kind: &irv1.NumericValue_IntValue{IntValue: 1}}}}}},
+		{"numeric lt", &irv1.Condition{Kind: &irv1.Condition_NumericComparison{NumericComparison: &irv1.NumericComparisonCondition{Operator: irv1.NumericComparisonOperator_NUMERIC_COMPARISON_OPERATOR_LT, Attribute: a, Literal: &irv1.NumericValue{Kind: &irv1.NumericValue_IntValue{IntValue: 1}}}}}},
+		{"numeric lte", &irv1.Condition{Kind: &irv1.Condition_NumericComparison{NumericComparison: &irv1.NumericComparisonCondition{Operator: irv1.NumericComparisonOperator_NUMERIC_COMPARISON_OPERATOR_LTE, Attribute: a, Literal: &irv1.NumericValue{Kind: &irv1.NumericValue_IntValue{IntValue: 1}}}}}},
+		{"semver gt", &irv1.Condition{Kind: &irv1.Condition_SemverComparison{SemverComparison: &irv1.SemVerComparisonCondition{Operator: irv1.SemVerComparisonOperator_SEM_VER_COMPARISON_OPERATOR_GT, Attribute: a, Semver: "1.0.0"}}}},
+		{"semver lt", &irv1.Condition{Kind: &irv1.Condition_SemverComparison{SemverComparison: &irv1.SemVerComparisonCondition{Operator: irv1.SemVerComparisonOperator_SEM_VER_COMPARISON_OPERATOR_LT, Attribute: a, Semver: "2.0.0"}}}},
+		{"semver lte", &irv1.Condition{Kind: &irv1.Condition_SemverComparison{SemverComparison: &irv1.SemVerComparisonCondition{Operator: irv1.SemVerComparisonOperator_SEM_VER_COMPARISON_OPERATOR_LTE, Attribute: a, Semver: "2.0.0"}}}},
+	} {
+		t.Run("additional/"+test.name, func(t *testing.T) {
+			if _, err := compileIRCondition(test.value); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
 }
 
 func goffLogical(operator irv1.LogicalOperator) *irv1.Condition {
@@ -74,15 +91,27 @@ func TestIRActionVariantScheduleAndNumericContracts(t *testing.T) {
 	if _, _, err := compileIRSchedule([]*irv1.ScheduledEvaluation{{}}); err == nil || !strings.Contains(err.Error(), "schedule[0] is incomplete") {
 		t.Fatalf("incomplete schedule = %v", err)
 	}
+	if _, _, err := compileIRSchedule([]*irv1.ScheduledEvaluation{{EffectiveAt: timestamppb.Now(), Evaluation: &irv1.Evaluation{}}}); err == nil || !strings.Contains(err.Error(), "default_action") {
+		t.Fatalf("invalid schedule evaluation = %v", err)
+	}
+	if _, _, err := compileIRSchedule([]*irv1.ScheduledEvaluation{{EffectiveAt: timestamppb.Now(), Evaluation: &irv1.Evaluation{DefaultAction: &irv1.Action{Kind: &irv1.Action_Distribute{Distribute: &irv1.Distribution{AllocationKey: &irv1.AttributePath{Segments: []string{"user", "id"}}, Weights: map[string]uint32{"on": 1}}}}}}, {EffectiveAt: timestamppb.Now(), Evaluation: &irv1.Evaluation{DefaultAction: &irv1.Action{Kind: &irv1.Action_Distribute{Distribute: &irv1.Distribution{AllocationKey: &irv1.AttributePath{Segments: []string{"device", "id"}}, Weights: map[string]uint32{"on": 1}}}}}}}); err == nil || !strings.Contains(err.Error(), "multiple distribute") {
+		t.Fatalf("conflicting schedule keys = %v", err)
+	}
 	if err := validateIRNumericTransport(map[string]*irv1.VariantValue{"x": {Kind: &irv1.VariantValue_IntValue{IntValue: 1 << 53}}}); err == nil || !strings.Contains(err.Error(), "outside") {
 		t.Fatalf("unsafe numeric = %v", err)
 	}
 	if _, _, err := compileIRDefaultRule(nil); err == nil || !strings.Contains(err.Error(), "default_action") {
 		t.Fatalf("nil default = %v", err)
 	}
+	if _, _, err := compileIRDefaultRule(&irv1.Action{}); err == nil || !strings.Contains(err.Error(), "unsupported IR action") {
+		t.Fatalf("unsupported default = %v", err)
+	}
 }
 
 func TestIRDocumentAndBoundaryContracts(t *testing.T) {
+	if _, _, err := CompileIR(&irv1.Document{}, "prod", CompileOptions{}); err == nil || !strings.Contains(err.Error(), "FFCRAFT_IR_INVALID_CORE") {
+		t.Fatalf("invalid IR document = %v", err)
+	}
 	doc := &irv1.Document{Flags: map[string]*irv1.Flag{"f": {Variants: map[string]*irv1.VariantValue{"on": {Kind: &irv1.VariantValue_BoolValue{BoolValue: true}}}, Environments: map[string]*irv1.Environment{"prod": {Base: &irv1.Evaluation{DefaultAction: &irv1.Action{Kind: &irv1.Action_Serve{Serve: "on"}}}}}}}}
 	if _, _, err := CompileIR(doc, "prod", CompileOptions{}); err != nil {
 		t.Fatal(err)
@@ -90,11 +119,35 @@ func TestIRDocumentAndBoundaryContracts(t *testing.T) {
 	if _, _, err := CompileIR(doc, "missing", CompileOptions{}); err == nil || !strings.Contains(err.Error(), "environment") {
 		t.Fatalf("missing environment = %v", err)
 	}
+	if output, warnings, err := CompileIR(doc, "missing", CompileOptions{AllowMissingEnvironment: true}); err != nil || len(warnings) != 1 || len(output) == 0 {
+		t.Fatalf("missing environment warning mode = %s, %#v, %v", output, warnings, err)
+	}
 	if _, _, err := compileIRRules([]*irv1.Rule{{}}); err == nil || !strings.Contains(err.Error(), "rule is incomplete") {
 		t.Fatalf("incomplete rule = %v", err)
 	}
 	if _, err := compileIRActionResult(&irv1.Action{}, &targetRule{}); err == nil || !strings.Contains(err.Error(), "unsupported IR action") {
 		t.Fatalf("unsupported action = %v", err)
+	}
+	if _, _, err := compileIRDistribution(&irv1.Distribution{}); err == nil || !strings.Contains(err.Error(), "allocation_key") {
+		t.Fatalf("missing distribution key = %v", err)
+	}
+	if _, err := compileIRBinary(&irv1.AttributePath{}, &irv1.ScalarValue{}, ""); err == nil || !strings.Contains(err.Error(), "unsupported equality") {
+		t.Fatalf("empty binary operator = %v", err)
+	}
+}
+
+func TestIRDocumentTargetingAndTransportShapes(t *testing.T) {
+	attr := &irv1.AttributePath{Segments: []string{"user", "id"}}
+	serve := func(name string) *irv1.Action { return &irv1.Action{Kind: &irv1.Action_Serve{Serve: name}} }
+	distribute := &irv1.Action{Kind: &irv1.Action_Distribute{Distribute: &irv1.Distribution{AllocationKey: attr, Weights: map[string]uint32{"on": 1, "off": 3}}}}
+	condition := &irv1.Condition{Kind: &irv1.Condition_Constant{Constant: true}}
+	doc := &irv1.Document{Flags: map[string]*irv1.Flag{
+		"a": {Variants: map[string]*irv1.VariantValue{"on": {Kind: &irv1.VariantValue_BoolValue{BoolValue: true}}, "off": {Kind: &irv1.VariantValue_BoolValue{BoolValue: false}}}, Environments: map[string]*irv1.Environment{"prod": {Base: &irv1.Evaluation{Rules: []*irv1.Rule{{Condition: condition, Action: distribute}}, DefaultAction: serve("off")}, Schedule: []*irv1.ScheduledEvaluation{{EffectiveAt: timestamppb.New(time.Date(2028, 1, 1, 0, 0, 0, 1, time.UTC)), Evaluation: &irv1.Evaluation{DefaultAction: distribute}}}}}},
+		"b": {Variants: map[string]*irv1.VariantValue{"on": {Kind: &irv1.VariantValue_StringValue{StringValue: "on"}}}, Environments: map[string]*irv1.Environment{"prod": {Base: &irv1.Evaluation{DefaultAction: serve("on")}}}},
+	}}
+	output, warnings, err := CompileIR(doc, "prod", CompileOptions{})
+	if err != nil || len(warnings) != 0 || !strings.Contains(string(output), "scheduledRollout") || !strings.Contains(string(output), "percentage") {
+		t.Fatalf("targeted document = %s, %#v, %v", output, warnings, err)
 	}
 }
 
@@ -128,6 +181,9 @@ func TestIRValueAndHelperTables(t *testing.T) {
 			t.Errorf("compileIRVariant(%s) = nil", name)
 		}
 	}
+	if got := compileIRVariant(&irv1.VariantValue{}); got != nil {
+		t.Fatalf("unset variant = %#v", got)
+	}
 	if got, err := mergeBucketingKeys("", "user.id"); err != nil || got != "user.id" {
 		t.Fatalf("merge empty = %q, %v", got, err)
 	}
@@ -137,11 +193,29 @@ func TestIRValueAndHelperTables(t *testing.T) {
 	if _, err := mergeBucketingKeys("user.id", "device.id"); err == nil {
 		t.Fatal("conflicting bucketing keys accepted")
 	}
+	if err := validateIRNumericTransport(map[string]*irv1.VariantValue{"nested": {Kind: &irv1.VariantValue_ObjectValue{ObjectValue: &irv1.VariantObject{Fields: map[string]*irv1.VariantValue{"id": {Kind: &irv1.VariantValue_IntValue{IntValue: 1 << 53}}}}}}}); err == nil || !strings.Contains(err.Error(), "object field") {
+		t.Fatalf("unsafe nested object = %v", err)
+	}
+	if err := validateIRNumericTransport(map[string]*irv1.VariantValue{
+		"list":   {Kind: &irv1.VariantValue_ListValue{ListValue: &irv1.VariantList{Values: []*irv1.VariantValue{{Kind: &irv1.VariantValue_IntValue{IntValue: 1}}}}}},
+		"object": {Kind: &irv1.VariantValue_ObjectValue{ObjectValue: &irv1.VariantObject{Fields: map[string]*irv1.VariantValue{"nested": {Kind: &irv1.VariantValue_ListValue{ListValue: &irv1.VariantList{Values: []*irv1.VariantValue{{Kind: &irv1.VariantValue_StringValue{StringValue: "x"}}}}}}}}}},
+	}); err != nil {
+		t.Fatalf("safe nested numeric transport = %v", err)
+	}
 	target := &targetRule{}
 	if key, err := compileIRActionResult(&irv1.Action{Kind: &irv1.Action_Serve{Serve: "on"}}, target); err != nil || target.Variation != "on" || key != "" {
 		t.Fatalf("serve action result = %#v, %q, %v", target, key, err)
 	}
 	if key, err := compileIRActionResult(&irv1.Action{Kind: &irv1.Action_Distribute{Distribute: &irv1.Distribution{AllocationKey: &irv1.AttributePath{Segments: []string{"user", "id"}}, Weights: map[string]uint32{"on": 1}}}}, target); err != nil || key != "user.id" {
 		t.Fatalf("distribution action result = %#v, %q, %v", target, key, err)
+	}
+	if _, err := marshalDocument(map[string]flagFile{"b": {}, "a": {}}); err != nil {
+		t.Fatalf("empty sorted document = %v", err)
+	}
+	if _, err := compileIRCondition(&irv1.Condition{Kind: &irv1.Condition_Equality{Equality: &irv1.EqualityCondition{Operator: irv1.EqualityOperator(99)}}}); err == nil || !strings.Contains(err.Error(), "unsupported equality") {
+		t.Fatalf("unknown equality = %v", err)
+	}
+	if _, _, err := compileIRRules([]*irv1.Rule{{Condition: &irv1.Condition{Kind: &irv1.Condition_Constant{Constant: true}}, Action: &irv1.Action{Kind: &irv1.Action_Distribute{Distribute: &irv1.Distribution{AllocationKey: &irv1.AttributePath{Segments: []string{"user", "id"}}, Weights: map[string]uint32{"on": 1}}}}}, {Condition: &irv1.Condition{Kind: &irv1.Condition_Constant{Constant: true}}, Action: &irv1.Action{Kind: &irv1.Action_Distribute{Distribute: &irv1.Distribution{AllocationKey: &irv1.AttributePath{Segments: []string{"device", "id"}}, Weights: map[string]uint32{"on": 1}}}}}}); err == nil || !strings.Contains(err.Error(), "multiple distribute") {
+		t.Fatalf("conflicting rule keys = %v", err)
 	}
 }
