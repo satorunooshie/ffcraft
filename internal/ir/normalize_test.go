@@ -261,6 +261,27 @@ func TestFromASTRejectsProgressiveRolloutBeyondIRScheduleLimit(t *testing.T) {
 	}
 }
 
+func TestFromASTLowersSameVariantProgressiveRolloutToNoOp(t *testing.T) {
+	document, err := ir.FromAST(&ast.Document{Flags: []*ast.Flag{{
+		Key: "same-variant", DefaultVariant: "on",
+		Variants: map[string]ast.VariantValue{
+			"on": {Kind: ast.VariantValueKindBool, Bool: true},
+		},
+		Environments: map[string]*ast.Environment{"prod": {
+			DefaultAction: &ast.ProgressiveRolloutAction{
+				Variant: "on", Stickiness: "user.id", Start: "2026-01-01T00:00:00Z", End: "2026-01-02T00:00:00Z", Steps: 2,
+			},
+		}},
+	}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	environment := document.Flags["same-variant"].Environments["prod"]
+	if len(environment.Schedule) != 0 || environment.Base.DefaultAction.GetServe() != "on" {
+		t.Fatalf("same-variant progressive rollout = %s, want no-op base serve on", environment)
+	}
+}
+
 func minimalIRForUnknownField() *irv1.Document {
 	return &irv1.Document{Flags: map[string]*irv1.Flag{"f": {Variants: map[string]*irv1.VariantValue{"on": {Kind: &irv1.VariantValue_BoolValue{BoolValue: true}}}, Environments: map[string]*irv1.Environment{"prod": {Base: &irv1.Evaluation{DefaultAction: &irv1.Action{Kind: &irv1.Action_Serve{Serve: "on"}}}}}}}}
 }

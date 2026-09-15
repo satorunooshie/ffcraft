@@ -149,14 +149,14 @@ func progressiveSnapshots(rollout *ast.ProgressiveRolloutAction, defaultVariant 
 	if !end.AsTime().After(start.AsTime()) {
 		return nil, fmt.Errorf("progressive rollout end must be after start")
 	}
+	if defaultVariant == rollout.Variant {
+		return nil, nil
+	}
 	out := make([]*irv1.ScheduledEvaluation, 0, rollout.Steps)
 	for index := uint32(1); index <= rollout.Steps; index++ {
 		fraction := float64(index) / float64(rollout.Steps)
 		at := start.AsTime().Add(time.Duration(float64(end.AsTime().Sub(start.AsTime())) * float64(index-1) / float64(rollout.Steps)))
 		weights := map[string]uint32{defaultVariant: uint32(math.Max(1, math.Round((1-fraction)*100))), rollout.Variant: uint32(math.Max(1, math.Round(fraction*100)))}
-		if defaultVariant == rollout.Variant {
-			weights = map[string]uint32{rollout.Variant: 100}
-		}
 		evaluation := &irv1.Evaluation{Rules: base.Rules, DefaultAction: &irv1.Action{Kind: &irv1.Action_Distribute{Distribute: &irv1.Distribution{AllocationKey: path(rollout.Stickiness), Weights: canonicalWeights(weights)}}}}
 		out = append(out, &irv1.ScheduledEvaluation{EffectiveAt: timestamppb.New(at), Evaluation: evaluation})
 	}
