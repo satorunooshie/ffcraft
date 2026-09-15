@@ -39,6 +39,37 @@ func TestCompileIRConditionExpressionTable(t *testing.T) {
 	}
 }
 
+func TestCompileIRRuleActionAndScalarOutputContracts(t *testing.T) {
+	attribute := &irv1.AttributePath{Segments: []string{"user", "id"}}
+	serve := func(variant string) *irv1.Action { return &irv1.Action{Kind: &irv1.Action_Serve{Serve: variant}} }
+	distribute := &irv1.Action{Kind: &irv1.Action_Distribute{Distribute: &irv1.Distribution{AllocationKey: attribute, Weights: map[string]uint32{"on": 1, "off": 3}}}}
+	rules, key, err := compileIRRules([]*irv1.Rule{
+		{Condition: &irv1.Condition{Kind: &irv1.Condition_Constant{Constant: true}}, Action: serve("on")},
+		{Condition: &irv1.Condition{Kind: &irv1.Condition_Constant{Constant: false}}, Action: distribute},
+	})
+	if err != nil || len(rules) != 2 || key != "user.id" || rules[0].Variation != "on" || len(rules[1].Percentage) != 2 {
+		t.Fatalf("compileIRRules() = %#v, %q, %v", rules, key, err)
+	}
+	for _, test := range []struct {
+		name    string
+		literal *irv1.ScalarValue
+		want    string
+	}{
+		{"bool", &irv1.ScalarValue{Kind: &irv1.ScalarValue_BoolValue{BoolValue: true}}, "true"},
+		{"int", &irv1.ScalarValue{Kind: &irv1.ScalarValue_IntValue{IntValue: 7}}, "7"},
+		{"double", &irv1.ScalarValue{Kind: &irv1.ScalarValue_DoubleValue{DoubleValue: 1.5}}, "1.5"},
+		{"null", &irv1.ScalarValue{Kind: &irv1.ScalarValue_NullValue{NullValue: &irv1.ScalarNull{}}}, "null"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			condition := &irv1.Condition{Kind: &irv1.Condition_Equality{Equality: &irv1.EqualityCondition{Operator: irv1.EqualityOperator_EQUALITY_OPERATOR_EQ, Attribute: attribute, Literal: test.literal}}}
+			got, err := compileIRCondition(condition)
+			if err != nil || !strings.Contains(got, test.want) {
+				t.Fatalf("compileIRCondition() = %q, %v, want %q", got, err, test.want)
+			}
+		})
+	}
+}
+
 func logicalCondition(operator irv1.LogicalOperator) *irv1.Condition {
 	return &irv1.Condition{Kind: &irv1.Condition_Logical{Logical: &irv1.LogicalCondition{
 		Operator: operator,
