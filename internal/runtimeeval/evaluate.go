@@ -31,12 +31,15 @@ func Evaluate(condition *irv1.Condition, context Context) bool {
 			return false
 		}
 		value, ok := lookup(context, kind.Equality.Attribute)
-		matched := ok && equal(value, kind.Equality.Literal)
+		if !ok || !equalityCompatible(value, kind.Equality.Literal) {
+			return false
+		}
+		matched := equal(value, kind.Equality.Literal)
 		switch kind.Equality.Operator {
 		case irv1.EqualityOperator_EQUALITY_OPERATOR_EQ:
 			return matched
 		case irv1.EqualityOperator_EQUALITY_OPERATOR_NE:
-			return ok && !matched
+			return !matched
 		default:
 			return false
 		}
@@ -171,6 +174,28 @@ func equal(actual any, literal *irv1.ScalarValue) bool {
 	case *irv1.ScalarValue_BoolValue:
 		value, ok := actual.(bool)
 		return ok && value == kind.BoolValue
+	case *irv1.ScalarValue_NullValue:
+		return actual == nil
+	default:
+		return false
+	}
+}
+
+func equalityCompatible(actual any, literal *irv1.ScalarValue) bool {
+	if literal == nil {
+		return false
+	}
+	if _, ok := number(actual); ok {
+		_, literalOK := scalarNumber(literal)
+		return literalOK
+	}
+	switch literal.GetKind().(type) {
+	case *irv1.ScalarValue_StringValue:
+		_, ok := actual.(string)
+		return ok
+	case *irv1.ScalarValue_BoolValue:
+		_, ok := actual.(bool)
+		return ok
 	case *irv1.ScalarValue_NullValue:
 		return actual == nil
 	default:
