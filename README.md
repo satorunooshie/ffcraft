@@ -69,7 +69,7 @@ The public compilation pipeline is intentionally one-way: authoring YAML is deco
 
 ## Quick Start
 
-Smallest end-to-end example:
+Authoring YAMLからtarget outputとtyped Go codeを生成します。
 
 ```yaml
 # ffcompile.yaml
@@ -100,44 +100,12 @@ evaluator := featureflags.New(client)
 enabled, err := evaluator.EnableNewHome(ctx)
 ```
 
-`client` is the generated SDK-agnostic evaluator client interface. In practice, applications are expected to implement that interface in their infra layer, often as a thin adapter over OpenFeature or another flag runtime.
+`client` is the generated SDK-agnostic evaluator interface. Applications can
+adapt it to OpenFeature or another runtime in their infrastructure layer.
 
-Compile runtime config for `flagd`:
+## Public IR pipeline
 
-```bash
-go run ./cmd/ffcompile build flagd --in flags.yaml --env prod --out flagd.json
-```
-
-Compile runtime config for `GO Feature Flag`:
-
-```bash
-go run ./cmd/ffcompile build gofeatureflag --in flags.yaml --env prod --out flags.goff.yaml
-```
-
-Generate typed Go accessors:
-
-```bash
-go run ./cmd/ffcompile build flagd --in ffcompile.yaml --env prod --out prod.flagd.json
-go run ./cmd/ffcodegen go --in ffcompile.yaml --config ffcodegen.yaml --out featureflags_gen.go
-```
-
-For `ffcodegen` usage, defaults, and `ffcodegen.yaml` settings, see [docs/ffcodegen.md](docs/ffcodegen.md).
-
-## Compile Config
-
-Build `flagd` JSON from authoring YAML:
-
-```bash
-go run ./cmd/ffcompile build flagd --in flags.yaml --env prod --out flagd.json
-```
-
-Build `GO Feature Flag` YAML from authoring YAML:
-
-```bash
-go run ./cmd/ffcompile build gofeatureflag --in flags.yaml --env prod --out flags.goff.yaml
-```
-
-Normalize first, then compile explicitly:
+Normalize once to the public protobuf IR, then compile or generate from it:
 
 ```bash
 # Public protobuf IR pipeline
@@ -146,14 +114,14 @@ go run ./cmd/ffcompile compile flagd --in featureflags.ir.v1.pb --env prod --out
 go run ./cmd/ffcompile compile gofeatureflag --in featureflags.ir.v1.pb --env prod --out flags.goff.yaml
 ```
 
-Inspect the normalized intermediate form while building:
+The normalized YAML view is output-only and useful for review:
 
 ```bash
 go run ./cmd/ffcompile build flagd --in flags.yaml --env prod --dump -
 go run ./cmd/ffcompile build gofeatureflag --in flags.yaml --env prod --dump normalized.yaml
 ```
 
-Skip flags that do not define the requested environment:
+For flags without the requested environment:
 
 ```bash
 go run ./cmd/ffcompile build flagd --in flags.yaml --env prod --allow-missing-env
@@ -178,99 +146,7 @@ go run ./cmd/ffcodegen go --in ffcompile.yaml --config ffcodegen.yaml --out feat
 go run ./cmd/ffcodegen go --in ffcompile.yaml
 ```
 
-See [docs/ffcodegen.md](docs/ffcodegen.md) for configuration and usage details.
-
-## Authoring Example
-
-```yaml
-version: v1
-
-variant_sets:
-  boolean:
-    on: true
-    off: false
-
-rules:
-  internal_ios:
-    all_of:
-      - eq:
-          - { var: user.type }
-          - internal
-      - eq:
-          - { var: device.platform }
-          - ios
-
-flags:
-  - key: enable-new-home
-    variant_set: boolean
-    default_variant: off
-    environments:
-      prod:
-        rules:
-          - if:
-              rule: internal_ios
-            serve: on
-        default_action:
-          serve: off
-```
-
-Compiled `flagd` output:
-
-```json
-{
-  "$schema": "https://flagd.dev/schema/v0/flags.json",
-  "flags": {
-    "enable-new-home": {
-      "state": "ENABLED",
-      "variants": {
-        "off": false,
-        "on": true
-      },
-      "defaultVariant": "off",
-      "targeting": {
-        "if": [
-          {
-            "and": [
-              {
-                "==": [
-                  {
-                    "var": "user.type"
-                  },
-                  "internal"
-                ]
-              },
-              {
-                "==": [
-                  {
-                    "var": "device.platform"
-                  },
-                  "ios"
-                ]
-              }
-            ]
-          },
-          "on",
-          "off"
-        ]
-      }
-    }
-  }
-}
-```
-
-Compiled `GO Feature Flag` output:
-
-```yaml
-enable-new-home:
-  variations:
-    off: false
-    on: true
-  defaultRule:
-    variation: off
-  targeting:
-    - query: (user.type eq "internal") AND (device.platform eq "ios")
-      variation: on
-```
+See [docs/ffcodegen.md](docs/ffcodegen.md) for configuration and usage.
 
 ## Compiler Targets
 
@@ -289,95 +165,19 @@ For the full target notes, see [docs/compiler-targets.md](docs/compiler-targets.
 
 ## Samples
 
-Canonical paired examples use one authoring file and show both target outputs side by side:
+The [examples](examples) directory contains paired authoring and target
+fixtures for core behavior:
 
-- `basic`
-  - [examples/basic/ffcompile.yaml](examples/basic/ffcompile.yaml)
-  - [examples/basic/prod.flagd.json](examples/basic/prod.flagd.json)
-  - [examples/basic/prod.goff.yaml](examples/basic/prod.goff.yaml)
-- `rule-targeting`
-  - [examples/rule-targeting/ffcompile.yaml](examples/rule-targeting/ffcompile.yaml)
-  - [examples/rule-targeting/prod.flagd.json](examples/rule-targeting/prod.flagd.json)
-  - [examples/rule-targeting/prod.goff.yaml](examples/rule-targeting/prod.goff.yaml)
-- `scheduled-rollouts`
-  - [examples/scheduled-rollouts/ffcompile.yaml](examples/scheduled-rollouts/ffcompile.yaml)
-  - [examples/scheduled-rollouts/prod.flagd.json](examples/scheduled-rollouts/prod.flagd.json)
-  - [examples/scheduled-rollouts/prod.goff.yaml](examples/scheduled-rollouts/prod.goff.yaml)
-- `progressive-rollouts`
-  - [examples/progressive-rollouts/ffcompile.yaml](examples/progressive-rollouts/ffcompile.yaml)
-  - [examples/progressive-rollouts/prod.flagd.json](examples/progressive-rollouts/prod.flagd.json)
-  - [examples/progressive-rollouts/prod.goff.yaml](examples/progressive-rollouts/prod.goff.yaml)
-- `experimentation-rollouts`
-  - [examples/experimentation-rollouts/ffcompile.yaml](examples/experimentation-rollouts/ffcompile.yaml)
-  - [examples/experimentation-rollouts/prod.flagd.json](examples/experimentation-rollouts/prod.flagd.json)
-  - [examples/experimentation-rollouts/prod.goff.yaml](examples/experimentation-rollouts/prod.goff.yaml)
-  - [examples/extensions/ffcompile.yaml](examples/extensions/ffcompile.yaml)
-  - [examples/extensions/README.md](examples/extensions/README.md)
-- `go-codegen`
-  - `adapter implementation`
-  - [examples/go-codegen/adapter/adapter.go](examples/go-codegen/adapter/adapter.go)
-  - [examples/go-codegen/README.md](examples/go-codegen/README.md)
-  - `config and generated code`
-  - [examples/go-codegen/basic/ffcompile.yaml](examples/go-codegen/basic/ffcompile.yaml)
-  - [examples/go-codegen/basic/ffcodegen.yaml](examples/go-codegen/basic/ffcodegen.yaml)
-  - [examples/go-codegen/basic/gen/featureflags_gen.go](examples/go-codegen/basic/gen/featureflags_gen.go)
-  - [examples/go-codegen/rollout/ffcompile.yaml](examples/go-codegen/rollout/ffcompile.yaml)
-  - [examples/go-codegen/rollout/ffcodegen.yaml](examples/go-codegen/rollout/ffcodegen.yaml)
-  - [examples/go-codegen/withhooks/ffcompile.yaml](examples/go-codegen/withhooks/ffcompile.yaml)
-  - [examples/go-codegen/withhooks/ffcodegen.yaml](examples/go-codegen/withhooks/ffcodegen.yaml)
-  - [examples/go-codegen/rollout/gen/featureflags_gen.go](examples/go-codegen/rollout/gen/featureflags_gen.go)
-  - [examples/go-codegen/withhooks/gen/featureflags_gen.go](examples/go-codegen/withhooks/gen/featureflags_gen.go)
-  - `flagd runtime examples`
-  - [examples/go-codegen/basic/flagd/main.go](examples/go-codegen/basic/flagd/main.go)
-  - [examples/go-codegen/rollout/flagd/main.go](examples/go-codegen/rollout/flagd/main.go)
-  - [examples/go-codegen/withhooks/flagd/main.go](examples/go-codegen/withhooks/flagd/main.go)
-  - `gofeatureflag runtime examples`
-  - [examples/go-codegen/basic/gofeatureflag/main.go](examples/go-codegen/basic/gofeatureflag/main.go)
-  - [examples/go-codegen/rollout/gofeatureflag/main.go](examples/go-codegen/rollout/gofeatureflag/main.go)
-  - [examples/go-codegen/withhooks/gofeatureflag/main.go](examples/go-codegen/withhooks/gofeatureflag/main.go)
+- [basic](examples/basic): fixed serve
+- [rule-targeting](examples/rule-targeting): conditions and rules
+- [scheduled-rollouts](examples/scheduled-rollouts): scheduled snapshots
+- [progressive-rollouts](examples/progressive-rollouts): progressive rollout
+- [experimentation-rollouts](examples/experimentation-rollouts): authoring-only sugar
+- [extensions](examples/extensions): client/backend/team namespace ownership
+- [go-codegen](examples/go-codegen): typed Go code and runtime adapters
 
-Generate the sample outputs.
-
-Canonical examples:
-
-```bash
-go run ./cmd/ffcompile build flagd --in examples/basic/ffcompile.yaml --env prod --out examples/basic/prod.flagd.json
-go run ./cmd/ffcompile build gofeatureflag --in examples/basic/ffcompile.yaml --env prod --out examples/basic/prod.goff.yaml
-go run ./cmd/ffcompile build flagd --in examples/rule-targeting/ffcompile.yaml --env prod --out examples/rule-targeting/prod.flagd.json
-go run ./cmd/ffcompile build gofeatureflag --in examples/rule-targeting/ffcompile.yaml --env prod --out examples/rule-targeting/prod.goff.yaml
-go run ./cmd/ffcompile build flagd --in examples/scheduled-rollouts/ffcompile.yaml --env prod --out examples/scheduled-rollouts/prod.flagd.json
-go run ./cmd/ffcompile build gofeatureflag --in examples/scheduled-rollouts/ffcompile.yaml --env prod --out examples/scheduled-rollouts/prod.goff.yaml
-go run ./cmd/ffcompile build flagd --in examples/progressive-rollouts/ffcompile.yaml --env prod --out examples/progressive-rollouts/prod.flagd.json
-go run ./cmd/ffcompile build gofeatureflag --in examples/progressive-rollouts/ffcompile.yaml --env prod --out examples/progressive-rollouts/prod.goff.yaml
-go run ./cmd/ffcompile build flagd --in examples/experimentation-rollouts/ffcompile.yaml --env prod --out examples/experimentation-rollouts/prod.flagd.json
-go run ./cmd/ffcompile build gofeatureflag --in examples/experimentation-rollouts/ffcompile.yaml --env prod --out examples/experimentation-rollouts/prod.goff.yaml
-```
-
-Go codegen examples:
+Regenerate the code-generation fixtures with:
 
 ```bash
 make update-go-example
 ```
-
-## Docs
-
-- [docs/authoring-format.md](docs/authoring-format.md): authoring schema and evaluation model
-- [docs/compiler-targets.md](docs/compiler-targets.md): target-specific compilation behavior and gaps
-- [schema/README.md](schema/README.md): JSON Schema and schema-directory notes
-
-Reference fixtures:
-
-- [internal/compiler/flagd/testdata/example.yaml](internal/compiler/flagd/testdata/example.yaml)
-- [internal/compiler/flagd/testdata/prod.golden.json](internal/compiler/flagd/testdata/prod.golden.json)
-- [internal/compiler/gofeatureflag/testdata/example.yaml](internal/compiler/gofeatureflag/testdata/example.yaml)
-- [internal/compiler/gofeatureflag/testdata/prod.golden.yaml](internal/compiler/gofeatureflag/testdata/prod.golden.yaml)
-
-Package boundaries:
-
-- `internal/authoring`: authoring YAML to authoring protobuf
-- `internal/normalize`: authoring protobuf to normalized IR
-- `internal/ir`: IR validation, canonicalization, and semantic checks
-- `internal/normalizedyaml`: normalized IR and deterministic normalized YAML
-- `internal/compiler/flagd`: normalized IR to flagd configuration
-- `internal/compiler/gofeatureflag`: normalized IR to GO Feature Flag configuration
-- `internal/codegen`: normalized IR to Go source
