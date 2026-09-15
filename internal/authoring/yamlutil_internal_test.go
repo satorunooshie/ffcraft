@@ -65,3 +65,43 @@ func TestYAMLStructureAndValueContracts(t *testing.T) {
 		t.Fatalf("sortedKeys() = %#v", got)
 	}
 }
+
+func TestYAMLBoundaryValidationTable(t *testing.T) {
+	tests := []struct {
+		name string
+		node *yaml.Node
+		path string
+		want string
+	}{
+		{"missing node", nil, "$.root", "missing YAML node"},
+		{"custom tag", yamlNode(t, "!custom value"), "$.value", "custom YAML tags"},
+		{"nonfinite float", yamlNode(t, ".nan"), "$.value", "finite JSON number"},
+		{"alias", nil, "$.value", ""},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if test.name == "alias" {
+				var document yaml.Node
+				if err := yaml.Unmarshal([]byte("a: &value x\nb: *value\n"), &document); err != nil {
+					t.Fatal(err)
+				}
+				root := document.Content[0].Content[1]
+				alias := document.Content[0].Content[3]
+				if err := validateYAMLTree(root, test.path); err != nil {
+					t.Fatalf("anchor validation = %v", err)
+				}
+				if err := validateYAMLTree(alias, test.path); err == nil || !strings.Contains(err.Error(), "yaml aliases") {
+					t.Fatalf("alias validation = %v", err)
+				}
+				return
+			}
+			err := validateYAMLTree(test.node, test.path)
+			if err == nil || !strings.Contains(err.Error(), test.want) {
+				t.Fatalf("validateYAMLTree() = %v, want %q", err, test.want)
+			}
+		})
+	}
+	if _, err := mapping(yamlNode(t, "{a: 1, a: 2}"), "$.object"); err == nil || !strings.Contains(err.Error(), "duplicate key") {
+		t.Fatalf("duplicate mapping error = %v", err)
+	}
+}
