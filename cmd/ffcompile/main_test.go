@@ -22,9 +22,9 @@ func TestRun(t *testing.T) {
 	t.Parallel()
 
 	authoringPath := writeFixture(t, "example.yaml")
-	normalizedPath := writeFixture(t, "normalized.golden.yaml")
+	normalizedPath := writeNormalizedProtobufFixture(t, authoringPath)
 	missingEnvAuthoringPath := writeFixture(t, "missing_env_authoring.yaml")
-	missingEnvNormalizedPath := writeFixture(t, "missing_env_normalized.yaml")
+	missingEnvNormalizedPath := writeNormalizedProtobufFixture(t, missingEnvAuthoringPath)
 	tests := []struct {
 		name           string
 		args           func(outPath string) []string
@@ -248,12 +248,12 @@ func TestPublicProtobufNormalizeAndCompilePipeline(t *testing.T) {
 		t.Fatal("normalize protobuf output contains no flags")
 	}
 
-	protobufPath := filepath.Join(t.TempDir(), "normalized.pb")
+	protobufPath := filepath.Join(t.TempDir(), "featureflags.ir.v1.pb")
 	if err := os.WriteFile(protobufPath, protobuf.Bytes(), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	var protobufOutput bytes.Buffer
-	if err := run([]string{"compile", "flagd", "--in", protobufPath, "--input-format", "protobuf", "--env", "prod"}, &protobufOutput, &diagnostics); err != nil {
+	if err := run([]string{"compile", "flagd", "--in", protobufPath, "--env", "prod"}, &protobufOutput, &diagnostics); err != nil {
 		t.Fatalf("compile protobuf = %v", err)
 	}
 	var yamlOutput bytes.Buffer
@@ -280,6 +280,32 @@ func TestNormalizeProtobufFailureDoesNotEmitPartialIR(t *testing.T) {
 	}
 }
 
+func TestNormalizeRejectsUnexpectedPositionalArguments(t *testing.T) {
+	authoringPath := writeFixture(t, "example.yaml")
+
+	for _, args := range [][]string{
+		{"normalize", authoringPath, "extra"},
+		{"normalize", "--in", authoringPath, "extra"},
+	} {
+		var stdout, stderr bytes.Buffer
+		if err := run(args, &stdout, &stderr); err == nil || !strings.Contains(err.Error(), "unexpected positional arguments") {
+			t.Fatalf("run(%v) error = %v, want unexpected positional arguments", args, err)
+		}
+		if stdout.Len() != 0 {
+			t.Fatalf("run(%v) wrote %d bytes after argument error", args, stdout.Len())
+		}
+	}
+}
+
+func TestCompileRejectsNormalizedYAMLInput(t *testing.T) {
+	normalizedPath := writeFixture(t, "normalized.golden.yaml")
+	var stdout, stderr bytes.Buffer
+	err := run([]string{"compile", "flagd", "--in", normalizedPath, "--env", "prod"}, &stdout, &stderr)
+	if err == nil || !strings.Contains(err.Error(), "read normalized protobuf") {
+		t.Fatalf("run() error = %v, want normalized protobuf input error", err)
+	}
+}
+
 func TestInputLoaderBoundaryContracts(t *testing.T) {
 	authoringPath := filepath.Join(t.TempDir(), "authoring.yaml")
 	if err := os.WriteFile(authoringPath, []byte("version: v1\nvariant_sets: {}\nflags: []\n"), 0o600); err != nil {
@@ -300,9 +326,9 @@ func TestInputLoaderBoundaryContracts(t *testing.T) {
 		want string
 	}{
 		{"authoring missing file", loadAuthoring, filepath.Join(t.TempDir(), "missing.yaml"), "read input"},
-		{"normalized missing file", loadNormalized, filepath.Join(t.TempDir(), "missing.yaml"), "read input"},
+		{"normalized protobuf missing file", loadProtobuf, filepath.Join(t.TempDir(), "missing.pb"), "read input"},
 		{"authoring invalid document", loadAuthoring, normalizedPath, "parse input"},
-		{"normalized invalid document", loadNormalized, authoringPath, "read normalized yaml"},
+		{"normalized protobuf invalid document", loadProtobuf, authoringPath, "read normalized protobuf"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -322,6 +348,23 @@ func writeFixture(t *testing.T, name string) string {
 	path := filepath.Join(t.TempDir(), name)
 	if err := os.WriteFile(path, data, 0o644); err != nil {
 		t.Fatalf("write fixture: %v", err)
+	}
+	return path
+}
+
+func writeNormalizedProtobufFixture(t *testing.T, authoringPath string) string {
+	t.Helper()
+	doc, err := loadAuthoring(authoringPath)
+	if err != nil {
+		t.Fatalf("load authoring fixture: %v", err)
+	}
+	data, err := ir.Marshal(doc)
+	if err != nil {
+		t.Fatalf("marshal protobuf fixture: %v", err)
+	}
+	path := filepath.Join(t.TempDir(), "featureflags.ir.v1.pb")
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatalf("write protobuf fixture: %v", err)
 	}
 	return path
 }

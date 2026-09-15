@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
+	"github.com/satorunooshie/ffcraft/internal/ir"
 	"github.com/satorunooshie/ffcraft/internal/testhelper"
 )
 
@@ -22,7 +23,6 @@ func TestRun(t *testing.T) {
 	codegenDir := t.TempDir()
 	authoringPath := writeFixtureToDir(t, codegenDir, "example.yaml")
 	collectionAuthoringPath := writeFixtureToDir(t, codegenDir, "context_collection_inference.yaml")
-	normalizedPath := writeFixtureToDir(t, codegenDir, "normalized.golden.yaml")
 	configPath := writeFixtureToDir(t, codegenDir, "ffcodegen.yaml")
 	configDefaultsPath := writeFixtureToDir(t, codegenDir, "ffcodegen.defaults.yaml")
 	configCollectionDefaultsPath := writeFixtureToDir(t, codegenDir, "ffcodegen.collection.defaults.yaml")
@@ -59,20 +59,6 @@ func TestRun(t *testing.T) {
 				return []string{"go", "--in", authoringPath}
 			},
 			wantStdoutFile: "go.default.golden.go",
-		},
-		{
-			name: "generate from normalized auto-detect",
-			args: func(_ string) []string {
-				return []string{"go", "--in", normalizedPath, "--config", configPath}
-			},
-			wantStdoutFile: "go.golden.go",
-		},
-		{
-			name: "generate from normalized explicit format",
-			args: func(_ string) []string {
-				return []string{"go", "--in", normalizedPath, "--config", configPath, "--format", "normalized"}
-			},
-			wantStdoutFile: "go.golden.go",
 		},
 		{
 			name: "generate with context defaults",
@@ -170,33 +156,35 @@ flags:
         default_action:
           serve: on
 `)
-	normalized, err := testdataFS.ReadFile("testdata/normalized.golden.yaml")
+	authoringDoc, err := loadAuthoring(authoring)
+	if err != nil {
+		t.Fatal(err)
+	}
+	protobuf, err := ir.Marshal(authoringDoc.IR)
 	if err != nil {
 		t.Fatal(err)
 	}
 	tests := []struct {
-		name       string
-		input      []byte
-		format     string
-		wantAuthor bool
-		wantErr    string
+		name    string
+		input   []byte
+		format  string
+		wantErr string
 	}{
-		{"auto authoring", authoring, "auto", true, ""},
-		{"auto normalized", normalized, "auto", false, ""},
-		{"explicit normalized rejects authoring", authoring, "normalized", false, "read normalized yaml"},
-		{"explicit authoring rejects normalized", normalized, "authoring", false, "parse input"},
+		{"authoring", authoring, "authoring", ""},
+		{"protobuf", protobuf, "protobuf", ""},
+		{"protobuf rejects authoring", authoring, "protobuf", "read normalized protobuf"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			doc, wasAuthoring, err := loadInput(test.input, test.format)
+			doc, err := loadInput(test.input, test.format)
 			if test.wantErr != "" {
 				if err == nil || !strings.Contains(err.Error(), test.wantErr) {
 					t.Fatalf("loadInput() error = %v, want %q", err, test.wantErr)
 				}
 				return
 			}
-			if err != nil || doc == nil || wasAuthoring != test.wantAuthor {
-				t.Fatalf("loadInput() = %#v, %v, %v; want authoring=%v", doc, wasAuthoring, err, test.wantAuthor)
+			if err != nil || doc == nil {
+				t.Fatalf("loadInput() = %#v, %v; want document", doc, err)
 			}
 		})
 	}

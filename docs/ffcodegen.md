@@ -1,7 +1,7 @@
 # ffcodegen
 
 `ffcodegen` is the code generation companion to `ffcraft`.
-It reads authoring YAML or normalized YAML and emits application-facing generated code.
+It reads authoring YAML or normalized protobuf IR and emits application-facing generated code.
 
 Role split:
 
@@ -29,8 +29,8 @@ Supported flags:
 - `--in`: required input path
 - `--config`: optional `ffcodegen.yaml`
 - `--out`: optional output path, stdout when omitted or `-`
-- `--format`: `auto`, `authoring`, or `normalized`
-- `--dump`: when reading authoring YAML, also write normalized YAML
+- `--format`: `authoring` or `protobuf`
+- `--dump`: write a deterministic normalized YAML view
 
 ## Defaults
 

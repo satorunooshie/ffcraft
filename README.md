@@ -33,7 +33,7 @@ namespace contents remain opaque to core validation.
 Supported today:
 
 - authoring format `v1`
-- normalized YAML as an intermediate representation
+- normalized YAML as a deterministic human-readable view of the protobuf IR
 - compiler targets: `flagd`, `gofeatureflag`
 - reusable `variant_sets`, `rules`, and `distributions`
 - per-environment `serve`, `rules`, and `default_action`
@@ -64,6 +64,7 @@ The compilation pipeline is intentionally one-way: authoring YAML is decoded int
 - [docs/authoring-format.md](docs/authoring-format.md): authoring YAML syntax and semantics
 - [docs/compiler-targets.md](docs/compiler-targets.md): how compiled output differs between `flagd` and `gofeatureflag`
 - [docs/ffcodegen.md](docs/ffcodegen.md): `ffcodegen` commands, defaults, `ffcodegen.yaml`, and generated API usage
+- [docs/extension-spec-oss.md](docs/extension-spec-oss.md): public extension and normalized IR contract
 
 ## Quick Start
 
@@ -138,13 +139,10 @@ go run ./cmd/ffcompile build gofeatureflag --in flags.yaml --env prod --out flag
 Normalize first, then compile explicitly:
 
 ```bash
-go run ./cmd/ffcompile normalize --in flags.yaml --out normalized.yaml
-go run ./cmd/ffcompile compile flagd --in normalized.yaml --env prod --out flagd.json
-go run ./cmd/ffcompile compile gofeatureflag --in normalized.yaml --env prod --out flags.goff.yaml
-
 # Public protobuf IR pipeline
-go run ./cmd/ffcompile normalize flags.yaml --format protobuf > normalized.pb
-go run ./cmd/ffcompile compile flagd --in normalized.pb --input-format protobuf --env prod --out flagd.json
+go run ./cmd/ffcompile normalize flags.yaml --format protobuf > featureflags.ir.v1.pb
+go run ./cmd/ffcompile compile flagd --in featureflags.ir.v1.pb --env prod --out flagd.json
+go run ./cmd/ffcompile compile gofeatureflag --in featureflags.ir.v1.pb --env prod --out flags.goff.yaml
 ```
 
 Inspect the normalized intermediate form while building:
@@ -164,13 +162,13 @@ go run ./cmd/ffcompile build flagd --in flags.yaml --env prod --allow-missing-en
 
 - `build flagd`: parse, validate, normalize, and compile to `flagd` JSON
 - `build gofeatureflag`: parse, validate, normalize, and compile to `GO Feature Flag` YAML
-- `normalize`: parse, validate, and emit normalized YAML
-- `compile flagd`: compile normalized YAML to `flagd` JSON
-- `compile gofeatureflag`: compile normalized YAML to `GO Feature Flag` YAML
+- `normalize`: parse, validate, and emit normalized YAML or protobuf IR
+- `compile flagd`: compile normalized protobuf IR to `flagd` JSON
+- `compile gofeatureflag`: compile normalized protobuf IR to `GO Feature Flag` YAML
 
 ## Code Generation
 
-`ffcodegen` consumes authoring YAML or normalized YAML and emits application-linked generated code. The initial target is typed Go accessors over a small evaluator interface.
+`ffcodegen` consumes authoring YAML or normalized protobuf IR and emits application-linked generated code. The initial target is typed Go accessors over a small evaluator interface.
 
 The generated Go code is intentionally runtime-SDK agnostic. It emits typed accessors plus a small `Client` interface and `EvaluationContext` type; consumer applications wire those to OpenFeature or another SDK through an adapter they own.
 
@@ -312,6 +310,8 @@ Canonical paired examples use one authoring file and show both target outputs si
   - [examples/experimentation-rollouts/ffcompile.yaml](examples/experimentation-rollouts/ffcompile.yaml)
   - [examples/experimentation-rollouts/prod.flagd.json](examples/experimentation-rollouts/prod.flagd.json)
   - [examples/experimentation-rollouts/prod.goff.yaml](examples/experimentation-rollouts/prod.goff.yaml)
+  - [examples/extensions/ffcompile.yaml](examples/extensions/ffcompile.yaml)
+  - [examples/extensions/README.md](examples/extensions/README.md)
 - `go-codegen`
   - `adapter implementation`
   - [examples/go-codegen/adapter/adapter.go](examples/go-codegen/adapter/adapter.go)

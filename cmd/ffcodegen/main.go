@@ -10,6 +10,7 @@ import (
 	irv1 "github.com/satorunooshie/ffcraft/gen/ffcraft/ir/v1"
 	"github.com/satorunooshie/ffcraft/internal/authoring"
 	"github.com/satorunooshie/ffcraft/internal/codegen"
+	"github.com/satorunooshie/ffcraft/internal/ir"
 	"github.com/satorunooshie/ffcraft/internal/normalize"
 	"github.com/satorunooshie/ffcraft/internal/normalizedyaml"
 )
@@ -46,8 +47,8 @@ func runGo(args []string, stdout, stderr io.Writer) error {
 	inPath := fs.String("in", "", "input path")
 	configPath := fs.String("config", "", "input ffcodegen YAML path")
 	outPath := fs.String("out", "", "output Go path; stdout when omitted or '-'")
-	dumpPath := fs.String("dump", "", "when reading authoring YAML, write normalized YAML to this path; use '-' for stderr")
-	inputFormat := fs.String("format", "auto", "input format: auto, authoring, normalized")
+	dumpPath := fs.String("dump", "", "write a normalized YAML view to this path; use '-' for stderr")
+	inputFormat := fs.String("format", "authoring", "input format: authoring or protobuf")
 
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -82,12 +83,12 @@ func runGo(args []string, stdout, stderr io.Writer) error {
 		return fmt.Errorf("read input: %w", err)
 	}
 
-	doc, wasAuthoring, err := loadInput(input, *inputFormat)
+	doc, err := loadInput(input, *inputFormat)
 	if err != nil {
 		return err
 	}
 
-	if wasAuthoring && *dumpPath != "" {
+	if *dumpPath != "" {
 		dump, err := normalizedyaml.Marshal(doc.IR)
 		if err != nil {
 			return fmt.Errorf("marshal normalized yaml: %w", err)
@@ -122,37 +123,31 @@ type loadedDocument struct {
 	IR *irv1.Document
 }
 
-func loadInput(input []byte, formatName string) (*loadedDocument, bool, error) {
+func loadInput(input []byte, formatName string) (*loadedDocument, error) {
 	switch formatName {
-	case "auto":
-		doc, err := normalizedyaml.Unmarshal(input)
-		if err == nil {
-			return &loadedDocument{IR: doc}, false, nil
-		}
-		return loadAuthoring(input)
 	case "authoring":
 		return loadAuthoring(input)
-	case "normalized":
-		doc, err := normalizedyaml.Unmarshal(input)
-		if err == nil {
-			return &loadedDocument{IR: doc}, false, nil
+	case "protobuf":
+		doc, err := ir.Unmarshal(input)
+		if err != nil {
+			return nil, fmt.Errorf("read normalized protobuf: %w", err)
 		}
-		return nil, false, fmt.Errorf("read normalized yaml: %w", err)
+		return &loadedDocument{IR: doc}, nil
 	default:
-		return nil, false, fmt.Errorf("unsupported --format %q", formatName)
+		return nil, fmt.Errorf("unsupported --format %q", formatName)
 	}
 }
 
-func loadAuthoring(input []byte) (*loadedDocument, bool, error) {
+func loadAuthoring(input []byte) (*loadedDocument, error) {
 	doc, err := authoring.ParseYAML(input)
 	if err != nil {
-		return nil, false, fmt.Errorf("parse input: %w", err)
+		return nil, fmt.Errorf("parse input: %w", err)
 	}
 	normalizedDoc, err := normalize.Normalize(doc)
 	if err != nil {
-		return nil, false, fmt.Errorf("normalize input: %w", err)
+		return nil, fmt.Errorf("normalize input: %w", err)
 	}
-	return &loadedDocument{IR: normalizedDoc}, true, nil
+	return &loadedDocument{IR: normalizedDoc}, nil
 }
 
 func writeOutput(stdout io.Writer, outPath string, output []byte) error {
@@ -168,5 +163,5 @@ func writeOutput(stdout io.Writer, outPath string, output []byte) error {
 
 func printUsage(w io.Writer) {
 	fmt.Fprintln(w, "Usage:")
-	fmt.Fprintln(w, "  ffcodegen go --in ffcompile.yaml [--config ffcodegen.yaml] [--format auto|authoring|normalized] [--out flags.gen.go] [--dump normalized.yaml]")
+	fmt.Fprintln(w, "  ffcodegen go --in flags.yaml|featureflags.ir.v1.pb [--config ffcodegen.yaml] [--format authoring|protobuf] [--out flags.gen.go] [--dump normalized.yaml]")
 }
