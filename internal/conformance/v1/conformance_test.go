@@ -661,6 +661,68 @@ func TestV1MultiEnvironmentScheduleRuntimeMatrix(t *testing.T) {
 	}
 }
 
+func TestV1EveryEnvironmentScheduleBoundaryUsesExpectedSnapshot(t *testing.T) {
+	flag := mustFixture(t, "testdata/multi_environment_semantics.yaml").Flags["multi_env"]
+	contexts := map[string]runtimeeval.Context{
+		"prod":    {"user": map[string]any{"segment": "beta", "id": "prod-1"}},
+		"staging": {"app": map[string]any{"version": "2.1.0"}, "region": "ap-northeast"},
+		"canary":  {"cohort": "canary"},
+	}
+	for environmentName, environment := range flag.Environments {
+		environmentName, environment := environmentName, environment
+		t.Run(environmentName, func(t *testing.T) {
+			context := contexts[environmentName]
+			boundaries := make([]struct {
+				name string
+				at   time.Time
+				want *irv1.Evaluation
+			}, 0, len(environment.Schedule)*2+1)
+			for index, scheduled := range environment.Schedule {
+				at := scheduled.EffectiveAt.AsTime()
+				previous := environment.Base
+				if index > 0 {
+					previous = environment.Schedule[index-1].Evaluation
+				}
+				boundaries = append(boundaries,
+					struct {
+						name string
+						at   time.Time
+						want *irv1.Evaluation
+					}{name: fmt.Sprintf("before[%d]", index), at: at.Add(-time.Nanosecond), want: previous},
+					struct {
+						name string
+						at   time.Time
+						want *irv1.Evaluation
+					}{name: fmt.Sprintf("at[%d]", index), at: at, want: scheduled.Evaluation},
+				)
+			}
+			if len(boundaries) == 0 {
+				boundaries = append(boundaries, struct {
+					name string
+					at   time.Time
+					want *irv1.Evaluation
+				}{name: "base", at: time.Unix(0, 0).UTC(), want: environment.Base})
+			}
+			for _, boundary := range boundaries {
+				t.Run(boundary.name, func(t *testing.T) {
+					got := evaluationAt(environment, boundary.at)
+					if got != boundary.want {
+						t.Fatalf("evaluation at %s selected %p, want %p", boundary.at.Format(time.RFC3339Nano), got, boundary.want)
+					}
+					for index, rule := range got.Rules {
+						if !runtimeeval.Evaluate(rule.Condition, context) {
+							continue
+						}
+						if rule.Action.GetServe() == "" && rule.Action.GetDistribute() == nil {
+							t.Fatalf("rule[%d] has no executable action", index)
+						}
+					}
+				})
+			}
+		})
+	}
+}
+
 func evaluationOutcome(evaluation *irv1.Evaluation, context runtimeeval.Context) string {
 	for _, rule := range evaluation.Rules {
 		if !runtimeeval.Evaluate(rule.Condition, context) {
