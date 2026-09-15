@@ -11,6 +11,7 @@ import (
 	"buf.build/go/protovalidate"
 	irv1 "github.com/satorunooshie/ffcraft/gen/ffcraft/ir/v1"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 var (
@@ -88,21 +89,36 @@ func validateEnvironment(env *irv1.Environment, variants map[string]*irv1.Varian
 	if err := validateEvaluation(env.Base, variants); err != nil {
 		return err
 	}
-	var previous int64 = -1
+	var previous *timestamppb.Timestamp
 	for _, scheduled := range env.Schedule {
 		if scheduled == nil || scheduled.EffectiveAt == nil || scheduled.Evaluation == nil {
 			return fmt.Errorf("schedule entry is incomplete")
 		}
-		current := scheduled.EffectiveAt.Seconds*1_000_000_000 + int64(scheduled.EffectiveAt.Nanos)
-		if current <= previous {
+		if previous != nil && compareTimestamps(scheduled.EffectiveAt, previous) <= 0 {
 			return fmt.Errorf("schedule timestamps must be strictly increasing")
 		}
-		previous = current
+		previous = scheduled.EffectiveAt
 		if err := validateEvaluation(scheduled.Evaluation, variants); err != nil {
 			return err
 		}
 	}
 	return validateExtensions(env.Extensions)
+}
+
+func compareTimestamps(a, b *timestamppb.Timestamp) int {
+	if a.Seconds < b.Seconds {
+		return -1
+	}
+	if a.Seconds > b.Seconds {
+		return 1
+	}
+	if a.Nanos < b.Nanos {
+		return -1
+	}
+	if a.Nanos > b.Nanos {
+		return 1
+	}
+	return 0
 }
 
 func validateEvaluation(eval *irv1.Evaluation, variants map[string]*irv1.VariantValue) error {

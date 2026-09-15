@@ -65,6 +65,18 @@ func TestValidateMalformedMapsReturnsErrors(t *testing.T) {
 	}
 }
 
+func TestValidateScheduleSupportsPreEpochTimestamps(t *testing.T) {
+	doc := minimalIR()
+	base := doc.Flags["f"].Environments["prod"].Base
+	doc.Flags["f"].Environments["prod"].Schedule = []*irv1.ScheduledEvaluation{
+		{EffectiveAt: timestamppb.New(time.Unix(-2, 900_000_000)), Evaluation: base},
+		{EffectiveAt: timestamppb.New(time.Unix(-1, 100_000_000)), Evaluation: base},
+	}
+	if err := ir.Validate(doc); err != nil {
+		t.Fatalf("pre-epoch schedule rejected: %v", err)
+	}
+}
+
 func TestValidateBoundaryContracts(t *testing.T) {
 	t.Parallel()
 	tests := []struct {

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/testing/protocmp"
@@ -49,6 +50,39 @@ flags:
 	}
 	if diff := cmp.Diff(want, got, protocmp.Transform()); diff != "" {
 		t.Fatalf("IR changed across protobuf round trip (-want +got):\n%s", diff)
+	}
+}
+
+func TestProgressiveRolloutSingleStepEndsWithServe(t *testing.T) {
+	doc, err := authoring.ParseYAML([]byte(`version: v1
+variant_sets:
+  values:
+    on: true
+    off: false
+flags:
+  - key: rollout
+    variant_set: values
+    default_variant: off
+    environments:
+      prod:
+        default_action:
+          progressive_rollout:
+            variant: on
+            stickiness: user.id
+            start: "2026-01-01T00:00:00Z"
+            end: "2026-01-10T00:00:00Z"
+            steps: 1
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	normalized, err := normalize.Normalize(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	schedule := normalized.Flags["rollout"].Environments["prod"].Schedule
+	if len(schedule) != 1 || !schedule[0].EffectiveAt.AsTime().Equal(time.Date(2026, 1, 10, 0, 0, 0, 0, time.UTC)) || schedule[0].Evaluation.DefaultAction.GetServe() != "on" {
+		t.Fatalf("single-step rollout = %#v, want end-time serve(on)", schedule)
 	}
 }
 
@@ -214,18 +248,40 @@ flags:
             stickiness: user.id
             start: "2026-01-01T00:00:00Z"
             end: "2026-01-10T00:00:00Z"
-            steps: 2
+            steps: 4
         scheduled_rollouts:
           - date: "2026-02-01T00:00:00Z"
             default_action:
               serve: on
 `, check: func(t *testing.T, document *irv1.Document) {
 			schedule := document.Flags["rollout"].Environments["prod"].Schedule
-			if len(schedule) != 3 {
-				t.Fatalf("schedule length = %d, want 3", len(schedule))
+			if len(schedule) != 4 {
+				t.Fatalf("schedule length = %d, want 4", len(schedule))
 			}
-			if !schedule[0].EffectiveAt.AsTime().Before(schedule[1].EffectiveAt.AsTime()) || !schedule[1].EffectiveAt.AsTime().Before(schedule[2].EffectiveAt.AsTime()) {
-				t.Fatal("schedule is not strictly increasing")
+			for index := 1; index < len(schedule); index++ {
+				if !schedule[index-1].EffectiveAt.AsTime().Before(schedule[index].EffectiveAt.AsTime()) {
+					t.Fatal("schedule is not strictly increasing")
+				}
+			}
+			if !schedule[0].EffectiveAt.AsTime().Equal(time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)) {
+				t.Fatalf("first rollout timestamp = %v, want start", schedule[0].EffectiveAt.AsTime())
+			}
+			if !schedule[3].EffectiveAt.AsTime().Equal(time.Date(2026, 1, 10, 0, 0, 0, 0, time.UTC)) {
+				t.Fatalf("last rollout timestamp = %v, want end", schedule[3].EffectiveAt.AsTime())
+			}
+			if got := schedule[3].Evaluation.DefaultAction.GetServe(); got != "on" {
+				t.Fatalf("last rollout action = %q, want serve(on)", got)
+			}
+			wantTimes := []time.Time{
+				time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+				time.Date(2026, 1, 4, 0, 0, 0, 0, time.UTC),
+				time.Date(2026, 1, 7, 0, 0, 0, 0, time.UTC),
+				time.Date(2026, 1, 10, 0, 0, 0, 0, time.UTC),
+			}
+			for index, want := range wantTimes {
+				if got := schedule[index].EffectiveAt.AsTime(); !got.Equal(want) {
+					t.Fatalf("schedule[%d] timestamp = %v, want %v", index, got, want)
+				}
 			}
 		}},
 	}

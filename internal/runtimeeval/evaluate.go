@@ -7,7 +7,6 @@ import (
 	"math"
 	"math/big"
 	"regexp"
-	"strconv"
 	"strings"
 
 	irv1 "github.com/satorunooshie/ffcraft/gen/ffcraft/ir/v1"
@@ -301,7 +300,7 @@ func compareNumbers(left, right exactNumber, operator irv1.NumericComparisonOper
 }
 
 type semver struct {
-	major, minor, patch int64
+	major, minor, patch string
 	pre                 []string
 }
 
@@ -312,9 +311,6 @@ func parseSemver(value string) (semver, bool) {
 	if matches == nil {
 		return semver{}, false
 	}
-	major, _ := strconv.ParseInt(matches[1], 10, 64)
-	minor, _ := strconv.ParseInt(matches[2], 10, 64)
-	patch, _ := strconv.ParseInt(matches[3], 10, 64)
 	var pre []string
 	if matches[4] != "" {
 		pre = strings.Split(matches[4], ".")
@@ -324,7 +320,7 @@ func parseSemver(value string) (semver, bool) {
 			}
 		}
 	}
-	return semver{major: major, minor: minor, patch: patch, pre: pre}, true
+	return semver{major: matches[1], minor: matches[2], patch: matches[3], pre: pre}, true
 }
 
 func allDigits(value string) bool {
@@ -353,11 +349,12 @@ func compareSemver(left, right semver, operator irv1.SemVerComparisonOperator) b
 }
 
 func compareSemverValue(left, right semver) int {
-	for _, pair := range [][2]int64{{left.major, right.major}, {left.minor, right.minor}, {left.patch, right.patch}} {
-		if pair[0] < pair[1] {
+	for _, pair := range [][2]string{{left.major, right.major}, {left.minor, right.minor}, {left.patch, right.patch}} {
+		comparison := compareUnsignedDecimal(pair[0], pair[1])
+		if comparison < 0 {
 			return -1
 		}
-		if pair[0] > pair[1] {
+		if comparison > 0 {
 			return 1
 		}
 	}
@@ -374,12 +371,11 @@ func compareSemverValue(left, right semver) int {
 		leftID, rightID := left.pre[index], right.pre[index]
 		leftNumeric, rightNumeric := allDigits(leftID), allDigits(rightID)
 		if leftNumeric && rightNumeric {
-			leftValue, _ := strconv.ParseUint(leftID, 10, 64)
-			rightValue, _ := strconv.ParseUint(rightID, 10, 64)
-			if leftValue < rightValue {
+			comparison := compareUnsignedDecimal(leftID, rightID)
+			if comparison < 0 {
 				return -1
 			}
-			if leftValue > rightValue {
+			if comparison > 0 {
 				return 1
 			}
 		} else if leftNumeric != rightNumeric {
@@ -397,6 +393,22 @@ func compareSemverValue(left, right semver) int {
 		return -1
 	}
 	if len(left.pre) > len(right.pre) {
+		return 1
+	}
+	return 0
+}
+
+func compareUnsignedDecimal(left, right string) int {
+	if len(left) < len(right) {
+		return -1
+	}
+	if len(left) > len(right) {
+		return 1
+	}
+	if left < right {
+		return -1
+	}
+	if left > right {
 		return 1
 	}
 	return 0
