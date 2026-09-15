@@ -7,15 +7,29 @@ before:
 builds:
   - id: ffcompile
     main: ./cmd/ffcompile
+    binary: ffcompile
     goos: [linux, darwin, windows]
     goarch: [amd64, arm64]
   - id: ffcodegen
     main: ./cmd/ffcodegen
+    binary: ffcodegen
     goos: [linux, darwin, windows]
     goarch: [amd64, arm64]
 
 archives:
-  - formats: [tar.gz]
+  - id: ffcompile
+    ids:
+      - ffcompile
+    formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Binary }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+  - id: ffcodegen
+    ids:
+      - ffcodegen
+    formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Binary }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
     format_overrides:
       - goos: windows
         formats: [zip]
