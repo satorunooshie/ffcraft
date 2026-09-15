@@ -38,6 +38,8 @@ items:
     fixtures: [testdata/extensions.yaml]
   - id: unsupported_oneof_variants
     fixtures: [testdata/protobuf/unsupported_oneof_variant.hex, testdata/protobuf/invalid_enum_value.hex, testdata/protobuf/invalid_oneof_payload.hex]
+  - id: valid_protobuf_extensions_round_trip
+    fixtures: [testdata/protobuf/extensions_valid.hex]
   - id: integer_weights_gcd_canonicalization
     fixtures: [testdata/authoring/gcd_distribution.yaml]
   - id: invalid_distribution_shapes

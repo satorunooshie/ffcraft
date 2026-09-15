@@ -85,6 +85,7 @@ func TestV1ConformanceManifestIsCompleteAndResolvable(t *testing.T) {
 		"empty_maps_and_absent_fields", "invalid_numbers", "empty_namespaces", "oversized_keys",
 		"duplicate_yaml_mapping_keys", "custom_yaml_tags", "scalar_typing_edges", "oversized_object_field_names",
 		"unknown_core_protobuf_fields", "unknown_extension_namespaces_compile", "unsupported_oneof_variants",
+		"valid_protobuf_extensions_round_trip",
 		"integer_weights_gcd_canonicalization", "invalid_distribution_shapes", "lossless_numeric_equality",
 		"missing_null_presence", "runtime_type_mismatch_invalid_semver", "homogeneous_heterogeneous_membership",
 		"string_match_operators", "semver_precedence_invalid_literal", "logical_operators",
@@ -99,6 +100,35 @@ func TestV1ConformanceManifestIsCompleteAndResolvable(t *testing.T) {
 		if _, ok := referenced[fixture]; !ok {
 			t.Fatalf("fixture %q is not referenced by the conformance manifest", fixture)
 		}
+	}
+}
+
+func TestV1ValidProtobufExtensionFixtureRoundTrip(t *testing.T) {
+	wireText, err := protobufFixtures.ReadFile("testdata/protobuf/extensions_valid.hex")
+	if err != nil {
+		t.Fatal(err)
+	}
+	wire, err := hex.DecodeString(string(bytes.TrimSpace(wireText)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc, err := ir.Unmarshal(wire)
+	if err != nil {
+		t.Fatalf("valid protobuf fixture rejected: %v", err)
+	}
+	encoded, err := ir.Marshal(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	decoded, err := ir.Unmarshal(encoded)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !proto.Equal(doc, decoded) {
+		t.Fatal("valid protobuf fixture changed across round trip")
+	}
+	if doc.Extensions["conformance"].GetObjectValue().Fields["integer"].GetIntValue() != 9007199254740993 {
+		t.Fatal("valid protobuf fixture did not preserve large int64 extension")
 	}
 }
 
