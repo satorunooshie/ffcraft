@@ -50,6 +50,7 @@ func compileIRDocument(doc *irv1.Document, environment string, opts CompileOptio
 	if err != nil {
 		return nil, nil, err
 	}
+	output = append(output, '\n')
 	return output, warnings, nil
 }
 

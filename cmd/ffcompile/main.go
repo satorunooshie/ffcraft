@@ -143,7 +143,6 @@ func runNormalize(args []string, stdout io.Writer) error {
 		if err != nil {
 			return fmt.Errorf("marshal normalized yaml: %w", err)
 		}
-		output = append(output, '\n')
 	}
 
 	if *outPath == "" || *outPath == "-" {
@@ -214,7 +213,6 @@ func runBuildFlagd(args []string, stdout, stderr io.Writer) error {
 	if err := writeWarnings(stderr, warnings); err != nil {
 		return err
 	}
-	output = append(output, '\n')
 	return writeOutput(stdout, opts.outPath, output)
 }
 
@@ -238,7 +236,6 @@ func runCompileFlagd(args []string, stdout, stderr io.Writer) error {
 	if err := writeWarnings(stderr, warnings); err != nil {
 		return err
 	}
-	output = append(output, '\n')
 	return writeOutput(stdout, opts.outPath, output)
 }
 
