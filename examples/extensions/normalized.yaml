@@ -1,0 +1,81 @@
+extensions:
+    com.example.team.v1:
+        object_value:
+            fields:
+                repository:
+                    string_value: https://example.test/platform/flags
+                schema_version:
+                    int_value: 1
+flags:
+    checkout:
+        environments:
+            prod:
+                base:
+                    default_action:
+                        serve: "off"
+                    rules:
+                        - action:
+                            serve: "on"
+                          condition:
+                            equality:
+                                attribute:
+                                    segments:
+                                        - user
+                                        - id
+                                literal:
+                                    string_value: internal-user
+                                operator: EQUALITY_OPERATOR_EQ
+                extensions:
+                    com.example.backend.v1:
+                        object_value:
+                            fields:
+                                rollout_ticket:
+                                    string_value: ROLLOUT-123
+                    com.example.client.v1:
+                        object_value:
+                            fields:
+                                cache_ttl_seconds:
+                                    int_value: 60
+                    com.example.team.v1:
+                        object_value:
+                            fields:
+                                oncall:
+                                    string_value: growth-platform
+        extensions:
+            com.example.backend.v1:
+                object_value:
+                    fields:
+                        audit:
+                            object_value:
+                                fields:
+                                    required:
+                                        bool_value: true
+                        metrics:
+                            object_value:
+                                fields:
+                                    counter:
+                                        string_value: checkout_evaluation
+            com.example.client.v1:
+                object_value:
+                    fields:
+                        analytics_event:
+                            string_value: checkout_evaluated
+                        exposure:
+                            object_value:
+                                fields:
+                                    enabled:
+                                        bool_value: true
+            com.example.team.v1:
+                object_value:
+                    fields:
+                        documentation:
+                            string_value: https://example.test/flags/checkout
+                        owner:
+                            string_value: growth-platform
+        variants:
+            "off":
+                bool_value: false
+            "on":
+                bool_value: true
+version: normalized/v1
+

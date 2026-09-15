@@ -1,0 +1,50 @@
+version: v1
+
+variant_sets:
+  boolean:
+    on: true
+    off: false
+
+rules:
+  internal_user:
+    eq:
+      - {var: user.id}
+      - internal-user
+
+flags:
+  - key: checkout
+    variant_set: boolean
+    default_variant: off
+    extensions:
+      com.example.client.v1:
+        exposure:
+          enabled: true
+        analytics_event: checkout_evaluated
+      com.example.backend.v1:
+        audit:
+          required: true
+        metrics:
+          counter: checkout_evaluation
+      com.example.team.v1:
+        owner: growth-platform
+        documentation: https://example.test/flags/checkout
+    environments:
+      prod:
+        rules:
+          - if:
+              rule: internal_user
+            serve: on
+        default_action:
+          serve: off
+        extensions:
+          com.example.client.v1:
+            cache_ttl_seconds: 60
+          com.example.backend.v1:
+            rollout_ticket: ROLLOUT-123
+          com.example.team.v1:
+            oncall: growth-platform
+
+extensions:
+  com.example.team.v1:
+    repository: https://example.test/platform/flags
+    schema_version: 1
