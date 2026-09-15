@@ -37,5 +37,11 @@ jobs:
       - name: Regenerate generated files
         run: go generate ./...
 
+      - name: Regenerate Go golden files
+        run: make update-go-golden
+
+      - name: Regenerate Go examples
+        run: make update-go-example
+
       - name: Check generated files
         run: git diff --exit-code
