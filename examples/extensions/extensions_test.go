@@ -5,12 +5,13 @@ import (
 	"os"
 	"testing"
 
+	"google.golang.org/protobuf/proto"
+
 	irv1 "github.com/satorunooshie/ffcraft/gen/ffcraft/ir/v1"
 	"github.com/satorunooshie/ffcraft/internal/authoring"
 	"github.com/satorunooshie/ffcraft/internal/compiler/flagd"
 	"github.com/satorunooshie/ffcraft/internal/compiler/gofeatureflag"
 	"github.com/satorunooshie/ffcraft/internal/normalize"
-	"google.golang.org/protobuf/proto"
 )
 
 func TestExtensionNamespacesDoNotChangeCoreOutputs(t *testing.T) {
