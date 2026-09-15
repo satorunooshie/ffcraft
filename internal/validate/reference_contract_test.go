@@ -89,3 +89,30 @@ func TestValidateTimeAndScheduleTables(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateRejectsNilReferenceContainers(t *testing.T) {
+	variants := &ffv1.VariantSet{Variants: map[string]*ffv1.VariantValue{"on": {Kind: &ffv1.VariantValue_BoolValue{BoolValue: true}}}}
+	doc := &ffv1.FeatureFlagDocument{}
+	serve := &ffv1.Action{Kind: &ffv1.Action_Serve{Serve: &ffv1.Serve{Variant: "on"}}}
+	tests := []struct {
+		name  string
+		check func() error
+		want  string
+	}{
+		{"nil action", func() error { return validateActionRefs(doc, variants, nil, false) }, "action is required"},
+		{"nil variants", func() error { return validateActionRefs(doc, nil, serve, false) }, "variant set is required"},
+		{"nil condition", func() error { return validateConditionRefs(doc, nil) }, "condition is required"},
+		{"nil scheduled step", func() error { return validateScheduledStep(doc, variants, nil) }, "scheduled step is required"},
+		{"nil schedule entry", func() error { return validateScheduledRollouts([]*ffv1.ScheduledStep{nil}) }, "step is required"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if err := test.check(); err == nil || !strings.Contains(err.Error(), test.want) {
+				t.Fatalf("validation error = %v, want %q", err, test.want)
+			}
+		})
+	}
+	if refs := collectRuleRefs(nil); refs != nil {
+		t.Fatalf("collectRuleRefs(nil) = %#v, want nil", refs)
+	}
+}

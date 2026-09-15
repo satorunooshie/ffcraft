@@ -136,6 +136,12 @@ func validateReferences(doc *ffv1.FeatureFlagDocument) error {
 }
 
 func validateActionRefs(doc *ffv1.FeatureFlagDocument, variants *ffv1.VariantSet, action *ffv1.Action, allowProgressive bool) error {
+	if action == nil {
+		return errors.New("action is required")
+	}
+	if variants == nil {
+		return errors.New("variant set is required")
+	}
 	switch kind := action.Kind.(type) {
 	case *ffv1.Action_Serve:
 		if _, ok := variants.Variants[kind.Serve.Variant]; !ok {
@@ -176,6 +182,9 @@ func validateStickiness(stickiness string) error {
 }
 
 func validateConditionRefs(doc *ffv1.FeatureFlagDocument, cond *ffv1.Condition) error {
+	if cond == nil {
+		return errors.New("condition is required")
+	}
 	switch kind := cond.Kind.(type) {
 	case *ffv1.Condition_Rule:
 		if _, ok := doc.Rules[kind.Rule.Name]; !ok {
@@ -244,6 +253,9 @@ func detectRuleCycles(doc *ffv1.FeatureFlagDocument) error {
 }
 
 func collectRuleRefs(cond *ffv1.Condition) []string {
+	if cond == nil {
+		return nil
+	}
 	switch kind := cond.Kind.(type) {
 	case *ffv1.Condition_Rule:
 		return []string{kind.Rule.Name}
@@ -307,6 +319,9 @@ func validateExperimentation(exp *ffv1.Experimentation) error {
 }
 
 func validateScheduledStep(doc *ffv1.FeatureFlagDocument, variants *ffv1.VariantSet, step *ffv1.ScheduledStep) error {
+	if step == nil {
+		return errors.New("scheduled step is required")
+	}
 	if _, err := parseTimestamp(step.Date); err != nil {
 		return fmt.Errorf("date: %w", err)
 	}
@@ -341,6 +356,9 @@ func validateScheduledRollouts(steps []*ffv1.ScheduledStep) error {
 
 	var prev time.Time
 	for i, step := range steps {
+		if step == nil {
+			return fmt.Errorf("scheduled_rollouts[%d]: step is required", i)
+		}
 		current, err := parseTimestamp(step.Date)
 		if err != nil {
 			return fmt.Errorf("scheduled_rollouts[%d].date: %w", i, err)
