@@ -1,6 +1,9 @@
 package capability
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
 
 // ConditionKind identifies a normalized IR condition construct.
 type ConditionKind string
@@ -36,6 +39,11 @@ type ConditionCapability struct {
 
 const UnsupportedConditionCode = "FFCRAFT_TARGET_CONDITION_UNSUPPORTED"
 
+// ErrUnsupportedCondition is the stable category for target capability
+// failures. Callers can use errors.Is and inspect the concrete error with
+// errors.As when they need the target or condition details.
+var ErrUnsupportedCondition = errors.New(UnsupportedConditionCode)
+
 // ConditionCapabilityMatrix returns the v1 condition capability matrix.
 func ConditionCapabilityMatrix() []ConditionCapability {
 	conditions := []ConditionKind{
@@ -54,7 +62,7 @@ func ConditionCapabilityMatrix() []ConditionCapability {
 	for _, target := range []Target{TargetFlagd, TargetGOFeatureFlag} {
 		for _, condition := range conditions {
 			capability := ConditionCapability{Target: target, Condition: condition, Supported: true}
-			if condition == ConditionPresence || (condition == ConditionInequality && target == TargetFlagd) {
+			if condition == ConditionPresence || (condition == ConditionSemver && target == TargetFlagd) || (condition == ConditionInequality && target == TargetFlagd) {
 				capability.Supported = false
 				capability.Diagnostic = UnsupportedConditionCode
 			}
@@ -104,4 +112,6 @@ func (e *UnsupportedConditionError) Error() string {
 	return fmt.Sprintf("%s: target %q cannot represent condition %q", UnsupportedConditionCode, e.Target, e.Condition)
 }
 
-func (e *UnsupportedConditionError) Code() string { return UnsupportedConditionCode }
+func (e *UnsupportedConditionError) Is(target error) bool {
+	return target == ErrUnsupportedCondition
+}

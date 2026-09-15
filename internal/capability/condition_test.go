@@ -1,6 +1,7 @@
 package capability
 
 import (
+	"errors"
 	"strings"
 	"testing"
 )
@@ -13,6 +14,9 @@ func TestConditionCapabilityMatrix(t *testing.T) {
 	for _, entry := range matrix {
 		if entry.Condition == ConditionPresence && entry.Supported {
 			t.Fatal("presence must remain fail-closed for both v1 targets")
+		}
+		if entry.Target == TargetFlagd && entry.Condition == ConditionSemver && entry.Supported {
+			t.Fatal("flagd SemVer must remain fail-closed until strict semantics are available")
 		}
 	}
 }
@@ -48,7 +52,7 @@ func TestConditionCapabilityMatrixRejectsMalformedEntries(t *testing.T) {
 
 func TestUnsupportedConditionErrorContract(t *testing.T) {
 	err := &UnsupportedConditionError{Target: TargetFlagd, Condition: ConditionPresence}
-	if err.Code() != UnsupportedConditionCode || !strings.Contains(err.Error(), UnsupportedConditionCode) || !strings.Contains(err.Error(), "presence") {
+	if !errors.Is(err, ErrUnsupportedCondition) || !strings.Contains(err.Error(), "presence") {
 		t.Fatalf("UnsupportedConditionError = %v", err)
 	}
 }
