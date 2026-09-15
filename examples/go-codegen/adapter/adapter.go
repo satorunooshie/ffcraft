@@ -7,9 +7,9 @@ import (
 )
 
 type Adapter[C any] struct {
-	client        *openfeature.Client
-	hooks         []openfeature.Hook
-	toEvaluation  func(C) openfeature.EvaluationContext
+	client       *openfeature.Client
+	hooks        []openfeature.Hook
+	toEvaluation func(C) openfeature.EvaluationContext
 }
 
 func NewClientAdapter[C any](client *openfeature.Client, toEvaluation func(C) openfeature.EvaluationContext, hooks ...openfeature.Hook) *Adapter[C] {
