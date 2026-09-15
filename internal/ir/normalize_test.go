@@ -2,12 +2,14 @@ package ir_test
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/testing/protocmp"
 
 	irv1 "github.com/satorunooshie/ffcraft/gen/ffcraft/ir/v1"
+	"github.com/satorunooshie/ffcraft/internal/ast"
 	"github.com/satorunooshie/ffcraft/internal/authoring"
 	"github.com/satorunooshie/ffcraft/internal/ir"
 	"github.com/satorunooshie/ffcraft/internal/normalize"
@@ -196,6 +198,48 @@ flags:
 			}
 			tt.check(t, document)
 		})
+	}
+}
+
+func TestNormalizeCanonicalizesMaxUint32DistributionWeights(t *testing.T) {
+	document, err := ir.FromAST(&ast.Document{Flags: []*ast.Flag{{
+		Key: "max-weight", DefaultVariant: "off",
+		Variants: map[string]ast.VariantValue{
+			"on":  {Kind: ast.VariantValueKindBool, Bool: true},
+			"off": {Kind: ast.VariantValueKindBool},
+		},
+		Environments: map[string]*ast.Environment{"prod": {
+			DefaultAction: &ast.DistributeAction{Stickiness: "user.id", Allocations: map[string]float64{
+				"on":  4294967295,
+				"off": 4294967295,
+			}},
+		}},
+	}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	weights := document.Flags["max-weight"].Environments["prod"].Base.DefaultAction.GetDistribute().Weights
+	if weights["on"] != 1 || weights["off"] != 1 {
+		t.Fatalf("canonical max weights = %#v, want 1:1", weights)
+	}
+}
+
+func TestFromASTRejectsDistributionWeightOverflow(t *testing.T) {
+	_, err := ir.FromAST(&ast.Document{Flags: []*ast.Flag{{
+		Key: "overflow", DefaultVariant: "off",
+		Variants: map[string]ast.VariantValue{
+			"on":  {Kind: ast.VariantValueKindBool, Bool: true},
+			"off": {Kind: ast.VariantValueKindBool},
+		},
+		Environments: map[string]*ast.Environment{"prod": {
+			DefaultAction: &ast.DistributeAction{Stickiness: "user.id", Allocations: map[string]float64{
+				"on":  4294967296,
+				"off": 1,
+			}},
+		}},
+	}}})
+	if err == nil || !strings.Contains(err.Error(), "positive integer") {
+		t.Fatalf("FromAST() error = %v, want uint32 overflow rejection", err)
 	}
 }
 
