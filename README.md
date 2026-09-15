@@ -14,8 +14,9 @@ flowchart LR
     A[Authoring YAML] --> B[Parse]
     B --> C[Validate]
     C --> D[Normalize]
-    D --> E[Normalized YAML]
+    D --> E[ffcraft.ir.v1 protobuf]
     E --> F[Target Compiler]
+    E --> G[Normalized YAML view]
 ```
 
 The semantic contract between normalization and compilers is the protobuf IR
@@ -64,7 +65,7 @@ The compilation pipeline is intentionally one-way: authoring YAML is decoded int
 - [docs/authoring-format.md](docs/authoring-format.md): authoring YAML syntax and semantics
 - [docs/compiler-targets.md](docs/compiler-targets.md): how compiled output differs between `flagd` and `gofeatureflag`
 - [docs/ffcodegen.md](docs/ffcodegen.md): `ffcodegen` commands, defaults, `ffcodegen.yaml`, and generated API usage
-- [docs/extension-spec-oss.md](docs/extension-spec-oss.md): public extension and normalized IR contract
+- [docs/extension-spec.md](docs/extension-spec.md): public extension and normalized IR contract
 
 ## Quick Start
 
