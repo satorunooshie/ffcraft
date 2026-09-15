@@ -63,6 +63,7 @@ func TestV1ConformanceManifestIsCompleteAndResolvable(t *testing.T) {
 		t.Fatalf("manifest version = %q", manifest.Version)
 	}
 	seen := make(map[string]struct{}, len(manifest.Items))
+	referenced := make(map[string]struct{})
 	for _, item := range manifest.Items {
 		if item.ID == "" || len(item.Fixtures) == 0 {
 			t.Fatalf("invalid manifest item: %+v", item)
@@ -75,11 +76,62 @@ func TestV1ConformanceManifestIsCompleteAndResolvable(t *testing.T) {
 			if !conformanceFixtureExists(fixture) {
 				t.Fatalf("manifest item %q references missing fixture %q", item.ID, fixture)
 			}
+			referenced[fixture] = struct{}{}
 		}
 	}
-	if len(seen) != 31 {
-		t.Fatalf("manifest item count = %d, want 31 conformance requirements", len(seen))
+	expectedIDs := []string{
+		"core_only_document", "scoped_extensions", "every_extension_value_kind", "deeply_nested_objects_lists",
+		"int64_boundaries", "finite_doubles_and_null", "repeated_namespace_scopes", "unknown_namespaces",
+		"empty_maps_and_absent_fields", "invalid_numbers", "empty_namespaces", "oversized_keys",
+		"duplicate_yaml_mapping_keys", "custom_yaml_tags", "scalar_typing_edges", "oversized_object_field_names",
+		"unknown_core_protobuf_fields", "unknown_extension_namespaces_compile", "unsupported_oneof_variants",
+		"integer_weights_gcd_canonicalization", "invalid_distribution_shapes", "lossless_numeric_equality",
+		"missing_null_presence", "runtime_type_mismatch_invalid_semver", "homogeneous_heterogeneous_membership",
+		"string_match_operators", "semver_precedence_invalid_literal", "logical_operators",
+		"timestamp_timezone_nanoseconds", "schedule_order_duplicates_redundancy_replacement",
+		"multi_environment_target_output_semantics",
 	}
+	slices.Sort(expectedIDs)
+	if !slices.Equal(expectedIDs, sortedKeys(seen)) {
+		t.Fatalf("manifest IDs = %v, want %v", sortedKeys(seen), expectedIDs)
+	}
+	for _, fixture := range allConformanceFixturePaths() {
+		if _, ok := referenced[fixture]; !ok {
+			t.Fatalf("fixture %q is not referenced by the conformance manifest", fixture)
+		}
+	}
+}
+
+func sortedKeys(values map[string]struct{}) []string {
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	slices.Sort(keys)
+	return keys
+}
+
+func allConformanceFixturePaths() []string {
+	patterns := []struct {
+		filesystem fs.FS
+		pattern    string
+	}{
+		{fixtures, "testdata/*.yaml"},
+		{authoringFixtures, "testdata/authoring/*.yaml"},
+		{protobufFixtures, "testdata/protobuf/*.hex"},
+		{invalidFixtures, "testdata/invalid/*.yaml"},
+		{expectedFixtures, "testdata/expected/*"},
+	}
+	var paths []string
+	for _, item := range patterns {
+		matches, err := fs.Glob(item.filesystem, item.pattern)
+		if err != nil {
+			panic(err)
+		}
+		paths = append(paths, matches...)
+	}
+	slices.Sort(paths)
+	return paths
 }
 
 func conformanceFixtureExists(path string) bool {
