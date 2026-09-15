@@ -108,6 +108,26 @@ func TestCompileIRScalarAndPercentageContracts(t *testing.T) {
 	}
 }
 
+func TestCompileIRVariantNestedShapeContracts(t *testing.T) {
+	variants := map[string]*irv1.VariantValue{
+		"null": {Kind: &irv1.VariantValue_NullValue{NullValue: &irv1.VariantNull{}}},
+		"object": {Kind: &irv1.VariantValue_ObjectValue{ObjectValue: &irv1.VariantObject{Fields: map[string]*irv1.VariantValue{
+			"enabled": {Kind: &irv1.VariantValue_BoolValue{BoolValue: true}},
+			"nested":  {Kind: &irv1.VariantValue_ListValue{ListValue: &irv1.VariantList{Values: []*irv1.VariantValue{{Kind: &irv1.VariantValue_IntValue{IntValue: 7}}, {Kind: &irv1.VariantValue_NullValue{NullValue: &irv1.VariantNull{}}}}}}},
+		}}}},
+		"list": {Kind: &irv1.VariantValue_ListValue{ListValue: &irv1.VariantList{Values: []*irv1.VariantValue{
+			{Kind: &irv1.VariantValue_StringValue{StringValue: "x"}},
+			{Kind: &irv1.VariantValue_DoubleValue{DoubleValue: 1.5}},
+		}}}},
+	}
+	encoded := string(mustJSON(compileIRVariants(variants)))
+	for _, fragment := range []string{`"null":null`, `"enabled":true`, `"nested":[7,null]`, `"list":["x",1.5]`} {
+		if !strings.Contains(encoded, fragment) {
+			t.Fatalf("nested variant output = %s, missing %q", encoded, fragment)
+		}
+	}
+}
+
 func mustJSON(value any) []byte {
 	encoded, err := json.Marshal(value)
 	if err != nil {
