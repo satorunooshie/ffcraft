@@ -1,6 +1,7 @@
 package gofeatureflag
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 	"time"
@@ -74,6 +75,34 @@ func TestCompileIRVariantAndTransportContracts(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			if err := validateIRNumericTransport(test.variants); err == nil || !strings.Contains(err.Error(), test.want) {
 				t.Fatalf("validateIRNumericTransport() error = %v, want %q", err, test.want)
+			}
+		})
+	}
+}
+
+func TestCompileIRVariantTransportTable(t *testing.T) {
+	tests := []struct {
+		name  string
+		value *irv1.VariantValue
+		want  string
+	}{
+		{"bool", &irv1.VariantValue{Kind: &irv1.VariantValue_BoolValue{BoolValue: true}}, "true"},
+		{"string", &irv1.VariantValue{Kind: &irv1.VariantValue_StringValue{StringValue: "x"}}, `"x"`},
+		{"int", &irv1.VariantValue{Kind: &irv1.VariantValue_IntValue{IntValue: 7}}, "7"},
+		{"double", &irv1.VariantValue{Kind: &irv1.VariantValue_DoubleValue{DoubleValue: 1.5}}, "1.5"},
+		{"null", &irv1.VariantValue{Kind: &irv1.VariantValue_NullValue{NullValue: &irv1.VariantNull{}}}, "null"},
+		{"object", &irv1.VariantValue{Kind: &irv1.VariantValue_ObjectValue{ObjectValue: &irv1.VariantObject{Fields: map[string]*irv1.VariantValue{"nested": {Kind: &irv1.VariantValue_ListValue{ListValue: &irv1.VariantList{Values: []*irv1.VariantValue{{Kind: &irv1.VariantValue_IntValue{IntValue: 7}}, {Kind: &irv1.VariantValue_NullValue{NullValue: &irv1.VariantNull{}}}}}}}}}}}, `{"nested":[7,null]}`},
+		{"list", &irv1.VariantValue{Kind: &irv1.VariantValue_ListValue{ListValue: &irv1.VariantList{Values: []*irv1.VariantValue{{Kind: &irv1.VariantValue_StringValue{StringValue: "x"}}, {Kind: &irv1.VariantValue_DoubleValue{DoubleValue: 1.5}}}}}}, `["x",1.5]`},
+		{"unset", &irv1.VariantValue{}, "null"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			encoded, err := json.Marshal(compileIRVariant(test.value))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := string(encoded); got != test.want {
+				t.Fatalf("compileIRVariant() = %s, want %s", got, test.want)
 			}
 		})
 	}
