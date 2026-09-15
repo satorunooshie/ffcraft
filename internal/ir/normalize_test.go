@@ -53,6 +53,41 @@ flags:
 	}
 }
 
+func TestNormalizeReversesNumericComparisonWhenLiteralIsLeft(t *testing.T) {
+	for _, test := range []struct {
+		name      string
+		condition ast.Condition
+		want      irv1.NumericComparisonOperator
+	}{
+		{"gt", &ast.Gt{Left: &ast.Scalar{Kind: ast.ScalarKindInt, Int: 10}, Right: &ast.Var{Path: "age"}}, irv1.NumericComparisonOperator_NUMERIC_COMPARISON_OPERATOR_LT},
+		{"gte", &ast.Gte{Left: &ast.Scalar{Kind: ast.ScalarKindInt, Int: 10}, Right: &ast.Var{Path: "age"}}, irv1.NumericComparisonOperator_NUMERIC_COMPARISON_OPERATOR_LTE},
+		{"lt", &ast.Lt{Left: &ast.Scalar{Kind: ast.ScalarKindInt, Int: 10}, Right: &ast.Var{Path: "age"}}, irv1.NumericComparisonOperator_NUMERIC_COMPARISON_OPERATOR_GT},
+		{"lte", &ast.Lte{Left: &ast.Scalar{Kind: ast.ScalarKindInt, Int: 10}, Right: &ast.Var{Path: "age"}}, irv1.NumericComparisonOperator_NUMERIC_COMPARISON_OPERATOR_GTE},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			doc, err := ir.FromAST(&ast.Document{Flags: []*ast.Flag{
+				{
+					Key: "reverse", DefaultVariant: "off",
+					Variants: map[string]ast.VariantValue{
+						"on": {Kind: ast.VariantValueKindBool, Bool: true}, "off": {Kind: ast.VariantValueKindBool},
+					},
+					Environments: map[string]*ast.Environment{"prod": {
+						Rules:         []*ast.Rule{{Condition: test.condition, Action: &ast.ServeAction{Variant: "on"}}},
+						DefaultAction: &ast.ServeAction{Variant: "off"},
+					}},
+				},
+			}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			got := doc.Flags["reverse"].Environments["prod"].Base.Rules[0].Condition.GetNumericComparison().Operator
+			if got != test.want {
+				t.Fatalf("operator = %v, want %v", got, test.want)
+			}
+		})
+	}
+}
+
 func TestProgressiveRolloutSingleStepEndsWithServe(t *testing.T) {
 	doc, err := authoring.ParseYAML([]byte(`version: v1
 variant_sets:
@@ -204,7 +239,7 @@ variant_sets:
 distributions:
   rollout:
     stickiness: user.id
-    allocations:
+    weights:
       on: 10
       off: 90
 flags:
@@ -304,7 +339,7 @@ func TestNormalizeCanonicalizesMaxUint32DistributionWeights(t *testing.T) {
 			"off": {Kind: ast.VariantValueKindBool},
 		},
 		Environments: map[string]*ast.Environment{"prod": {
-			DefaultAction: &ast.DistributeAction{Stickiness: "user.id", Allocations: map[string]float64{
+			DefaultAction: &ast.DistributeAction{Stickiness: "user.id", Weights: map[string]uint32{
 				"on":  4294967295,
 				"off": 4294967295,
 			}},
@@ -319,7 +354,7 @@ func TestNormalizeCanonicalizesMaxUint32DistributionWeights(t *testing.T) {
 	}
 }
 
-func TestFromASTRejectsDistributionWeightOverflow(t *testing.T) {
+func TestFromASTRejectsZeroDistributionWeight(t *testing.T) {
 	_, err := ir.FromAST(&ast.Document{Flags: []*ast.Flag{{
 		Key: "overflow", DefaultVariant: "off",
 		Variants: map[string]ast.VariantValue{
@@ -327,14 +362,14 @@ func TestFromASTRejectsDistributionWeightOverflow(t *testing.T) {
 			"off": {Kind: ast.VariantValueKindBool},
 		},
 		Environments: map[string]*ast.Environment{"prod": {
-			DefaultAction: &ast.DistributeAction{Stickiness: "user.id", Allocations: map[string]float64{
-				"on":  4294967296,
+			DefaultAction: &ast.DistributeAction{Stickiness: "user.id", Weights: map[string]uint32{
+				"on":  0,
 				"off": 1,
 			}},
 		}},
 	}}})
-	if err == nil || !strings.Contains(err.Error(), "normalized uint32 range") {
-		t.Fatalf("FromAST() error = %v, want uint32 overflow rejection", err)
+	if err == nil || !strings.Contains(err.Error(), "positive integer") {
+		t.Fatalf("FromAST() error = %v, want positive weight rejection", err)
 	}
 }
 

@@ -4,7 +4,6 @@ package ir
 import (
 	"fmt"
 	"math"
-	"math/big"
 	"sort"
 	"strings"
 	"time"
@@ -211,7 +210,7 @@ func action(value ast.Action) (*irv1.Action, error) {
 	case *ast.ServeAction:
 		return &irv1.Action{Kind: &irv1.Action_Serve{Serve: value.Variant}}, nil
 	case *ast.DistributeAction:
-		weights, err := relativeWeights(value.Allocations)
+		weights, err := relativeWeights(value.Weights)
 		if err != nil {
 			return nil, err
 		}
@@ -221,50 +220,20 @@ func action(value ast.Action) (*irv1.Action, error) {
 	}
 }
 
-func relativeWeights(allocations map[string]float64) (map[string]uint32, error) {
-	if len(allocations) < 2 {
+func relativeWeights(weights map[string]uint32) (map[string]uint32, error) {
+	if len(weights) < 2 {
 		return nil, fmt.Errorf("distribution requires at least two allocations")
 	}
-	denominator := big.NewInt(1)
-	rats := make(map[string]*big.Rat, len(allocations))
-	for name, value := range allocations {
-		if value <= 0 || math.IsNaN(value) || math.IsInf(value, 0) {
-			return nil, fmt.Errorf("distribution weight %q is not a positive finite number", name)
+	for name, value := range weights {
+		if value == 0 {
+			return nil, fmt.Errorf("distribution weight %q is not a positive integer", name)
 		}
-		ratio := new(big.Rat).SetFloat64(value)
-		if ratio == nil {
-			return nil, fmt.Errorf("distribution weight %q is not representable", name)
-		}
-		rats[name] = ratio
-		denominator = lcm(denominator, ratio.Denom())
 	}
-	out := make(map[string]uint32, len(rats))
-	commonGCD := big.NewInt(0)
-	for name, ratio := range rats {
-		numerator := new(big.Int).Mul(ratio.Num(), new(big.Int).Quo(denominator, ratio.Denom()))
-		rats[name] = new(big.Rat).SetInt(numerator)
-		commonGCD = gcdBig(commonGCD, numerator)
-	}
-	for name, ratio := range rats {
-		numerator := new(big.Int).Quo(ratio.Num(), commonGCD)
-		if !numerator.IsUint64() || numerator.Uint64() > math.MaxUint32 {
-			return nil, fmt.Errorf("distribution weight %q exceeds normalized uint32 range", name)
-		}
-		out[name] = uint32(numerator.Uint64())
+	out := make(map[string]uint32, len(weights))
+	for name, weight := range weights {
+		out[name] = weight
 	}
 	return out, nil
-}
-
-func gcdBig(a, b *big.Int) *big.Int {
-	return new(big.Int).GCD(nil, nil, a, b)
-}
-
-func lcm(a, b *big.Int) *big.Int {
-	if a.Sign() == 0 || b.Sign() == 0 {
-		return big.NewInt(0)
-	}
-	gcd := new(big.Int).GCD(nil, nil, a, b)
-	return new(big.Int).Mul(new(big.Int).Quo(a, gcd), b)
 }
 
 func condition(value ast.Condition) (*irv1.Condition, error) {
@@ -292,11 +261,11 @@ func rawCondition(value ast.Condition) (*irv1.Condition, error) {
 		return &irv1.Condition{Kind: &irv1.Condition_Equality{Equality: &irv1.EqualityCondition{Operator: op, Attribute: path(attribute.Path), Literal: scalar(literal)}}}, nil
 	case *ast.Gt, *ast.Gte, *ast.Lt, *ast.Lte:
 		left, right := valuePair(value)
-		variable, literal, err := numericPair(left, right)
+		variable, literal, reversed, err := numericPair(left, right)
 		if err != nil {
 			return nil, err
 		}
-		op := numericOperator(value)
+		op := numericOperator(value, reversed)
 		return &irv1.Condition{Kind: &irv1.Condition_NumericComparison{NumericComparison: &irv1.NumericComparisonCondition{Operator: op, Attribute: path(variable.Path), Literal: numericValue(literal)}}}, nil
 	case *ast.In:
 		variable, ok := value.Target.(*ast.Var)
@@ -433,23 +402,49 @@ func attributeLiteral(left, right ast.Value) (*ast.Var, *ast.Scalar, error) {
 	}
 	return nil, nil, fmt.Errorf("condition must compare an attribute with a scalar")
 }
-func numericPair(left, right ast.Value) (*ast.Var, *ast.Scalar, error) {
-	variable, literal, err := attributeLiteral(left, right)
-	if err != nil || (literal.Kind != ast.ScalarKindInt && literal.Kind != ast.ScalarKindDouble) {
-		return nil, nil, fmt.Errorf("numeric comparison requires numeric literal")
+func numericPair(left, right ast.Value) (*ast.Var, *ast.Scalar, bool, error) {
+	variable, variableOK := left.(*ast.Var)
+	literal, literalOK := right.(*ast.Scalar)
+	if variableOK && literalOK {
+		if literal.Kind != ast.ScalarKindInt && literal.Kind != ast.ScalarKindDouble {
+			return nil, nil, false, fmt.Errorf("numeric comparison requires numeric literal")
+		}
+		return variable, literal, false, nil
 	}
-	return variable, literal, nil
+	literal, literalOK = left.(*ast.Scalar)
+	variable, variableOK = right.(*ast.Var)
+	if literalOK && variableOK {
+		if literal.Kind != ast.ScalarKindInt && literal.Kind != ast.ScalarKindDouble {
+			return nil, nil, false, fmt.Errorf("numeric comparison requires numeric literal")
+		}
+		return variable, literal, true, nil
+	}
+	return nil, nil, false, fmt.Errorf("numeric comparison requires numeric literal")
 }
-func numericOperator(value any) irv1.NumericComparisonOperator {
+func numericOperator(value any, reversed bool) irv1.NumericComparisonOperator {
+	var operator irv1.NumericComparisonOperator
 	switch value.(type) {
 	case *ast.Gt:
-		return irv1.NumericComparisonOperator_NUMERIC_COMPARISON_OPERATOR_GT
+		operator = irv1.NumericComparisonOperator_NUMERIC_COMPARISON_OPERATOR_GT
 	case *ast.Gte:
-		return irv1.NumericComparisonOperator_NUMERIC_COMPARISON_OPERATOR_GTE
+		operator = irv1.NumericComparisonOperator_NUMERIC_COMPARISON_OPERATOR_GTE
 	case *ast.Lt:
-		return irv1.NumericComparisonOperator_NUMERIC_COMPARISON_OPERATOR_LT
+		operator = irv1.NumericComparisonOperator_NUMERIC_COMPARISON_OPERATOR_LT
 	default:
+		operator = irv1.NumericComparisonOperator_NUMERIC_COMPARISON_OPERATOR_LTE
+	}
+	if !reversed {
+		return operator
+	}
+	switch operator {
+	case irv1.NumericComparisonOperator_NUMERIC_COMPARISON_OPERATOR_GT:
+		return irv1.NumericComparisonOperator_NUMERIC_COMPARISON_OPERATOR_LT
+	case irv1.NumericComparisonOperator_NUMERIC_COMPARISON_OPERATOR_GTE:
 		return irv1.NumericComparisonOperator_NUMERIC_COMPARISON_OPERATOR_LTE
+	case irv1.NumericComparisonOperator_NUMERIC_COMPARISON_OPERATOR_LT:
+		return irv1.NumericComparisonOperator_NUMERIC_COMPARISON_OPERATOR_GT
+	default:
+		return irv1.NumericComparisonOperator_NUMERIC_COMPARISON_OPERATOR_GTE
 	}
 }
 func logicalChildren(value ast.Condition) ([]ast.Condition, irv1.LogicalOperator) {

@@ -34,10 +34,10 @@ func TestIRCodecRoundTripPreservesOpaqueExtension(t *testing.T) {
 func TestIRCodecRejectsUnknownCoreWithPathAndCode(t *testing.T) {
 	doc := minimalCodecDocument()
 	doc.Flags["f"].ProtoReflect().SetUnknown(unknownVarintField(77))
-	if _, err := Marshal(doc); err == nil || !strings.Contains(err.Error(), "FFCRAFT_IR_UNKNOWN_CORE_FIELD") || !strings.Contains(err.Error(), "$.flags[\"f\"]") {
+	if _, err := Marshal(doc); err == nil || !errors.Is(err, ErrUnknownCoreField) || !strings.Contains(err.Error(), "$.flags[\"f\"]") {
 		t.Fatalf("Marshal() error = %v, want code and path", err)
 	}
-	if _, err := Unmarshal(unknownVarintField(88)); err == nil || !strings.Contains(err.Error(), "FFCRAFT_IR_UNKNOWN_CORE_FIELD") {
+	if _, err := Unmarshal(unknownVarintField(88)); err == nil || !errors.Is(err, ErrUnknownCoreField) {
 		t.Fatalf("Unmarshal() error = %v, want unknown core error", err)
 	}
 }

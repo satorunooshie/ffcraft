@@ -15,9 +15,10 @@ import (
 )
 
 var (
-	validatorOnce sync.Once
-	validator     protovalidate.Validator
-	validatorErr  error
+	validatorOnce           sync.Once
+	validator               protovalidate.Validator
+	validatorErr            error
+	attributeSegmentPattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_-]*$`)
 )
 
 // Validate checks only target-independent IR invariants.
@@ -208,6 +209,9 @@ func validateConditionDepth(condition *irv1.Condition, depth int) error {
 		if kind.NumericComparison.Attribute == nil || kind.NumericComparison.Literal == nil {
 			return fmt.Errorf("numeric comparison is incomplete")
 		}
+		if err := validateAttributePath(kind.NumericComparison.Attribute); err != nil {
+			return err
+		}
 		if literal, ok := kind.NumericComparison.Literal.GetKind().(*irv1.NumericValue_DoubleValue); ok && (math.IsNaN(literal.DoubleValue) || math.IsInf(literal.DoubleValue, 0)) {
 			return fmt.Errorf("numeric comparison literal is not finite")
 		}
@@ -217,6 +221,9 @@ func validateConditionDepth(condition *irv1.Condition, depth int) error {
 		}
 		if kind.Membership.Attribute == nil || kind.Membership.Literals == nil || len(kind.Membership.Literals.Values) == 0 {
 			return fmt.Errorf("membership is incomplete")
+		}
+		if err := validateAttributePath(kind.Membership.Attribute); err != nil {
+			return err
 		}
 		if err := validateScalarHomogeneity(kind.Membership.Literals.Values); err != nil {
 			return err
@@ -231,6 +238,9 @@ func validateConditionDepth(condition *irv1.Condition, depth int) error {
 		if kind.StringMatch.Attribute == nil {
 			return fmt.Errorf("string match attribute is required")
 		}
+		if err := validateAttributePath(kind.StringMatch.Attribute); err != nil {
+			return err
+		}
 	case *irv1.Condition_SemverComparison:
 		if kind.SemverComparison == nil {
 			return fmt.Errorf("semver comparison condition is nil")
@@ -241,6 +251,9 @@ func validateConditionDepth(condition *irv1.Condition, depth int) error {
 		if kind.SemverComparison.Attribute == nil || kind.SemverComparison.Semver == "" {
 			return fmt.Errorf("semver comparison is incomplete")
 		}
+		if err := validateAttributePath(kind.SemverComparison.Attribute); err != nil {
+			return err
+		}
 		if !semverPattern.MatchString(kind.SemverComparison.Semver) {
 			return fmt.Errorf("invalid SemVer literal %q", kind.SemverComparison.Semver)
 		}
@@ -250,6 +263,9 @@ func validateConditionDepth(condition *irv1.Condition, depth int) error {
 		}
 		if kind.Presence.Attribute == nil {
 			return fmt.Errorf("presence attribute is required")
+		}
+		if err := validateAttributePath(kind.Presence.Attribute); err != nil {
+			return err
 		}
 	case *irv1.Condition_Logical:
 		if kind.Logical == nil {
@@ -323,6 +339,17 @@ func scalarDomain(value *irv1.ScalarValue) string {
 func validateAttributeLiteral(attribute *irv1.AttributePath, literal *irv1.ScalarValue) error {
 	if attribute == nil || len(attribute.Segments) == 0 || literal == nil {
 		return fmt.Errorf("attribute equality is incomplete")
+	}
+	return validateAttributePath(attribute)
+}
+func validateAttributePath(attribute *irv1.AttributePath) error {
+	if attribute == nil || len(attribute.Segments) == 0 {
+		return fmt.Errorf("attribute path is required")
+	}
+	for _, segment := range attribute.Segments {
+		if !attributeSegmentPattern.MatchString(segment) {
+			return fmt.Errorf("attribute path segment %q is not a valid identifier", segment)
+		}
 	}
 	return nil
 }

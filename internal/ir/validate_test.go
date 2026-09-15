@@ -44,6 +44,21 @@ func TestValidateSemanticContracts(t *testing.T) {
 	}
 }
 
+func TestValidateRejectsDotsInsideAttributePathSegments(t *testing.T) {
+	doc := minimalIR()
+	doc.Flags["f"].Environments["prod"].Base.Rules = []*irv1.Rule{{
+		Condition: &irv1.Condition{Kind: &irv1.Condition_Equality{Equality: &irv1.EqualityCondition{
+			Operator:  irv1.EqualityOperator_EQUALITY_OPERATOR_EQ,
+			Attribute: &irv1.AttributePath{Segments: []string{"user.name"}},
+			Literal:   &irv1.ScalarValue{Kind: &irv1.ScalarValue_StringValue{StringValue: "alice"}},
+		}}},
+		Action: &irv1.Action{Kind: &irv1.Action_Serve{Serve: "on"}},
+	}}
+	if err := ir.Validate(doc); err == nil || !strings.Contains(err.Error(), "does not match regex pattern") {
+		t.Fatalf("Validate() error = %v, want invalid attribute segment", err)
+	}
+}
+
 func TestValidateMalformedMapsReturnsErrors(t *testing.T) {
 	t.Parallel()
 	tests := []struct {

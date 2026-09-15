@@ -299,7 +299,7 @@ func (LogicalOperator) EnumDescriptor() ([]byte, []int) {
 //   - scheduled evaluations are full snapshots, sorted by effective_at ascending,
 //     with unique effective_at values;
 //   - authoring-only disabled schedule entries are absent;
-//   - authoring-only progressive rollouts, experimentation, and scheduled
+//   - authoring-only progressive rollouts and scheduled
 //     rollouts are lowered to explicit ScheduledEvaluation snapshots and
 //     Distribution actions;
 //   - ExtensionValue-representable payloads are preserved losslessly at
@@ -1487,8 +1487,8 @@ func (x *LogicalCondition) GetConditions() []*Condition {
 
 // AttributePath is structural in IR so path semantics do not depend on string
 // escaping or delimiter parsing. Authoring dotted paths normalize to segments.
-// Segments are opaque non-empty UTF-8 strings; punctuation such as '.' and '-'
-// is allowed inside a segment.
+// Segments use the authoring identifier grammar: an ASCII letter or underscore,
+// followed by ASCII letters, digits, underscores, or hyphens.
 type AttributePath struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Segments      []string               `protobuf:"bytes,1,rep,name=segments,proto3" json:"segments,omitempty"`
@@ -2438,9 +2438,9 @@ const file_proto_ffcraft_ir_v1_normalized_proto_rawDesc = "" +
 	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\boperator\x12E\n" +
 	"\n" +
 	"conditions\x18\x02 \x03(\v2\x18.ffcraft.ir.v1.ConditionB\v\xbaH\b\x92\x01\x05\b\x02\x10\x80\x02R\n" +
-	"conditions\"@\n" +
-	"\rAttributePath\x12/\n" +
-	"\bsegments\x18\x01 \x03(\tB\x13\xbaH\x10\x92\x01\r\b\x01\x10 \"\ar\x05\x10\x01(\x80\x02R\bsegments\"\xf5\x01\n" +
+	"conditions\"[\n" +
+	"\rAttributePath\x12J\n" +
+	"\bsegments\x18\x01 \x03(\tB.\xbaH+\x92\x01(\b\x01\x10 \"\"r \x10\x01(\x80\x022\x19^[A-Za-z_][A-Za-z0-9_-]*$R\bsegments\"\xf5\x01\n" +
 	"\vScalarValue\x12-\n" +
 	"\fstring_value\x18\x01 \x01(\tB\b\xbaH\x05r\x03(\x80\x02H\x00R\vstringValue\x12\x1f\n" +
 	"\n" +

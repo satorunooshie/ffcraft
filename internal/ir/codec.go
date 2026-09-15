@@ -1,6 +1,7 @@
 package ir
 
 import (
+	"errors"
 	"fmt"
 
 	irv1 "github.com/satorunooshie/ffcraft/gen/ffcraft/ir/v1"
@@ -10,6 +11,8 @@ import (
 )
 
 const UnknownCoreFieldCode = "FFCRAFT_IR_UNKNOWN_CORE_FIELD"
+
+var ErrUnknownCoreField = errors.New(UnknownCoreFieldCode)
 
 type CoreValidationError struct {
 	Code        string
@@ -27,6 +30,10 @@ func (e *CoreValidationError) Error() string {
 }
 
 func (e *CoreValidationError) Unwrap() error { return e.Cause }
+
+func (e *CoreValidationError) Is(target error) bool {
+	return e.Code == UnknownCoreFieldCode && target == ErrUnknownCoreField
+}
 
 // Marshal encodes a validated IR document using the normative protobuf wire
 // format. Unknown core fields are never emitted by this package.

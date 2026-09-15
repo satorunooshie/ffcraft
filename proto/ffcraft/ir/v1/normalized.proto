@@ -25,7 +25,7 @@ option go_package = "github.com/satorunooshie/ffcraft/gen/ffcraft/ir/v1;ffcrafti
 //   - scheduled evaluations are full snapshots, sorted by effective_at ascending,
 //     with unique effective_at values;
 //   - authoring-only disabled schedule entries are absent;
-//   - authoring-only progressive rollouts, experimentation, and scheduled
+//   - authoring-only progressive rollouts and scheduled
 //     rollouts are lowered to explicit ScheduledEvaluation snapshots and
 //     Distribution actions;
 //   - ExtensionValue-representable payloads are preserved losslessly at
@@ -308,8 +308,8 @@ message LogicalCondition {
 
 // AttributePath is structural in IR so path semantics do not depend on string
 // escaping or delimiter parsing. Authoring dotted paths normalize to segments.
-// Segments are opaque non-empty UTF-8 strings; punctuation such as '.' and '-'
-// is allowed inside a segment.
+// Segments use the authoring identifier grammar: an ASCII letter or underscore,
+// followed by ASCII letters, digits, underscores, or hyphens.
 message AttributePath {
   repeated string segments = 1 [
     (buf.validate.field).repeated = {
@@ -319,6 +319,7 @@ message AttributePath {
     (buf.validate.field).repeated.items.string = {
       min_len: 1
       max_bytes: 256
+      pattern: "^[A-Za-z_][A-Za-z0-9_-]*$"
     }
   ];
 }

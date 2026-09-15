@@ -42,7 +42,6 @@ type Environment struct {
 	StaticVariant     string
 	Rules             []*Rule
 	DefaultAction     Action
-	Experimentation   *Experimentation
 	ScheduledRollouts []*ScheduledStep
 	Extensions        map[string]*irv1.ExtensionValue
 }
@@ -63,8 +62,8 @@ type ServeAction struct {
 func (*ServeAction) isAction() {}
 
 type DistributeAction struct {
-	Stickiness  string
-	Allocations map[string]float64
+	Stickiness string
+	Weights    map[string]uint32
 }
 
 func (*DistributeAction) isAction() {}
@@ -79,17 +78,11 @@ type ProgressiveRolloutAction struct {
 
 func (*ProgressiveRolloutAction) isAction() {}
 
-type Experimentation struct {
-	Start string
-	End   string
-}
-
 type ScheduledStep struct {
-	Name            string
-	Description     string
-	Disabled        bool
-	Date            string
-	Rules           []*Rule
-	DefaultAction   Action
-	Experimentation *Experimentation
+	Name          string
+	Description   string
+	Disabled      bool
+	Date          string
+	Rules         []*Rule
+	DefaultAction Action
 }

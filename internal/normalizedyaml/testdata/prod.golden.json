@@ -33,16 +33,7 @@
           },
           {
             "fractional": [
-              {
-                "cat": [
-                  {
-                    "var": "$flagd.flagKey"
-                  },
-                  {
-                    "var": "user.id"
-                  }
-                ]
-              },
+              {"var": "user.id"},
               [
                 "control",
                 80
