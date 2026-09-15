@@ -10,8 +10,8 @@ permissions:
   contents: read
 
 jobs:
-  test:
-    name: Go
+  unit:
+    name: Go unit tests
     runs-on: ubuntu-latest
 
     steps:
@@ -27,8 +27,67 @@ jobs:
       - name: Download modules
         run: go mod download
 
-      - name: Test
-        run: make test
+      - name: Test packages except conformance
+        run: go test $(go list ./... | grep -v '/internal/conformance/v1$')
+
+  conformance:
+    name: Go conformance tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: '1.27.x'
+          cache: true
+
+      - name: Download modules
+        run: go mod download
+
+      - name: Test conformance
+        run: go test ./internal/conformance/...
+
+  examples:
+    name: Go example tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: '1.27.x'
+          cache: true
+
+      - name: Download modules
+        working-directory: examples/go-codegen
+        run: go mod download
+
+      - name: Test examples
+        working-directory: examples/go-codegen
+        run: go test ./...
+
+  vet:
+    name: Go vet
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: '1.27.x'
+          cache: true
+
+      - name: Download modules
+        run: go mod download
 
       - name: Vet
         run: go vet ./...

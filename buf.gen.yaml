@@ -1,7 +1,8 @@
 version: v1
 plugins:
   - plugin: go
-    out: .
+    path: ["go", "tool", "protoc-gen-go"]
+    out: ..
     opt:
       - paths=import
       - module=github.com/satorunooshie/ffcraft

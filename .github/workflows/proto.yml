@@ -17,6 +17,12 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: bufbuild/buf-setup-action@v1
-      - run: buf lint
-      - run: buf breaking --against '.git#branch=main'
+      - name: Download tool modules
+        working-directory: tools
+        run: go mod download
+      - name: Lint protobufs
+        working-directory: tools
+        run: go tool buf lint ..
+      - name: Check protobuf compatibility
+        working-directory: tools
+        run: go tool buf breaking --against '../.git#branch=main' ..

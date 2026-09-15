@@ -1,5 +1,5 @@
 GO ?= go
-BUF ?= buf
+BUF ?= cd tools && go tool buf
 BINARY ?= ffcompile
 
 .PHONY: build
@@ -8,7 +8,7 @@ build:
 
 .PHONY: proto
 proto:
-	$(BUF) generate
+	$(BUF) generate --template ../buf.gen.yaml ..
 
 .PHONY: test
 test:
