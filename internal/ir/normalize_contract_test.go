@@ -71,3 +71,24 @@ func TestFromASTCanonicalizesConditionAndVariantSurface(t *testing.T) {
 		t.Fatalf("nested object variant = %v", object)
 	}
 }
+
+func TestFromASTRejectsDuplicateTimestampBeforeRedundantSnapshotElision(t *testing.T) {
+	base := &ast.Environment{
+		DefaultAction: &ast.ServeAction{Variant: "off"},
+		ScheduledRollouts: []*ast.ScheduledStep{
+			{Date: "2026-01-01T00:00:00Z", DefaultAction: &ast.ServeAction{Variant: "on"}},
+			{Date: "2026-01-01T00:00:00Z", DefaultAction: &ast.ServeAction{Variant: "on"}},
+		},
+	}
+	_, err := FromAST(&ast.Document{Flags: []*ast.Flag{{
+		Key: "duplicate-time", DefaultVariant: "off",
+		Variants: map[string]ast.VariantValue{
+			"off": {Kind: ast.VariantValueKindBool},
+			"on":  {Kind: ast.VariantValueKindBool, Bool: true},
+		},
+		Environments: map[string]*ast.Environment{"prod": base},
+	}}})
+	if err == nil || err.Error() != `flag "duplicate-time" environment "prod": schedule timestamps must be unique` {
+		t.Fatalf("FromAST() error = %v, want duplicate timestamp rejection", err)
+	}
+}

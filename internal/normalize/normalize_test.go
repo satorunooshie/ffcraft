@@ -134,6 +134,34 @@ flags:
 	}
 }
 
+func TestNormalizeRejectsDuplicateScheduleTimestampEvenForRedundantSnapshot(t *testing.T) {
+	const source = `version: v1
+variant_sets:
+  boolean:
+    on: true
+    off: false
+flags:
+  - key: duplicate-time
+    variant_set: boolean
+    default_variant: off
+    environments:
+      prod:
+        default_action: {serve: off}
+        scheduled_rollouts:
+          - date: "2026-01-01T00:00:00Z"
+            default_action: {serve: on}
+          - date: "2026-01-01T00:00:00Z"
+            default_action: {serve: on}
+`
+	authoringDocument, err := authoring.ParseYAML([]byte(source))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Normalize(authoringDocument); err == nil || !strings.Contains(err.Error(), "dates must be unique") {
+		t.Fatalf("Normalize() error = %v, want duplicate timestamp rejection", err)
+	}
+}
+
 func TestNormalizeRejectsInvalidDistributionTable(t *testing.T) {
 	tests := []struct {
 		name        string

@@ -93,6 +93,9 @@ func environment(source *ast.Environment, variants map[string]*irv1.VariantValue
 			}
 			currentFallback = fallback
 		}
+		if len(out.Schedule) > 0 && out.Schedule[len(out.Schedule)-1].EffectiveAt.AsTime().Equal(at.AsTime()) {
+			return nil, fmt.Errorf("schedule timestamps must be unique")
+		}
 		if len(out.Schedule) == 0 || !proto.Equal(out.Schedule[len(out.Schedule)-1].Evaluation, current) {
 			out.Schedule = append(out.Schedule, &irv1.ScheduledEvaluation{EffectiveAt: at, Evaluation: current})
 		}
