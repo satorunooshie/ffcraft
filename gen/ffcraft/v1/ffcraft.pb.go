@@ -1109,7 +1109,7 @@ func (x *ScheduledStep) GetDefaultAction() *Action {
 type Distribution struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Stickiness    string                 `protobuf:"bytes,1,opt,name=stickiness,proto3" json:"stickiness,omitempty"`
-	Allocations   map[string]float64     `protobuf:"bytes,2,rep,name=allocations,proto3" json:"allocations,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"fixed64,2,opt,name=value"`
+	Weights       map[string]uint32      `protobuf:"bytes,2,rep,name=weights,proto3" json:"weights,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1151,9 +1151,9 @@ func (x *Distribution) GetStickiness() string {
 	return ""
 }
 
-func (x *Distribution) GetAllocations() map[string]float64 {
+func (x *Distribution) GetWeights() map[string]uint32 {
 	if x != nil {
-		return x.Allocations
+		return x.Weights
 	}
 	return nil
 }
@@ -3020,16 +3020,16 @@ const file_proto_ffcraft_v1_ffcraft_proto_rawDesc = "" +
 	"\bdisabled\x18\x03 \x01(\bR\bdisabled\x12 \n" +
 	"\x04date\x18\x04 \x01(\tB\f\xbaH\t\xc8\x01\x01r\x04\x10\x01\x18@R\x04date\x12+\n" +
 	"\x05rules\x18\x05 \x03(\v2\x15.ffcraft.v1.RuleEntryR\x05rules\x12A\n" +
-	"\x0edefault_action\x18\x06 \x01(\v2\x12.ffcraft.v1.ActionB\x06\xbaH\x03\xc8\x01\x01R\rdefaultAction\"\xea\x01\n" +
+	"\x0edefault_action\x18\x06 \x01(\v2\x12.ffcraft.v1.ActionB\x06\xbaH\x03\xc8\x01\x01R\rdefaultAction\"\xd3\x01\n" +
 	"\fDistribution\x12-\n" +
 	"\n" +
 	"stickiness\x18\x01 \x01(\tB\r\xbaH\n" +
 	"\xc8\x01\x01r\x05\x10\x01\x18\x80\x02R\n" +
-	"stickiness\x12k\n" +
-	"\vallocations\x18\x02 \x03(\v2).ffcraft.v1.Distribution.AllocationsEntryB\x1e\xbaH\x1b\x9a\x01\x18\b\x02\"\ar\x05\x10\x01\x18\x80\x01*\v\x12\t!\x00\x00\x00\x00\x00\x00\x00\x00R\vallocations\x1a>\n" +
-	"\x10AllocationsEntry\x12\x10\n" +
+	"stickiness\x12X\n" +
+	"\aweights\x18\x02 \x03(\v2%.ffcraft.v1.Distribution.WeightsEntryB\x17\xbaH\x14\x9a\x01\x11\b\x02\"\ar\x05\x10\x01\x18\x80\x01*\x04*\x02 \x00R\aweights\x1a:\n" +
+	"\fWeightsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\x01R\x05value:\x028\x01\"\x97\a\n" +
+	"\x05value\x18\x02 \x01(\rR\x05value:\x028\x01\"\x97\a\n" +
 	"\tCondition\x12)\n" +
 	"\x04rule\x18\x01 \x01(\v2\x13.ffcraft.v1.RuleRefH\x00R\x04rule\x12 \n" +
 	"\x02eq\x18\x02 \x01(\v2\x0e.ffcraft.v1.EqH\x00R\x02eq\x12 \n" +
@@ -3208,7 +3208,7 @@ var file_proto_ffcraft_v1_ffcraft_proto_goTypes = []any{
 	nil,                         // 49: ffcraft.v1.Flag.EnvironmentsEntry
 	nil,                         // 50: ffcraft.v1.Flag.ExtensionsEntry
 	nil,                         // 51: ffcraft.v1.Environment.ExtensionsEntry
-	nil,                         // 52: ffcraft.v1.Distribution.AllocationsEntry
+	nil,                         // 52: ffcraft.v1.Distribution.WeightsEntry
 	(*v1.ExtensionValue)(nil),   // 53: ffcraft.ir.v1.ExtensionValue
 }
 var file_proto_ffcraft_v1_ffcraft_proto_depIdxs = []int32{
@@ -3238,7 +3238,7 @@ var file_proto_ffcraft_v1_ffcraft_proto_depIdxs = []int32{
 	14, // 23: ffcraft.v1.Action.progressive_rollout:type_name -> ffcraft.v1.ProgressiveRollout
 	10, // 24: ffcraft.v1.ScheduledStep.rules:type_name -> ffcraft.v1.RuleEntry
 	11, // 25: ffcraft.v1.ScheduledStep.default_action:type_name -> ffcraft.v1.Action
-	52, // 26: ffcraft.v1.Distribution.allocations:type_name -> ffcraft.v1.Distribution.AllocationsEntry
+	52, // 26: ffcraft.v1.Distribution.weights:type_name -> ffcraft.v1.Distribution.WeightsEntry
 	18, // 27: ffcraft.v1.Condition.rule:type_name -> ffcraft.v1.RuleRef
 	24, // 28: ffcraft.v1.Condition.eq:type_name -> ffcraft.v1.Eq
 	25, // 29: ffcraft.v1.Condition.ne:type_name -> ffcraft.v1.Ne

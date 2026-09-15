@@ -14,7 +14,7 @@ rules:
 distributions:
   ten_percent_on:
     stickiness: user.id
-    allocations:
+    weights:
       on: 10
       off: 90
 

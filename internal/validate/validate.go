@@ -3,7 +3,6 @@ package validate
 import (
 	"errors"
 	"fmt"
-	"math"
 	"strings"
 	"sync"
 	"time"
@@ -111,12 +110,12 @@ func validateReferences(doc *ffv1.FeatureFlagDocument) error {
 		if err := validateStickiness(dist.Stickiness); err != nil {
 			errs = append(errs, fmt.Errorf("distribution %q: %w", name, err))
 		}
-		if len(dist.Allocations) < 2 {
+		if len(dist.Weights) < 2 {
 			errs = append(errs, fmt.Errorf("distribution %q: at least two allocations are required", name))
 		}
-		for variant, value := range dist.Allocations {
-			if value <= 0 || math.IsNaN(value) || math.IsInf(value, 0) {
-				errs = append(errs, fmt.Errorf("distribution %q: allocation %q must be a positive finite number", name, variant))
+		for variant, value := range dist.Weights {
+			if value == 0 {
+				errs = append(errs, fmt.Errorf("distribution %q: weight %q must be a positive integer", name, variant))
 			}
 		}
 	}
@@ -141,7 +140,7 @@ func validateActionRefs(doc *ffv1.FeatureFlagDocument, variants *ffv1.VariantSet
 		if !ok {
 			return fmt.Errorf("distribution %q not found", kind.Distribute.Distribution)
 		}
-		for variant := range dist.Allocations {
+		for variant := range dist.Weights {
 			if _, ok := variants.Variants[variant]; !ok {
 				return fmt.Errorf("distribution %q references unknown variant %q", kind.Distribute.Distribution, variant)
 			}

@@ -1,6 +1,7 @@
 package validate
 
 import (
+	"errors"
 	"math"
 	"strings"
 	"testing"
@@ -46,8 +47,8 @@ func TestValidateActionAndTimestampContracts(t *testing.T) {
 		{"nil action", nil, ""},
 		{"serve", &ast.ServeAction{Variant: "on"}, ""},
 		{"missing serve", &ast.ServeAction{Variant: "off"}, "not defined"},
-		{"distribution", &ast.DistributeAction{Allocations: map[string]float64{"on": 50}}, ""},
-		{"missing distribution variant", &ast.DistributeAction{Allocations: map[string]float64{"off": 50}}, "not defined"},
+		{"distribution", &ast.DistributeAction{Weights: map[string]uint32{"on": 50}}, ""},
+		{"missing distribution variant", &ast.DistributeAction{Weights: map[string]uint32{"off": 50}}, "not defined"},
 		{"progressive", &ast.ProgressiveRolloutAction{Variant: "on"}, ""},
 		{"missing progressive variant", &ast.ProgressiveRolloutAction{Variant: "off"}, "not defined"},
 	} {
@@ -104,7 +105,7 @@ func TestValidateNormalizedIRShapeTable(t *testing.T) {
 			}
 		})
 	}
-	if err := ValidateCompileTarget(CompileTarget("unknown"), cloneValidationDocument(base)); err == nil || !strings.Contains(err.Error(), "unsupported compile target") {
+	if err := ValidateCompileTarget(CompileTarget("unknown"), cloneValidationDocument(base)); err == nil || !errors.Is(err, ErrUnsupportedCompileTarget) {
 		t.Fatalf("ValidateCompileTarget(unknown) = %v", err)
 	}
 }

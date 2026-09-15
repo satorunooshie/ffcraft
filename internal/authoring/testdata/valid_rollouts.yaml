@@ -6,7 +6,7 @@ variant_sets:
 distributions:
   canary:
     stickiness: user.id
-    allocations:
+    weights:
       on: 25
       off: 75
 flags:

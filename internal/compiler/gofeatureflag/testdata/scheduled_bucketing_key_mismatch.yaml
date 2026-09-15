@@ -6,12 +6,12 @@ variant_sets:
 distributions:
   by_id:
     stickiness: user.id
-    allocations:
+    weights:
       on: 50
       off: 50
   by_email:
     stickiness: user.email
-    allocations:
+    weights:
       on: 50
       off: 50
 flags:

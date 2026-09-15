@@ -11,7 +11,7 @@ variant_sets:
 distributions:
   experiment_rollout:
     stickiness: user.id
-    allocations:
+    weights:
       control: 50
       treatment: 50
 

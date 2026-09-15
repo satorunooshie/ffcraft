@@ -101,6 +101,17 @@ func scalarInt(node *yaml.Node, path string) (int64, error) {
 	return value, nil
 }
 
+func scalarUint32(node *yaml.Node, path string) (uint32, error) {
+	if node.Kind != yaml.ScalarNode {
+		return 0, fmt.Errorf("%s: expected positive integer scalar", path)
+	}
+	value, err := strconv.ParseUint(node.Value, 10, 32)
+	if err != nil || value == 0 {
+		return 0, fmt.Errorf("%s: expected positive integer scalar", path)
+	}
+	return uint32(value), nil
+}
+
 func stringSequence(node *yaml.Node, path string) ([]string, error) {
 	if node.Kind != yaml.SequenceNode {
 		return nil, fmt.Errorf("%s: expected sequence", path)

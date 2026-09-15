@@ -239,13 +239,13 @@ message Distribution {
     }
   ];
 
-  map<string, double> allocations = 2 [
+  map<string, uint32> weights = 2 [
     (buf.validate.field).map.min_pairs = 2,
     (buf.validate.field).map.keys.string = {
       min_len: 1
       max_len: 128
     },
-    (buf.validate.field).map.values.double = {gt: 0}
+    (buf.validate.field).map.values.uint32 = {gt: 0}
   ];
 }
 

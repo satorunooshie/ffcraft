@@ -9,7 +9,7 @@ variant_sets:
 distributions:
   checkout_ab:
     stickiness: user.id
-    allocations:
+    weights:
       treatment_a: 10
       treatment_b: 10
       control: 80

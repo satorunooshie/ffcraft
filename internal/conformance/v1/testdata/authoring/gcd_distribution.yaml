@@ -6,7 +6,7 @@ variant_sets:
 distributions:
   twenty_on:
     stickiness: user.id
-    allocations:
+    weights:
       on: 10
       off: 90
 flags:

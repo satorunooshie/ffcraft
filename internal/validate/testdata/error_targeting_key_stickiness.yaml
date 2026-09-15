@@ -6,7 +6,7 @@ variant_sets:
 distributions:
   canary:
     stickiness: targetingKey
-    allocations:
+    weights:
       on: 50
       off: 50
 flags:

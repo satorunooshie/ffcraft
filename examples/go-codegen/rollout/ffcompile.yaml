@@ -22,12 +22,12 @@ rules:
 distributions:
   experiment_rollout:
     stickiness: user.id
-    allocations:
+    weights:
       control: 67
       treatment: 33
   theme_rollout:
     stickiness: user.id
-    allocations:
+    weights:
       default: 50
       modern: 40
       high_contrast: 10

@@ -2,7 +2,6 @@ package normalize
 
 import (
 	"fmt"
-	"maps"
 
 	"google.golang.org/protobuf/proto"
 
@@ -28,11 +27,13 @@ func normalizeAction(doc *ffv1.FeatureFlagDocument, action *ffv1.Action) (ast.Ac
 		return &ast.ServeAction{Variant: kind.Serve.Variant}, nil
 	case *ffv1.Action_Distribute:
 		dist := doc.Distributions[kind.Distribute.Distribution]
-		allocations := make(map[string]float64, len(dist.Allocations))
-		maps.Copy(allocations, dist.Allocations)
+		weights := make(map[string]uint32, len(dist.Weights))
+		for name, weight := range dist.Weights {
+			weights[name] = weight
+		}
 		return &ast.DistributeAction{
-			Stickiness:  dist.Stickiness,
-			Allocations: allocations,
+			Stickiness: dist.Stickiness,
+			Weights:    weights,
 		}, nil
 	case *ffv1.Action_ProgressiveRollout:
 		return &ast.ProgressiveRolloutAction{

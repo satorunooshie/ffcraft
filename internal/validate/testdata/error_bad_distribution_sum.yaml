@@ -6,7 +6,7 @@ variant_sets:
 distributions:
   bad_rollout:
     stickiness: user.id
-    allocations:
+    weights:
       control: 30
       treatment: 30
 flags:

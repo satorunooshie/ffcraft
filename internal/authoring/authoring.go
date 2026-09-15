@@ -131,28 +131,28 @@ func parseVariantSet(node *yaml.Node, path string) (*ffv1.VariantSet, error) {
 }
 
 func parseDistribution(node *yaml.Node, path string) (*ffv1.Distribution, error) {
-	fields, err := strictMapping(node, path, "stickiness", "allocations")
+	fields, err := strictMapping(node, path, "stickiness", "weights")
 	if err != nil {
 		return nil, err
 	}
-	out := &ffv1.Distribution{Allocations: map[string]float64{}}
+	out := &ffv1.Distribution{Weights: map[string]uint32{}}
 	if scalar := fields["stickiness"]; scalar != nil {
 		out.Stickiness, err = scalarString(scalar, path+".stickiness")
 		if err != nil {
 			return nil, err
 		}
 	}
-	if allocNode := fields["allocations"]; allocNode != nil {
-		allocs, err := mapping(allocNode, path+".allocations")
+	if weightsNode := fields["weights"]; weightsNode != nil {
+		weights, err := mapping(weightsNode, path+".weights")
 		if err != nil {
 			return nil, err
 		}
-		for _, key := range sortedKeys(allocs) {
-			value, err := scalarFloat(allocs[key], path+".allocations."+key)
+		for _, key := range sortedKeys(weights) {
+			value, err := scalarUint32(weights[key], path+".weights."+key)
 			if err != nil {
 				return nil, err
 			}
-			out.Allocations[key] = value
+			out.Weights[key] = value
 		}
 	}
 	return out, nil

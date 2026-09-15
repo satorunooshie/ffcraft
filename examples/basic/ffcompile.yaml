@@ -30,7 +30,7 @@ rules:
 distributions:
   checkout_ab:
     stickiness: user.id
-    allocations:
+    weights:
       control: 80
       treatment_a: 10
       treatment_b: 10

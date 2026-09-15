@@ -11,7 +11,7 @@ rules:
 distributions:
   fifty_percent_on:
     stickiness: user.id
-    allocations:
+    weights:
       on: 50
       off: 50
 flags:

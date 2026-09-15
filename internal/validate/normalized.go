@@ -1,6 +1,7 @@
 package validate
 
 import (
+	"errors"
 	"fmt"
 	"math"
 
@@ -9,6 +10,8 @@ import (
 
 // CompileTarget identifies a target-specific capability policy.
 type CompileTarget string
+
+var ErrUnsupportedCompileTarget = errors.New("unsupported compile target")
 
 const (
 	CompileTargetFlagd         CompileTarget = "flagd"
@@ -88,7 +91,7 @@ func ValidateCompileTarget(target CompileTarget, doc *ast.Document) error {
 	case CompileTargetGOFeatureFlag:
 		return nil
 	default:
-		return fmt.Errorf("unsupported compile target %q", target)
+		return fmt.Errorf("%w %q", ErrUnsupportedCompileTarget, target)
 	}
 	return nil
 }
@@ -162,7 +165,7 @@ func validateAction(action ast.Action, variants map[string]ast.VariantValue) err
 			return fmt.Errorf("serve variant %q is not defined", action.Variant)
 		}
 	case *ast.DistributeAction:
-		for variant := range action.Allocations {
+		for variant := range action.Weights {
 			if _, exists := variants[variant]; !exists {
 				return fmt.Errorf("distribution variant %q is not defined", variant)
 			}

@@ -17,7 +17,7 @@ flags: []
 - `version`: required. Currently `v1`
 - `variant_sets`: optional. Reusable variant maps
 - `rules`: optional. Reusable conditions
-- `distributions`: optional. Reusable percentage allocations
+- `distributions`: optional. Reusable positive integer relative weights
 - `flags`: required. The list of flags
 
 ## variant_sets
@@ -131,15 +131,15 @@ all:
 distributions:
   checkout_ab:
     stickiness: user.id
-    allocations:
+    weights:
       treatment_a: 1
       treatment_b: 1
       control: 8
 ```
 
-- `allocations` are positive relative weights; they must contain at least two variants and do not need to sum to `100`
+- `weights` are positive integer relative weights; they must contain at least two variants and do not need to sum to `100`
 - allocation keys must exist in the target `variant_set`
-- `stickiness` is the stable bucketing key for percentage-based rollout
+- `stickiness` is the stable bucketing key for weighted rollout
 
 ## flags
 
@@ -280,7 +280,7 @@ At minimum, `ffcompile` validates:
 - uniqueness of `flags[].key`
 - existence of referenced `variant_set`, `rule`, and `distribution`
 - variant consistency for `default_variant`, `serve`, and action/default-action references
-- distribution allocations are positive relative weights with at least two variants
+- distribution weights are positive integer relative weights with at least two variants
 - distribution allocation keys exist in the target `variant_set`
 - rule cycle detection
 - `scheduled_rollouts` are ascending by date with no duplicates

@@ -16,7 +16,7 @@ variant_sets:
 distributions:
   half:
     stickiness: user.id
-    allocations: {on: 0.5, off: 0.5}
+    weights: {on: 1, off: 1}
 flags:
   - key: surface
     variant_set: values
@@ -72,5 +72,25 @@ flags:
 	}
 	if dynamic.Rules[0].Action.GetDistribute() == nil || dynamic.Rules[1].Action.GetProgressiveRollout() == nil {
 		t.Fatalf("action variants were not preserved: %#v", dynamic.Rules)
+	}
+}
+
+func TestParseYAMLRejectsFractionalDistributionWeights(t *testing.T) {
+	const source = `version: v1
+variant_sets:
+  values: {on: true, off: false}
+distributions:
+  rollout:
+    stickiness: user.id
+    weights: {on: 33.3, off: 66.7}
+flags:
+  - key: fractional
+    variant_set: values
+    default_variant: off
+    environments:
+      prod: {serve: off}
+`
+	if _, err := ParseYAML([]byte(source)); err == nil {
+		t.Fatal("fractional distribution weights must be rejected")
 	}
 }

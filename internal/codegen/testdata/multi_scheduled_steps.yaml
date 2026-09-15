@@ -18,12 +18,12 @@ rules:
 distributions:
   small_rollout:
     stickiness: user.id
-    allocations:
+    weights:
       on: 5
       off: 95
   large_rollout:
     stickiness: user.id
-    allocations:
+    weights:
       on: 50
       off: 50
 

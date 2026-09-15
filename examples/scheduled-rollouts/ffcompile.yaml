@@ -18,12 +18,12 @@ rules:
 distributions:
   ten_percent_on:
     stickiness: user.id
-    allocations:
+    weights:
       on: 10
       off: 90
   fifty_percent_on:
     stickiness: user.id
-    allocations:
+    weights:
       on: 50
       off: 50
 

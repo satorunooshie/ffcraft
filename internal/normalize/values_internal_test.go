@@ -70,7 +70,7 @@ func TestNormalizeScalarAndVariantKinds(t *testing.T) {
 
 func TestNormalizeActionContracts(t *testing.T) {
 	doc := &ffv1.FeatureFlagDocument{Distributions: map[string]*ffv1.Distribution{
-		"dist": {Stickiness: "user.id", Allocations: map[string]float64{"on": 1}},
+		"dist": {Stickiness: "user.id", Weights: map[string]uint32{"on": 1}},
 	}}
 	tests := []struct {
 		name    string
