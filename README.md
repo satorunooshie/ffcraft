@@ -141,6 +141,10 @@ Normalize first, then compile explicitly:
 go run ./cmd/ffcompile normalize --in flags.yaml --out normalized.yaml
 go run ./cmd/ffcompile compile flagd --in normalized.yaml --env prod --out flagd.json
 go run ./cmd/ffcompile compile gofeatureflag --in normalized.yaml --env prod --out flags.goff.yaml
+
+# Public protobuf IR pipeline
+go run ./cmd/ffcompile normalize flags.yaml --format protobuf > normalized.pb
+go run ./cmd/ffcompile compile flagd --in normalized.pb --input-format protobuf --env prod --out flagd.json
 ```
 
 Inspect the normalized intermediate form while building:
