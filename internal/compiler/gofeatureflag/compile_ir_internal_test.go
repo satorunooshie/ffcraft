@@ -173,3 +173,39 @@ func TestCompileIRDocumentEnvironmentSelection(t *testing.T) {
 		t.Fatalf("missing environment warning mode = %s, %#v, %v", output, warnings, err)
 	}
 }
+
+func TestCompileIRDocumentScheduleOutputContract(t *testing.T) {
+	doc := &irv1.Document{Flags: map[string]*irv1.Flag{
+		"rollout": {
+			Variants: map[string]*irv1.VariantValue{
+				"off": {Kind: &irv1.VariantValue_StringValue{StringValue: "off"}},
+				"on":  {Kind: &irv1.VariantValue_StringValue{StringValue: "on"}},
+			},
+			Environments: map[string]*irv1.Environment{"prod": {
+				Base: &irv1.Evaluation{DefaultAction: &irv1.Action{Kind: &irv1.Action_Serve{Serve: "off"}}},
+				Schedule: []*irv1.ScheduledEvaluation{{
+					EffectiveAt: timestamppb.New(time.Date(2026, 5, 3, 0, 0, 0, 123, time.UTC)),
+					Evaluation: &irv1.Evaluation{Rules: []*irv1.Rule{{
+						Condition: &irv1.Condition{Kind: &irv1.Condition_Equality{Equality: &irv1.EqualityCondition{Operator: irv1.EqualityOperator_EQUALITY_OPERATOR_EQ, Attribute: &irv1.AttributePath{Segments: []string{"user", "segment"}}, Literal: &irv1.ScalarValue{Kind: &irv1.ScalarValue_StringValue{StringValue: "beta"}}}}},
+						Action:    &irv1.Action{Kind: &irv1.Action_Serve{Serve: "on"}},
+					}}, DefaultAction: &irv1.Action{Kind: &irv1.Action_Serve{Serve: "off"}}},
+				}},
+			}},
+		},
+	}}
+	output, warnings, err := CompileIR(doc, "prod", CompileOptions{})
+	if err != nil || len(warnings) != 0 {
+		t.Fatalf("CompileIR() = %s, %#v, %v", output, warnings, err)
+	}
+	for _, fragment := range []string{
+		"scheduledRollout:",
+		"date: \"2026-05-03T00:00:00.000000123Z\"",
+		"query: user.segment eq \"beta\"",
+		"defaultRule:",
+		"variation: \"off\"",
+	} {
+		if !strings.Contains(string(output), fragment) {
+			t.Fatalf("GO Feature Flag schedule output missing %q: %s", fragment, output)
+		}
+	}
+}
