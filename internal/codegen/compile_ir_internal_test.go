@@ -74,6 +74,46 @@ func TestCollectIRContextFieldsTraversesConditions(t *testing.T) {
 	}
 }
 
+func TestCollectIRContextFieldsInfersAndOverridesTypes(t *testing.T) {
+	attr := func(path ...string) *irv1.AttributePath { return &irv1.AttributePath{Segments: path} }
+	serve := &irv1.Action{Kind: &irv1.Action_Serve{Serve: "on"}}
+	rules := []*irv1.Rule{
+		{Condition: &irv1.Condition{Kind: &irv1.Condition_NumericComparison{NumericComparison: &irv1.NumericComparisonCondition{Attribute: attr("score"), Literal: &irv1.NumericValue{Kind: &irv1.NumericValue_IntValue{IntValue: 1}}}}}, Action: serve},
+		{Condition: &irv1.Condition{Kind: &irv1.Condition_Membership{Membership: &irv1.MembershipCondition{Attribute: attr("region"), Literals: &irv1.ScalarList{Values: []*irv1.ScalarValue{{Kind: &irv1.ScalarValue_StringValue{StringValue: "jp"}}}}}}}, Action: serve},
+		{Condition: &irv1.Condition{Kind: &irv1.Condition_StringMatch{StringMatch: &irv1.StringMatchCondition{Attribute: attr("user", "id"), Literal: "test-"}}}, Action: serve},
+		{Condition: &irv1.Condition{Kind: &irv1.Condition_SemverComparison{SemverComparison: &irv1.SemVerComparisonCondition{Attribute: attr("version"), Semver: "1.2.3"}}}, Action: serve},
+		{Condition: &irv1.Condition{Kind: &irv1.Condition_Negation{Negation: &irv1.Condition{Kind: &irv1.Condition_Presence{Presence: &irv1.PresenceCondition{Attribute: attr("optional")}}}}}, Action: serve},
+	}
+	doc := &irv1.Document{Flags: map[string]*irv1.Flag{"f": {Variants: map[string]*irv1.VariantValue{"on": {Kind: &irv1.VariantValue_BoolValue{BoolValue: true}}}, Environments: map[string]*irv1.Environment{"prod": {Base: &irv1.Evaluation{Rules: rules, DefaultAction: serve}}}}}}
+	fields, err := collectIRContextFields(doc, ContextDefaultsConfig{}, []ContextFieldConfig{{Path: "score", Name: "ScoreValue", Type: "int64"}, {Path: "new.path", Type: "[]string"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]struct {
+		name     string
+		typeName string
+	}{
+		"new.path": {"NewPath", "[]string"},
+		"optional": {"Optional", "string"},
+		"region":   {"Region", "string"},
+		"score":    {"ScoreValue", "int64"},
+		"user.id":  {"UserID", "string"},
+		"version":  {"Version", "string"},
+	}
+	if len(fields) != len(want) {
+		t.Fatalf("context fields = %#v, want %d fields", fields, len(want))
+	}
+	for _, field := range fields {
+		expected, ok := want[field.Path]
+		if !ok || field.FieldName != expected.name || field.FieldType != expected.typeName {
+			t.Fatalf("context field = %#v, want %#v", field, expected)
+		}
+	}
+	if _, err := collectIRContextFields(doc, ContextDefaultsConfig{}, []ContextFieldConfig{{Path: "score", Type: "time.Time"}}); err == nil || !strings.Contains(err.Error(), "unsupported type") {
+		t.Fatalf("unsupported context override = %v", err)
+	}
+}
+
 func TestContextTypeContractTables(t *testing.T) {
 	for _, test := range []struct {
 		input string
