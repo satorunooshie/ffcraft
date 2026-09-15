@@ -155,6 +155,53 @@ func TestRun(t *testing.T) {
 	}
 }
 
+func TestLoadInputFormatBoundaryContracts(t *testing.T) {
+	authoring := []byte(`version: v1
+variant_sets:
+  boolean:
+    on: true
+    off: false
+flags:
+  - key: example
+    variant_set: boolean
+    default_variant: off
+    environments:
+      prod:
+        default_action:
+          serve: on
+`)
+	normalized, err := testdataFS.ReadFile("testdata/normalized.golden.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tests := []struct {
+		name       string
+		input      []byte
+		format     string
+		wantAuthor bool
+		wantErr    string
+	}{
+		{"auto authoring", authoring, "auto", true, ""},
+		{"auto normalized", normalized, "auto", false, ""},
+		{"explicit normalized rejects authoring", authoring, "normalized", false, "read normalized yaml"},
+		{"explicit authoring rejects normalized", normalized, "authoring", false, "parse input"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			doc, wasAuthoring, err := loadInput(test.input, test.format)
+			if test.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), test.wantErr) {
+					t.Fatalf("loadInput() error = %v, want %q", err, test.wantErr)
+				}
+				return
+			}
+			if err != nil || doc == nil || wasAuthoring != test.wantAuthor {
+				t.Fatalf("loadInput() = %#v, %v, %v; want authoring=%v", doc, wasAuthoring, err, test.wantAuthor)
+			}
+		})
+	}
+}
+
 func writeFixture(t *testing.T, name string) string {
 	t.Helper()
 	data, err := testdataFS.ReadFile("testdata/" + name)
