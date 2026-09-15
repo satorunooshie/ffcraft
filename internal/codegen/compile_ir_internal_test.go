@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	irv1 "github.com/satorunooshie/ffcraft/gen/ffcraft/ir/v1"
+	"github.com/satorunooshie/ffcraft/internal/ast"
 )
 
 func TestVariantKindAndLiteralTables(t *testing.T) {
@@ -241,6 +242,29 @@ func TestCompileIRDocumentConfigContracts(t *testing.T) {
 		if !strings.Contains(string(source), fragment) {
 			t.Fatalf("custom generated type missing %q", fragment)
 		}
+	}
+}
+
+func TestFilterEnvironmentContracts(t *testing.T) {
+	doc := &ast.Document{Flags: []*ast.Flag{{
+		Key:            "checkout",
+		DefaultVariant: "off",
+		Variants:       map[string]ast.VariantValue{"on": {Kind: ast.VariantValueKindBool, Bool: true}, "off": {Kind: ast.VariantValueKindBool}},
+		Environments: map[string]*ast.Environment{
+			"prod":    {DefaultAction: &ast.ServeAction{Variant: "on"}},
+			"staging": {DefaultAction: &ast.ServeAction{Variant: "off"}},
+		},
+	}}}
+	filtered, warnings, err := filterEnvironment(doc, "prod", false)
+	if err != nil || len(warnings) != 0 || len(filtered.Flags) != 1 || len(filtered.Flags[0].Environments) != 1 || filtered.Flags[0].Environments["prod"].DefaultAction.(*ast.ServeAction).Variant != "on" {
+		t.Fatalf("filterEnvironment(prod) = %#v, %#v, %v", filtered, warnings, err)
+	}
+	if _, _, err := filterEnvironment(doc, "canary", false); err == nil || !strings.Contains(err.Error(), `environment "canary" not found`) {
+		t.Fatalf("missing environment error = %v", err)
+	}
+	filtered, warnings, err = filterEnvironment(doc, "canary", true)
+	if err != nil || len(filtered.Flags) != 0 || len(warnings) != 1 || !strings.Contains(warnings[0], "skipping flag") {
+		t.Fatalf("missing environment warning mode = %#v, %#v, %v", filtered, warnings, err)
 	}
 }
 
