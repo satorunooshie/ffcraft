@@ -1,6 +1,8 @@
 package flagd
 
 import (
+	"encoding/json"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -19,6 +21,36 @@ func TestCompileIRDirectSemanticSurface(t *testing.T) {
 		if !strings.Contains(string(output), fragment) {
 			t.Fatalf("flagd output missing %q: %s", fragment, output)
 		}
+	}
+	var decoded map[string]any
+	if err := json.Unmarshal(output, &decoded); err != nil {
+		t.Fatalf("decode flagd JSON: %v", err)
+	}
+	want := map[string]any{
+		"$schema": schemaURL,
+		"flags": map[string]any{
+			"direct": map[string]any{
+				"state":          "ENABLED",
+				"variants":       map[string]any{"off": false, "on": true},
+				"defaultVariant": "off",
+				"targeting": map[string]any{"if": []any{
+					map[string]any{">=": []any{map[string]any{"var": "$flagd.timestamp"}, float64(1767225600)}},
+					map[string]any{"fractional": []any{
+						map[string]any{"cat": []any{map[string]any{"var": "$flagd.flagKey"}, map[string]any{"var": "user.id"}}},
+						[]any{"off", float64(33)},
+						[]any{"on", float64(67)},
+					}},
+					map[string]any{"if": []any{
+						map[string]any{"==": []any{map[string]any{"var": "user.segment"}, "beta"}},
+						"on",
+						"off",
+					}},
+				}},
+			},
+		},
+	}
+	if !reflect.DeepEqual(decoded, want) {
+		t.Fatalf("compiled flagd structure = %#v, want %#v", decoded, want)
 	}
 }
 

@@ -2,12 +2,14 @@ package gofeatureflag
 
 import (
 	"encoding/json"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
 
 	irv1 "github.com/satorunooshie/ffcraft/gen/ffcraft/ir/v1"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"gopkg.in/yaml.v3"
 )
 
 func TestCompileIRConditionExpressionTable(t *testing.T) {
@@ -259,5 +261,26 @@ func TestCompileIRDocumentScheduleOutputContract(t *testing.T) {
 		if !strings.Contains(string(output), fragment) {
 			t.Fatalf("GO Feature Flag schedule output missing %q: %s", fragment, output)
 		}
+	}
+	var decoded map[string]any
+	if err := yaml.Unmarshal(output, &decoded); err != nil {
+		t.Fatalf("decode compiled YAML: %v", err)
+	}
+	want := map[string]any{
+		"rollout": map[string]any{
+			"variations":  map[string]any{"off": "off", "on": "on"},
+			"defaultRule": map[string]any{"variation": "off"},
+			"scheduledRollout": []any{map[string]any{
+				"date": "2026-05-03T00:00:00.000000123Z",
+				"targeting": []any{map[string]any{
+					"query":     `user.segment eq "beta"`,
+					"variation": "on",
+				}},
+				"defaultRule": map[string]any{"variation": "off"},
+			}},
+		},
+	}
+	if !reflect.DeepEqual(decoded, want) {
+		t.Fatalf("compiled YAML structure = %#v, want %#v", decoded, want)
 	}
 }
