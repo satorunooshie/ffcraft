@@ -22,7 +22,6 @@ func TestIRConditionOperatorTable(t *testing.T) {
 	}{
 		{"constant", &irv1.Condition{Kind: &irv1.Condition_Constant{Constant: true}}, "true"},
 		{"eq", &irv1.Condition{Kind: &irv1.Condition_Equality{Equality: &irv1.EqualityCondition{Operator: irv1.EqualityOperator_EQUALITY_OPERATOR_EQ, Attribute: a, Literal: s}}}, "missing"},
-		{"ne", &irv1.Condition{Kind: &irv1.Condition_Equality{Equality: &irv1.EqualityCondition{Operator: irv1.EqualityOperator_EQUALITY_OPERATOR_NE, Attribute: a, Literal: s}}}, "missing"},
 		{"numeric", &irv1.Condition{Kind: &irv1.Condition_NumericComparison{NumericComparison: &irv1.NumericComparisonCondition{Operator: irv1.NumericComparisonOperator_NUMERIC_COMPARISON_OPERATOR_GTE, Attribute: a, Literal: n}}}, `\u003e=`},
 		{"membership", &irv1.Condition{Kind: &irv1.Condition_Membership{Membership: &irv1.MembershipCondition{Attribute: a, Literals: &irv1.ScalarList{Values: []*irv1.ScalarValue{s}}}}}, "in"},
 		{"contains", &irv1.Condition{Kind: &irv1.Condition_StringMatch{StringMatch: &irv1.StringMatchCondition{Operator: irv1.StringMatchOperator_STRING_MATCH_OPERATOR_CONTAINS, Attribute: a, Literal: "be"}}}, "in"},
@@ -47,6 +46,7 @@ func TestIRConditionOperatorTable(t *testing.T) {
 	}{
 		{"nil", nil, "condition is required"}, {"unset", &irv1.Condition{}, "unsupported IR condition"},
 		{"presence", &irv1.Condition{Kind: &irv1.Condition_Presence{Presence: &irv1.PresenceCondition{Attribute: a}}}, "presence"},
+		{"inequality", &irv1.Condition{Kind: &irv1.Condition_Equality{Equality: &irv1.EqualityCondition{Operator: irv1.EqualityOperator_EQUALITY_OPERATOR_NE, Attribute: a, Literal: s}}}, "inequality"},
 		{"unknown string", &irv1.Condition{Kind: &irv1.Condition_StringMatch{StringMatch: &irv1.StringMatchCondition{Attribute: a, Operator: irv1.StringMatchOperator(99)}}}, "unsupported string match"},
 		{"unknown logical", &irv1.Condition{Kind: &irv1.Condition_Logical{Logical: &irv1.LogicalCondition{Operator: irv1.LogicalOperator(99)}}}, "unsupported logical"},
 	} {

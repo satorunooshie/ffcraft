@@ -68,3 +68,12 @@ Progressive rollout lowering happens during normalization; target compilers cons
 An IR action-resolution failure is an evaluation error. A target runtime may
 return an application fallback value, but must preserve the error in evaluation
 metadata when that metadata is exposed.
+
+The flagd compiler rejects IR inequality conditions. flagd's strict inequality
+operator returns true for runtime type mismatches, while the IR contract
+requires those mismatches to evaluate false; rejecting the condition avoids a
+silent semantic change.
+
+For GO Feature Flag, a missing or non-string `bucketingKey` returns the SDK
+caller default with an error result (`ReasonError` and
+`ErrorCodeTargetingKeyMissing`) in the in-process runtime.

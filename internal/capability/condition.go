@@ -7,6 +7,7 @@ type ConditionKind string
 
 const (
 	ConditionEquality    ConditionKind = "equality"
+	ConditionInequality  ConditionKind = "inequality"
 	ConditionNumeric     ConditionKind = "numeric_comparison"
 	ConditionMembership  ConditionKind = "membership"
 	ConditionStringMatch ConditionKind = "string_match"
@@ -40,6 +41,7 @@ func ConditionCapabilityMatrix() []ConditionCapability {
 	conditions := []ConditionKind{
 		ConditionConstant,
 		ConditionEquality,
+		ConditionInequality,
 		ConditionNumeric,
 		ConditionMembership,
 		ConditionStringMatch,
@@ -52,7 +54,7 @@ func ConditionCapabilityMatrix() []ConditionCapability {
 	for _, target := range []Target{TargetFlagd, TargetGOFeatureFlag} {
 		for _, condition := range conditions {
 			capability := ConditionCapability{Target: target, Condition: condition, Supported: true}
-			if condition == ConditionPresence {
+			if condition == ConditionPresence || (condition == ConditionInequality && target == TargetFlagd) {
 				capability.Supported = false
 				capability.Diagnostic = UnsupportedConditionCode
 			}
@@ -81,7 +83,7 @@ func ValidateConditionCapabilityMatrix(matrix []ConditionCapability) error {
 		}
 	}
 	expected := len([]Target{TargetFlagd, TargetGOFeatureFlag}) * len([]ConditionKind{
-		ConditionConstant, ConditionEquality, ConditionNumeric, ConditionMembership,
+		ConditionConstant, ConditionEquality, ConditionInequality, ConditionNumeric, ConditionMembership,
 		ConditionStringMatch, ConditionSemver, ConditionPresence, ConditionLogical,
 		ConditionNegation,
 	})

@@ -254,6 +254,9 @@ func compileIRBinary(attribute *irv1.AttributePath, literal *irv1.ScalarValue, o
 	if operator == "" {
 		return nil, fmt.Errorf("unsupported equality operator")
 	}
+	if operator == "!=" {
+		return nil, &capability.UnsupportedConditionError{Target: capability.TargetFlagd, Condition: capability.ConditionInequality}
+	}
 	comparison := map[string]any{"===": []any{compileIRVar(attribute), compileIRScalar(literal)}}
 	if operator == "==" {
 		return map[string]any{"if": []any{map[string]any{"missing": []any{strings.Join(attribute.Segments, ".")}}, false, comparison}}, nil

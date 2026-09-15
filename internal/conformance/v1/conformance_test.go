@@ -930,6 +930,10 @@ func conditionCapabilityFixture(kind capability.ConditionKind) *irv1.Document {
 		condition = &irv1.Condition{Kind: &irv1.Condition_Equality{Equality: &irv1.EqualityCondition{
 			Operator: irv1.EqualityOperator_EQUALITY_OPERATOR_EQ, Attribute: path, Literal: stringLiteral("on"),
 		}}}
+	case capability.ConditionInequality:
+		condition = &irv1.Condition{Kind: &irv1.Condition_Equality{Equality: &irv1.EqualityCondition{
+			Operator: irv1.EqualityOperator_EQUALITY_OPERATOR_NE, Attribute: path, Literal: stringLiteral("on"),
+		}}}
 	case capability.ConditionNumeric:
 		condition = &irv1.Condition{Kind: &irv1.Condition_NumericComparison{NumericComparison: &irv1.NumericComparisonCondition{
 			Operator: irv1.NumericComparisonOperator_NUMERIC_COMPARISON_OPERATOR_GTE, Attribute: path,
