@@ -57,6 +57,8 @@ go install github.com/satorunooshie/ffcraft/cmd/ffcodegen@latest
 
 The canonical schema lives in [proto/ffcraft/v1/ffcraft.proto](proto/ffcraft/v1/ffcraft.proto). A JSON Schema for editor and tooling integration lives in [schema/developer-flags.schema.json](schema/developer-flags.schema.json). Generated Go code lives in [gen/ffcraft/v1/ffcompile.pb.go](gen/ffcraft/v1/ffcompile.pb.go).
 
+The compilation pipeline is intentionally one-way: authoring YAML is decoded into authoring protobuf, normalized into semantic IR defined by [proto/ffcraft/ir/v1/normalized.proto](proto/ffcraft/ir/v1/normalized.proto), then compiled directly to each target or to Go source. Targets do not consume the legacy AST model.
+
 ## Documentation
 
 - [docs/authoring-format.md](docs/authoring-format.md): authoring YAML syntax and semantics
