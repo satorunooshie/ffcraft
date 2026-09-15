@@ -390,6 +390,48 @@ func TestB8GoffInProcessHotReloadAndB9GeneratedAccessor(t *testing.T) {
 	shutdownWithin(t)
 }
 
+// Evidence: GOFF-ALLOCATION-KEY-ERROR-001.
+func TestGoffMissingAllocationKeyPreservesEvaluationError(t *testing.T) {
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/flag/configuration" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"flags":{"allocation-error":{"variations":{"control":"safe","treatment":"new"},"defaultRule":{"percentage":{"control":1,"treatment":99}},"bucketingKey":"user.id"}}}`))
+	}))
+	defer server.Close()
+
+	provider, err := gofeatureflag.NewProviderWithContext(context.Background(), gofeatureflag.ProviderOptions{
+		Endpoint: server.URL, HTTPClient: server.Client(), DataCollectorDisabled: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := openfeature.SetProviderAndWait(provider); err != nil {
+		t.Fatal(err)
+	}
+	defer openfeature.Shutdown()
+
+	details, err := openfeature.NewDefaultClient().StringValueDetails(
+		context.Background(), "allocation-error", "caller-default",
+		openfeature.NewEvaluationContext("targeting-key", map[string]any{}),
+	)
+	if err == nil {
+		t.Fatal("expected missing allocation key to return an evaluation error")
+	}
+	if details.Value != "caller-default" {
+		t.Fatalf("value = %q, want caller default", details.Value)
+	}
+	if details.Reason != openfeature.ErrorReason {
+		t.Fatalf("reason = %q, want %q", details.Reason, openfeature.ErrorReason)
+	}
+	if details.ErrorCode != openfeature.TargetingKeyMissingCode {
+		t.Fatalf("error code = %q, want %q", details.ErrorCode, openfeature.TargetingKeyMissingCode)
+	}
+	shutdownWithin(t)
+}
+
 // Evidence: B8-GOFF-INPROCESS-RECOVERY-001.
 func TestB8GoffInProcessInitialFailureRecovery(t *testing.T) {
 	var available atomic.Bool
