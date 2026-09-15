@@ -4,8 +4,8 @@
 
 This repository has two main entrypoints:
 
-- `ffcompile`: parse, validate, normalize, and compile authoring YAML into consistent runtime configuration
-- `ffcodegen`: generate application-facing typed code from the same authoring YAML
+- `ffcompile`: normalize authoring YAML into the public protobuf IR and compile it into consistent runtime configuration
+- `ffcodegen`: generate application-facing typed code from authoring YAML or the public protobuf IR
 
 The pipeline is:
 
@@ -58,7 +58,7 @@ go install github.com/satorunooshie/ffcraft/cmd/ffcodegen@latest
 
 The canonical schema lives in [proto/ffcraft/v1/ffcraft.proto](proto/ffcraft/v1/ffcraft.proto). A JSON Schema for editor and tooling integration lives in [schema/developer-flags.schema.json](schema/developer-flags.schema.json). Generated Go code lives in [gen/ffcraft/v1/ffcompile.pb.go](gen/ffcraft/v1/ffcompile.pb.go).
 
-The compilation pipeline is intentionally one-way: authoring YAML is decoded into authoring protobuf, normalized into semantic IR defined by [proto/ffcraft/ir/v1/normalized.proto](proto/ffcraft/ir/v1/normalized.proto), then compiled directly to each target or to Go source. Targets do not consume the legacy AST model.
+The public compilation pipeline is intentionally one-way: authoring YAML is decoded into authoring protobuf, normalized into semantic IR defined by [proto/ffcraft/ir/v1/normalized.proto](proto/ffcraft/ir/v1/normalized.proto), then compiled directly to each target or to Go source. `build` is the convenience command that performs the authoring-to-target steps together; `compile` starts from the protobuf IR and does not accept normalized YAML. Targets do not consume the legacy AST model.
 
 ## Documentation
 
