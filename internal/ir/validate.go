@@ -175,8 +175,14 @@ func validateConditionDepth(condition *irv1.Condition, depth int) error {
 	case *irv1.Condition_Constant:
 		return nil
 	case *irv1.Condition_Equality:
+		if !validEqualityOperator(kind.Equality.Operator) {
+			return fmt.Errorf("unsupported equality operator %d", kind.Equality.Operator)
+		}
 		return validateAttributeLiteral(kind.Equality.Attribute, kind.Equality.Literal)
 	case *irv1.Condition_NumericComparison:
+		if !validNumericComparisonOperator(kind.NumericComparison.Operator) {
+			return fmt.Errorf("unsupported numeric comparison operator %d", kind.NumericComparison.Operator)
+		}
 		if kind.NumericComparison.Attribute == nil || kind.NumericComparison.Literal == nil {
 			return fmt.Errorf("numeric comparison is incomplete")
 		}
@@ -191,10 +197,16 @@ func validateConditionDepth(condition *irv1.Condition, depth int) error {
 			return err
 		}
 	case *irv1.Condition_StringMatch:
+		if !validStringMatchOperator(kind.StringMatch.Operator) {
+			return fmt.Errorf("unsupported string match operator %d", kind.StringMatch.Operator)
+		}
 		if kind.StringMatch.Attribute == nil {
 			return fmt.Errorf("string match attribute is required")
 		}
 	case *irv1.Condition_SemverComparison:
+		if !validSemverComparisonOperator(kind.SemverComparison.Operator) {
+			return fmt.Errorf("unsupported semver comparison operator %d", kind.SemverComparison.Operator)
+		}
 		if kind.SemverComparison.Attribute == nil || kind.SemverComparison.Semver == "" {
 			return fmt.Errorf("semver comparison is incomplete")
 		}
@@ -206,6 +218,9 @@ func validateConditionDepth(condition *irv1.Condition, depth int) error {
 			return fmt.Errorf("presence attribute is required")
 		}
 	case *irv1.Condition_Logical:
+		if !validLogicalOperator(kind.Logical.Operator) {
+			return fmt.Errorf("unsupported logical operator %d", kind.Logical.Operator)
+		}
 		if len(kind.Logical.Conditions) < 2 {
 			return fmt.Errorf("logical condition needs at least two children")
 		}
@@ -220,6 +235,26 @@ func validateConditionDepth(condition *irv1.Condition, depth int) error {
 		return fmt.Errorf("condition kind is required")
 	}
 	return nil
+}
+
+func validEqualityOperator(operator irv1.EqualityOperator) bool {
+	return operator == irv1.EqualityOperator_EQUALITY_OPERATOR_EQ || operator == irv1.EqualityOperator_EQUALITY_OPERATOR_NE
+}
+
+func validNumericComparisonOperator(operator irv1.NumericComparisonOperator) bool {
+	return operator >= irv1.NumericComparisonOperator_NUMERIC_COMPARISON_OPERATOR_GT && operator <= irv1.NumericComparisonOperator_NUMERIC_COMPARISON_OPERATOR_LTE
+}
+
+func validStringMatchOperator(operator irv1.StringMatchOperator) bool {
+	return operator >= irv1.StringMatchOperator_STRING_MATCH_OPERATOR_CONTAINS && operator <= irv1.StringMatchOperator_STRING_MATCH_OPERATOR_ENDS_WITH
+}
+
+func validSemverComparisonOperator(operator irv1.SemVerComparisonOperator) bool {
+	return operator >= irv1.SemVerComparisonOperator_SEM_VER_COMPARISON_OPERATOR_GT && operator <= irv1.SemVerComparisonOperator_SEM_VER_COMPARISON_OPERATOR_LTE
+}
+
+func validLogicalOperator(operator irv1.LogicalOperator) bool {
+	return operator >= irv1.LogicalOperator_LOGICAL_OPERATOR_ALL && operator <= irv1.LogicalOperator_LOGICAL_OPERATOR_EXACTLY_ONE
 }
 
 var semverPattern = regexp.MustCompile(`^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-(?:0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*))*)?(\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$`)

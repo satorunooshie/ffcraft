@@ -17,22 +17,44 @@ func TestValidateConditionContracts(t *testing.T) {
 		want      string
 	}{
 		{"missing kind", &irv1.Condition{}, "condition kind"},
-		{"equality missing operands", &irv1.Condition{Kind: &irv1.Condition_Equality{Equality: &irv1.EqualityCondition{}}}, "attribute equality"},
-		{"numeric missing operands", &irv1.Condition{Kind: &irv1.Condition_NumericComparison{NumericComparison: &irv1.NumericComparisonCondition{}}}, "numeric comparison"},
-		{"numeric nonfinite", &irv1.Condition{Kind: &irv1.Condition_NumericComparison{NumericComparison: &irv1.NumericComparisonCondition{Attribute: attr, Literal: &irv1.NumericValue{Kind: &irv1.NumericValue_DoubleValue{DoubleValue: math.Inf(1)}}}}}, "not finite"},
+		{"equality missing operands", &irv1.Condition{Kind: &irv1.Condition_Equality{Equality: &irv1.EqualityCondition{Operator: irv1.EqualityOperator_EQUALITY_OPERATOR_EQ}}}, "attribute equality"},
+		{"numeric missing operands", &irv1.Condition{Kind: &irv1.Condition_NumericComparison{NumericComparison: &irv1.NumericComparisonCondition{Operator: irv1.NumericComparisonOperator_NUMERIC_COMPARISON_OPERATOR_GT}}}, "numeric comparison"},
+		{"numeric nonfinite", &irv1.Condition{Kind: &irv1.Condition_NumericComparison{NumericComparison: &irv1.NumericComparisonCondition{Operator: irv1.NumericComparisonOperator_NUMERIC_COMPARISON_OPERATOR_GT, Attribute: attr, Literal: &irv1.NumericValue{Kind: &irv1.NumericValue_DoubleValue{DoubleValue: math.Inf(1)}}}}}, "not finite"},
 		{"membership missing operands", &irv1.Condition{Kind: &irv1.Condition_Membership{Membership: &irv1.MembershipCondition{}}}, "membership"},
 		{"membership heterogeneous", &irv1.Condition{Kind: &irv1.Condition_Membership{Membership: &irv1.MembershipCondition{Attribute: attr, Literals: &irv1.ScalarList{Values: []*irv1.ScalarValue{{Kind: &irv1.ScalarValue_StringValue{StringValue: "x"}}, {Kind: &irv1.ScalarValue_BoolValue{BoolValue: true}}}}}}}, "homogeneous"},
 		{"string match missing attribute", &irv1.Condition{Kind: &irv1.Condition_StringMatch{StringMatch: &irv1.StringMatchCondition{}}}, "string match"},
-		{"semver missing literal", &irv1.Condition{Kind: &irv1.Condition_SemverComparison{SemverComparison: &irv1.SemVerComparisonCondition{Attribute: attr}}}, "semver comparison"},
-		{"semver invalid literal", &irv1.Condition{Kind: &irv1.Condition_SemverComparison{SemverComparison: &irv1.SemVerComparisonCondition{Attribute: attr, Semver: "1.0"}}}, "invalid SemVer"},
+		{"semver missing literal", &irv1.Condition{Kind: &irv1.Condition_SemverComparison{SemverComparison: &irv1.SemVerComparisonCondition{Operator: irv1.SemVerComparisonOperator_SEM_VER_COMPARISON_OPERATOR_GT, Attribute: attr}}}, "semver comparison"},
+		{"semver invalid literal", &irv1.Condition{Kind: &irv1.Condition_SemverComparison{SemverComparison: &irv1.SemVerComparisonCondition{Operator: irv1.SemVerComparisonOperator_SEM_VER_COMPARISON_OPERATOR_GT, Attribute: attr, Semver: "1.0"}}}, "invalid SemVer"},
 		{"presence missing attribute", &irv1.Condition{Kind: &irv1.Condition_Presence{Presence: &irv1.PresenceCondition{}}}, "presence attribute"},
-		{"logical too short", &irv1.Condition{Kind: &irv1.Condition_Logical{Logical: &irv1.LogicalCondition{Conditions: []*irv1.Condition{}}}}, "at least two"},
+		{"logical too short", &irv1.Condition{Kind: &irv1.Condition_Logical{Logical: &irv1.LogicalCondition{Operator: irv1.LogicalOperator_LOGICAL_OPERATOR_ANY, Conditions: []*irv1.Condition{}}}}, "at least two"},
 		{"negation missing child", &irv1.Condition{Kind: &irv1.Condition_Negation{}}, "condition kind"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			if err := validateCondition(test.condition); err == nil || !strings.Contains(err.Error(), test.want) {
 				t.Fatalf("validateCondition() error = %v, want %q", err, test.want)
+			}
+		})
+	}
+}
+
+func TestValidateRejectsUnknownConditionEnums(t *testing.T) {
+	attribute := &irv1.AttributePath{Segments: []string{"value"}}
+	tests := []struct {
+		name      string
+		condition *irv1.Condition
+		want      string
+	}{
+		{"equality", &irv1.Condition{Kind: &irv1.Condition_Equality{Equality: &irv1.EqualityCondition{Operator: irv1.EqualityOperator(99), Attribute: attribute, Literal: &irv1.ScalarValue{Kind: &irv1.ScalarValue_StringValue{StringValue: "x"}}}}}, "unsupported equality"},
+		{"numeric", &irv1.Condition{Kind: &irv1.Condition_NumericComparison{NumericComparison: &irv1.NumericComparisonCondition{Operator: irv1.NumericComparisonOperator(99), Attribute: attribute, Literal: &irv1.NumericValue{Kind: &irv1.NumericValue_IntValue{IntValue: 1}}}}}, "unsupported numeric"},
+		{"string match", &irv1.Condition{Kind: &irv1.Condition_StringMatch{StringMatch: &irv1.StringMatchCondition{Operator: irv1.StringMatchOperator(99), Attribute: attribute}}}, "unsupported string match"},
+		{"semver", &irv1.Condition{Kind: &irv1.Condition_SemverComparison{SemverComparison: &irv1.SemVerComparisonCondition{Operator: irv1.SemVerComparisonOperator(99), Attribute: attribute, Semver: "1.2.3"}}}, "unsupported semver"},
+		{"logical", &irv1.Condition{Kind: &irv1.Condition_Logical{Logical: &irv1.LogicalCondition{Operator: irv1.LogicalOperator(99), Conditions: []*irv1.Condition{{Kind: &irv1.Condition_Constant{Constant: true}}, {Kind: &irv1.Condition_Constant{Constant: false}}}}}}, "unsupported logical"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if err := validateCondition(test.condition); err == nil || !strings.Contains(err.Error(), test.want) {
+				t.Fatalf("validateCondition() = %v, want %q", err, test.want)
 			}
 		})
 	}
@@ -103,7 +125,7 @@ func TestValidateAcceptsEverySemanticKind(t *testing.T) {
 	attribute := &irv1.AttributePath{Segments: []string{"user", "value"}}
 	conditionCases := []*irv1.Condition{
 		{Kind: &irv1.Condition_Constant{Constant: true}},
-		{Kind: &irv1.Condition_Equality{Equality: &irv1.EqualityCondition{Attribute: attribute, Literal: &irv1.ScalarValue{Kind: &irv1.ScalarValue_IntValue{IntValue: 7}}}}},
+		{Kind: &irv1.Condition_Equality{Equality: &irv1.EqualityCondition{Operator: irv1.EqualityOperator_EQUALITY_OPERATOR_EQ, Attribute: attribute, Literal: &irv1.ScalarValue{Kind: &irv1.ScalarValue_IntValue{IntValue: 7}}}}},
 		{Kind: &irv1.Condition_NumericComparison{NumericComparison: &irv1.NumericComparisonCondition{Operator: irv1.NumericComparisonOperator_NUMERIC_COMPARISON_OPERATOR_GT, Attribute: attribute, Literal: &irv1.NumericValue{Kind: &irv1.NumericValue_DoubleValue{DoubleValue: 1.5}}}}},
 		{Kind: &irv1.Condition_Membership{Membership: &irv1.MembershipCondition{Attribute: attribute, Literals: &irv1.ScalarList{Values: []*irv1.ScalarValue{{Kind: &irv1.ScalarValue_StringValue{StringValue: "a"}}, {Kind: &irv1.ScalarValue_StringValue{StringValue: "b"}}}}}}},
 		{Kind: &irv1.Condition_StringMatch{StringMatch: &irv1.StringMatchCondition{Operator: irv1.StringMatchOperator_STRING_MATCH_OPERATOR_CONTAINS, Attribute: attribute, Literal: "x"}}},
