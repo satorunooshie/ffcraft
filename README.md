@@ -1,75 +1,69 @@
 # ffcraft
 
-`ffcraft` is the project and module behind the `ffcompile` and `ffcodegen` commands. It helps teams author reusable feature flag definitions, validate them early, and generate consistent runtime config and typed code for supported targets.
+ffcraft compiles portable feature flag definitions into runtime-specific
+configuration.
 
-This repository has two main entrypoints:
+It also exposes a normalized protobuf IR as a public semantic boundary for
+compilers, generators, and other tooling. `ffcodegen`, included in this
+repository, is an optional companion generator for typed Go APIs.
 
-- `ffcompile`: normalize authoring YAML into the public protobuf IR and compile it into consistent runtime configuration
-- `ffcodegen`: generate application-facing typed code from authoring YAML or the public protobuf IR
-
-The pipeline is:
+## Architecture
 
 ```mermaid
 flowchart LR
-    A[Authoring YAML] --> B[Parse]
-    B --> C[Validate]
-    C --> D[Normalize]
-    D --> E[ffcraft.ir.v1 protobuf]
-    E --> F[Target Compiler]
-    E --> G[Normalized YAML view]
+    A[Authoring YAML] --> B[Validate / Normalize]
+    B --> C[ffcraft IR<br/>public semantic boundary]
+
+    C --> D[Runtime compilers]
+    D --> D1[flagd JSON]
+    D --> D2[GO Feature Flag YAML]
+
+    C --> E[typed Go APIs<br/>ffcodegen · optional]
+
+    C -.-> F[custom generators<br/>external]
+    C -.-> G[policy / governance<br/>external]
+    C -.-> H[analysis / docs<br/>external]
 ```
 
-The semantic contract between normalization and compilers is the protobuf IR
-defined in [proto/ffcraft/ir/v1/normalized.proto](proto/ffcraft/ir/v1/normalized.proto).
-Normalized YAML is a deterministic adapter for that IR. Opaque extensions are
-preserved at document, flag, and environment scope; core compilers ignore them
-and external generators may consume the namespaces they own. See
-[docs/extension-spec.md](docs/extension-spec.md) for the complete contract.
-Core transport limits are 256 extension namespaces per scope, 256 members per
-object/list, nesting depth 64, and 1 MiB protobuf payload per namespace;
-namespace contents remain opaque to core validation.
+`ffcompile` validates and normalizes authoring definitions into the public
+protobuf IR, then compiles that IR for supported runtimes. Solid arrows are
+provided by this repository; dashed arrows show external tooling that can be
+built on the public IR.
 
-## Scope
+## Why ffcraft?
 
-Supported today:
+Feature flag definitions often need to be translated into provider-specific
+configuration while preserving the same targeting, rollout, and environment
+semantics.
 
-- authoring format `v1`
-- normalized YAML as a deterministic human-readable view of the protobuf IR
-- compiler targets: `flagd`, `gofeatureflag`
-- reusable `variant_sets`, `rules`, and `distributions`
-- per-environment `serve`, `rules`, and `default_action`
-- `scheduled_rollouts`
-- `progressive_rollout`
-- comparison, logical, collection, string, and semver operators
+Typed application APIs can optionally be generated from the same source
+definition.
 
-Current limitations:
+Keeping those representations synchronized by hand is error-prone and can
+introduce semantic drift between environments, runtime providers, and
+application code. `ffcraft` uses the authoring definition as the source of
+truth and derives the downstream representations from it:
 
-- YAML aliases and anchors are not supported
-
-## Install
-
-```bash
-go install github.com/satorunooshie/ffcraft/cmd/ffcompile@latest
-go install github.com/satorunooshie/ffcraft/cmd/ffcodegen@latest
-```
-
-The canonical schema lives in [proto/ffcraft/v1/ffcraft.proto](proto/ffcraft/v1/ffcraft.proto). A JSON Schema for editor and tooling integration lives in [schema/developer-flags.schema.json](schema/developer-flags.schema.json). Generated Go code lives in [gen/ffcraft/v1/ffcraft.pb.go](gen/ffcraft/v1/ffcraft.pb.go).
-
-The public compilation pipeline is intentionally one-way: authoring YAML is decoded into authoring protobuf, normalized into semantic IR defined by [proto/ffcraft/ir/v1/normalized.proto](proto/ffcraft/ir/v1/normalized.proto), then compiled directly to each target or to Go source. `build` is the convenience command that performs the authoring-to-target steps together; `compile` starts from the protobuf IR and does not accept normalized YAML. Targets do not consume the legacy AST model.
-
-## Documentation
-
-- [docs/authoring-format.md](docs/authoring-format.md): authoring YAML syntax and semantics
-- [docs/compiler-targets.md](docs/compiler-targets.md): how compiled output differs between `flagd` and `gofeatureflag`
-- [docs/ffcodegen.md](docs/ffcodegen.md): `ffcodegen` commands, defaults, `ffcodegen.yaml`, and generated API usage
-- [docs/extension-spec.md](docs/extension-spec.md): public extension and normalized IR contract
+- one source of truth for flag definitions
+- validation before deployment
+- consistent semantics across supported runtime targets
+- an extensible IR for custom tooling and generators
 
 ## Quick Start
 
-Authoring YAMLからtarget outputとtyped Go codeを生成します。
+### Install
+
+```bash
+go install github.com/satorunooshie/ffcraft/cmd/ffcompile@latest
+```
+
+Make sure your Go bin directory is on `PATH`.
+
+### Define a feature flag
+
+Create `ffcompile.yaml`:
 
 ```yaml
-# ffcompile.yaml
 version: v1
 
 variant_sets:
@@ -87,92 +81,266 @@ flags:
           serve: on
 ```
 
+### Generate runtime configuration
+
+For flagd:
+
 ```bash
-go run ./cmd/ffcompile build flagd --in ffcompile.yaml --env prod --out prod.flagd.json
-go run ./cmd/ffcodegen go --in ffcompile.yaml --out featureflags_gen.go
+ffcompile build flagd \
+  --in ffcompile.yaml \
+  --env prod \
+  --out prod.flagd.json
 ```
+
+For GO Feature Flag:
+
+```bash
+ffcompile build gofeatureflag \
+  --in ffcompile.yaml \
+  --env prod \
+  --out prod.goff.yaml
+```
+
+### Optionally generate typed Go APIs
+
+Install the companion generator if you need application-facing typed APIs:
+
+```bash
+go install github.com/satorunooshie/ffcraft/cmd/ffcodegen@latest
+```
+
+```bash
+ffcodegen go \
+  --in ffcompile.yaml \
+  --out featureflags_gen.go
+```
+
+The generated package exposes typed accessors and a small SDK-agnostic
+`Client` interface. Runtime SDK integration stays in your infrastructure
+layer:
 
 ```go
 evaluator := featureflags.New(client)
+
 enabled, err := evaluator.EnableNewHome(ctx)
 ```
 
-`client` is the generated SDK-agnostic evaluator interface. Applications can
-adapt it to OpenFeature or another runtime in their infrastructure layer.
+The runtime adapter implements the generated `Client` interface, while the
+generated `Evaluator` provides the application-facing API.
 
-## Public IR pipeline
+## Compiler Pipeline
 
-Normalize once to the public protobuf IR, then compile or generate from it:
+The core processing pipeline is provided by `ffcompile`:
 
-```bash
-# Public protobuf IR pipeline
-go run ./cmd/ffcompile normalize flags.yaml --format protobuf > featureflags.ir.v1.pb
-go run ./cmd/ffcompile compile flagd --in featureflags.ir.v1.pb --env prod --out flagd.json
-go run ./cmd/ffcompile compile gofeatureflag --in featureflags.ir.v1.pb --env prod --out flags.goff.yaml
+```mermaid
+flowchart LR
+    A[Authoring YAML] --> B[Parse]
+    B --> C[Validate]
+    C --> D[Normalize]
+    D --> E[ffcraft.ir.v1 protobuf]
+
+    E --> F[Compile]
+    E --> G[Normalized YAML view]
 ```
 
-The normalized YAML view is output-only and useful for review:
+The protobuf IR is the public semantic contract between normalization and
+downstream compilers and generators. Most users can use `ffcompile build`
+directly without interacting with the IR.
 
-```bash
-go run ./cmd/ffcompile build flagd --in flags.yaml --env prod --dump -
-go run ./cmd/ffcompile build gofeatureflag --in flags.yaml --env prod --dump normalized.yaml
-```
+Opaque extensions are preserved through normalization and may be consumed by
+external generators. See the [extension spec](docs/extension-spec.md) for the
+public contract.
 
-For flags without the requested environment:
+The canonical authoring schema lives at
+[proto/ffcraft/v1/ffcraft.proto](proto/ffcraft/v1/ffcraft.proto), and the public
+normalized IR lives at
+[proto/ffcraft/ir/v1/normalized.proto](proto/ffcraft/ir/v1/normalized.proto).
 
-```bash
-go run ./cmd/ffcompile build flagd --in flags.yaml --env prod --allow-missing-env
-```
+## Supported Features and Targets
 
-## Commands
+### Authoring format
 
-- `build flagd`: parse, validate, normalize, and compile to `flagd` JSON
-- `build gofeatureflag`: parse, validate, normalize, and compile to `GO Feature Flag` YAML
-- `normalize`: parse, validate, and emit normalized YAML or protobuf IR
-- `compile flagd`: compile normalized protobuf IR to `flagd` JSON
-- `compile gofeatureflag`: compile normalized protobuf IR to `GO Feature Flag` YAML
+The authoring format currently supports version `v1` and:
 
-## Code Generation
+- reusable `variant_sets`, `rules`, and `distributions`
+- per-environment configuration
+- fixed serving with `serve`
+- percentage distributions
+- scheduled and progressive rollouts
+- comparison, logical, collection, string, and semantic-version operators
+- opaque extension namespaces
 
-`ffcodegen` consumes authoring YAML or normalized protobuf IR and emits application-linked generated code. The initial target is typed Go accessors over a small evaluator interface.
+### Runtime targets
 
-The generated Go code is intentionally runtime-SDK agnostic. It emits typed accessors plus a small `Client` interface and `EvaluationContext` type; consumer applications wire those to OpenFeature or another SDK through an adapter they own.
+| Target | Output |
+| --- | --- |
+| `flagd` | flagd-compatible JSON |
+| `gofeatureflag` | GO Feature Flag YAML |
 
-```bash
-go run ./cmd/ffcodegen go --in ffcompile.yaml --config ffcodegen.yaml --out featureflags_gen.go
-go run ./cmd/ffcodegen go --in ffcompile.yaml
-```
+### Optional companion tooling
 
-See [docs/ffcodegen.md](docs/ffcodegen.md) for configuration and usage.
+| Tool | Output |
+| --- | --- |
+| `ffcodegen go` | typed Go accessors and evaluation types |
 
-## Compiler Targets
+### Key semantic differences
 
-`ffcompile` has one authoring model, but the compiled semantics are not identical across targets. The practical differences are:
+`ffcraft` uses a common authoring model, but target runtimes do not always
+provide identical primitives. `ffcraft` validates or lowers these differences
+instead of silently changing the intended semantics.
 
 | Capability | `flagd` | `gofeatureflag` |
 | --- | --- | --- |
 | Fixed serve | native | native |
 | Percentage rollout | `fractional` targeting | native `percentage` |
-| Progressive rollout | expanded at normalization into time-based steps | consumes scheduled IR snapshots |
-| Scheduled rollout | compiled into timestamp-ordered `if` chain | native `scheduledRollout` |
-| Mixed stickiness in one flag | allowed per action | rejected because `bucketingKey` is flag-scoped |
+| Progressive rollout | normalized into scheduled snapshots | consumes scheduled snapshots |
+| Scheduled rollout | timestamp-based conditional chain | native `scheduledRollout` |
+| Mixed stickiness within one flag | supported per action | rejected because bucketing is flag-scoped |
 
-For the full target notes, see [docs/compiler-targets.md](docs/compiler-targets.md).
+See [docs/compiler-targets.md](docs/compiler-targets.md) for detailed target
+behavior and constraints.
 
-## Samples
+## Commands
 
-The [examples](examples) directory contains paired authoring and target
-fixtures for core behavior:
+### Build runtime configuration
 
-- [basic](examples/basic): fixed serve
-- [rule-targeting](examples/rule-targeting): conditions and rules
-- [scheduled-rollouts](examples/scheduled-rollouts): scheduled snapshots
+`build` performs the complete authoring pipeline:
+
+```text
+authoring YAML → parse → validate → normalize → compile → target configuration
+```
+
+```bash
+ffcompile build flagd \
+  --in flags.yaml \
+  --env prod \
+  --out flagd.json
+
+ffcompile build gofeatureflag \
+  --in flags.yaml \
+  --env prod \
+  --out flags.goff.yaml
+```
+
+To inspect the normalized representation while building:
+
+```bash
+ffcompile build flagd \
+  --in flags.yaml \
+  --env prod \
+  --dump normalized.yaml
+```
+
+If some flags do not define the requested environment and should be skipped:
+
+```bash
+ffcompile build flagd \
+  --in flags.yaml \
+  --env prod \
+  --allow-missing-env
+```
+
+### Normalize to the public IR
+
+Normalize authoring YAML once to protobuf IR:
+
+```bash
+ffcompile normalize flags.yaml \
+  --format protobuf \
+  --out featureflags.ir.v1.pb
+```
+
+The normalized YAML representation is a deterministic, human-readable view of
+the same semantic model:
+
+```bash
+ffcompile normalize flags.yaml --out normalized.yaml
+```
+
+### Compile from the public IR
+
+Compile the same IR for different runtime targets:
+
+```bash
+ffcompile compile flagd \
+  --in featureflags.ir.v1.pb \
+  --env prod \
+  --out flagd.json
+
+ffcompile compile gofeatureflag \
+  --in featureflags.ir.v1.pb \
+  --env prod \
+  --out flags.goff.yaml
+```
+
+`compile` accepts normalized protobuf IR. It does not accept authoring YAML or
+normalized YAML.
+
+### Generate application code with the optional companion tool
+
+`ffcodegen` can consume authoring YAML or normalized protobuf IR when you need
+typed application APIs:
+
+```bash
+ffcodegen go \
+  --in flags.yaml \
+  --config ffcodegen.yaml \
+  --out featureflags_gen.go
+
+ffcodegen go \
+  --format protobuf \
+  --in featureflags.ir.v1.pb \
+  --out featureflags_gen.go
+```
+
+For customized package names, context types, accessors, and fallback variants,
+see [docs/ffcodegen.md](docs/ffcodegen.md).
+
+## Limitations
+
+Currently, YAML aliases and anchors are not supported.
+
+Target-specific restrictions may also apply. See
+[docs/compiler-targets.md](docs/compiler-targets.md) for details.
+
+Opaque extensions are preserved at document, flag, and environment scope.
+Core compilers ignore namespaces they do not own. See the
+[extension spec](docs/extension-spec.md) for transport limits and ownership
+rules.
+
+## Documentation
+
+- [Authoring format](docs/authoring-format.md)
+- [Compiler targets](docs/compiler-targets.md)
+- [Go code generation](docs/ffcodegen.md)
+- [Extension and IR contract](docs/extension-spec.md)
+- [JSON Schema guide](schema/README.md)
+
+## Examples
+
+The [examples](examples) directory contains end-to-end examples for common use
+cases:
+
+- [basic](examples/basic): fixed serving
+- [rule-targeting](examples/rule-targeting): targeting conditions and rules
+- [scheduled-rollouts](examples/scheduled-rollouts): scheduled changes
 - [progressive-rollouts](examples/progressive-rollouts): progressive rollout
-- [extensions](examples/extensions): client/backend/team namespace ownership
-- [go-codegen](examples/go-codegen): typed Go code and runtime adapters
+- [extensions](examples/extensions): extension namespace ownership
+- [go-codegen](examples/go-codegen): typed Go APIs and runtime adapters
 
-Regenerate the code-generation fixtures with:
+## Development
+
+When working from a local checkout, run the commands directly with Go:
+
+```bash
+go run ./cmd/ffcompile --help
+go run ./cmd/ffcodegen --help
+```
+
+Regenerate the Go code-generation fixtures with:
 
 ```bash
 make update-go-example
 ```
+
+The project is licensed under the terms in [LICENSE](LICENSE).
