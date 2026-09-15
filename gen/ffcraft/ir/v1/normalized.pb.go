@@ -749,7 +749,10 @@ func (*Action_Distribute) isAction_Kind() {}
 // If allocation_key is missing, null, or not a string in runtime context, the
 // action is unresolved. For a rule action, the first matching rule remains
 // selected and evaluation reports an error; for default_action, the evaluation
-// is likewise unresolved/error.
+// is likewise unresolved/error. A target runtime MAY return an
+// application-supplied fallback value to the caller, but the failure MUST
+// remain observable as an evaluation error when the runtime exposes evaluation
+// metadata.
 type Distribution struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Context attribute used to produce the required stable allocation.
