@@ -165,32 +165,41 @@ func compileIRCondition(condition *irv1.Condition) (any, error) {
 		}
 		return map[string]any{"in": []any{compileIRVar(kind.Membership.Attribute), values}}, nil
 	case *irv1.Condition_StringMatch:
-		operator := map[irv1.StringMatchOperator]string{
+		operator, ok := map[irv1.StringMatchOperator]string{
 			irv1.StringMatchOperator_STRING_MATCH_OPERATOR_CONTAINS:    "in",
 			irv1.StringMatchOperator_STRING_MATCH_OPERATOR_STARTS_WITH: "starts_with",
 			irv1.StringMatchOperator_STRING_MATCH_OPERATOR_ENDS_WITH:   "ends_with",
 		}[kind.StringMatch.Operator]
+		if !ok {
+			return nil, fmt.Errorf("unsupported string match operator")
+		}
 		if operator == "in" {
 			return map[string]any{"in": []any{kind.StringMatch.Literal, compileIRVar(kind.StringMatch.Attribute)}}, nil
 		}
 		return map[string]any{operator: []any{compileIRVar(kind.StringMatch.Attribute), kind.StringMatch.Literal}}, nil
 	case *irv1.Condition_SemverComparison:
-		operator := map[irv1.SemVerComparisonOperator]string{
+		operator, ok := map[irv1.SemVerComparisonOperator]string{
 			irv1.SemVerComparisonOperator_SEM_VER_COMPARISON_OPERATOR_GT:  ">",
 			irv1.SemVerComparisonOperator_SEM_VER_COMPARISON_OPERATOR_GTE: ">=",
 			irv1.SemVerComparisonOperator_SEM_VER_COMPARISON_OPERATOR_LT:  "<",
 			irv1.SemVerComparisonOperator_SEM_VER_COMPARISON_OPERATOR_LTE: "<=",
 		}[kind.SemverComparison.Operator]
+		if !ok {
+			return nil, fmt.Errorf("unsupported semver comparison operator")
+		}
 		return map[string]any{"sem_ver": []any{compileIRVar(kind.SemverComparison.Attribute), operator, kind.SemverComparison.Semver}}, nil
 	case *irv1.Condition_Presence:
 		return nil, &capability.UnsupportedConditionError{Target: capability.TargetFlagd, Condition: capability.ConditionPresence}
 	case *irv1.Condition_Logical:
-		operator := map[irv1.LogicalOperator]string{
+		operator, ok := map[irv1.LogicalOperator]string{
 			irv1.LogicalOperator_LOGICAL_OPERATOR_ALL: "and",
 			irv1.LogicalOperator_LOGICAL_OPERATOR_ANY: "or",
 		}[kind.Logical.Operator]
 		if kind.Logical.Operator == irv1.LogicalOperator_LOGICAL_OPERATOR_EXACTLY_ONE {
 			return compileIRExactlyOne(kind.Logical.Conditions)
+		}
+		if !ok {
+			return nil, fmt.Errorf("unsupported logical operator")
 		}
 		values := make([]any, 0, len(kind.Logical.Conditions))
 		for _, child := range kind.Logical.Conditions {

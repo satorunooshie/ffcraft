@@ -167,12 +167,15 @@ func compileIRCondition(condition *irv1.Condition) (string, error) {
 	case *irv1.Condition_Equality:
 		return compileIRBinary(kind.Equality.Attribute, kind.Equality.Literal, equalityOperator(kind.Equality.Operator))
 	case *irv1.Condition_NumericComparison:
-		operator := map[irv1.NumericComparisonOperator]string{
+		operator, ok := map[irv1.NumericComparisonOperator]string{
 			irv1.NumericComparisonOperator_NUMERIC_COMPARISON_OPERATOR_GT:  "gt",
 			irv1.NumericComparisonOperator_NUMERIC_COMPARISON_OPERATOR_GTE: "ge",
 			irv1.NumericComparisonOperator_NUMERIC_COMPARISON_OPERATOR_LT:  "lt",
 			irv1.NumericComparisonOperator_NUMERIC_COMPARISON_OPERATOR_LTE: "le",
 		}[kind.NumericComparison.Operator]
+		if !ok {
+			return "", fmt.Errorf("unsupported numeric comparison operator")
+		}
 		return fmt.Sprintf("%s %s %s", compileIRVar(kind.NumericComparison.Attribute), operator, compileIRNumeric(kind.NumericComparison.Literal)), nil
 	case *irv1.Condition_Membership:
 		values := make([]string, 0, len(kind.Membership.Literals.Values))
@@ -181,19 +184,25 @@ func compileIRCondition(condition *irv1.Condition) (string, error) {
 		}
 		return fmt.Sprintf("%s in [%s]", compileIRVar(kind.Membership.Attribute), strings.Join(values, ", ")), nil
 	case *irv1.Condition_StringMatch:
-		operator := map[irv1.StringMatchOperator]string{
+		operator, ok := map[irv1.StringMatchOperator]string{
 			irv1.StringMatchOperator_STRING_MATCH_OPERATOR_CONTAINS:    "co",
 			irv1.StringMatchOperator_STRING_MATCH_OPERATOR_STARTS_WITH: "sw",
 			irv1.StringMatchOperator_STRING_MATCH_OPERATOR_ENDS_WITH:   "ew",
 		}[kind.StringMatch.Operator]
+		if !ok {
+			return "", fmt.Errorf("unsupported string match operator")
+		}
 		return fmt.Sprintf("%s %s %s", compileIRVar(kind.StringMatch.Attribute), operator, strconv.Quote(kind.StringMatch.Literal)), nil
 	case *irv1.Condition_SemverComparison:
-		operator := map[irv1.SemVerComparisonOperator]string{
+		operator, ok := map[irv1.SemVerComparisonOperator]string{
 			irv1.SemVerComparisonOperator_SEM_VER_COMPARISON_OPERATOR_GT:  "gt",
 			irv1.SemVerComparisonOperator_SEM_VER_COMPARISON_OPERATOR_GTE: "ge",
 			irv1.SemVerComparisonOperator_SEM_VER_COMPARISON_OPERATOR_LT:  "lt",
 			irv1.SemVerComparisonOperator_SEM_VER_COMPARISON_OPERATOR_LTE: "le",
 		}[kind.SemverComparison.Operator]
+		if !ok {
+			return "", fmt.Errorf("unsupported semver comparison operator")
+		}
 		return fmt.Sprintf("%s %s %s", compileIRVar(kind.SemverComparison.Attribute), operator, kind.SemverComparison.Semver), nil
 	case *irv1.Condition_Presence:
 		return "", &capability.UnsupportedConditionError{Target: capability.TargetGOFeatureFlag, Condition: capability.ConditionPresence}
@@ -204,6 +213,9 @@ func compileIRCondition(condition *irv1.Condition) (string, error) {
 		}
 		if kind.Logical.Operator == irv1.LogicalOperator_LOGICAL_OPERATOR_EXACTLY_ONE {
 			return compileIRExactlyOne(kind.Logical.Conditions)
+		}
+		if kind.Logical.Operator != irv1.LogicalOperator_LOGICAL_OPERATOR_ALL && kind.Logical.Operator != irv1.LogicalOperator_LOGICAL_OPERATOR_ANY {
+			return "", fmt.Errorf("unsupported logical operator")
 		}
 		parts := make([]string, 0, len(kind.Logical.Conditions))
 		for _, child := range kind.Logical.Conditions {

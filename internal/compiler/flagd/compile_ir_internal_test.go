@@ -151,6 +151,26 @@ func TestCompileIRConditionErrorPropagation(t *testing.T) {
 	}
 }
 
+func TestCompileIRRejectsUnknownConditionEnums(t *testing.T) {
+	attribute := &irv1.AttributePath{Segments: []string{"value"}}
+	tests := []struct {
+		name      string
+		condition *irv1.Condition
+		want      string
+	}{
+		{"string match", &irv1.Condition{Kind: &irv1.Condition_StringMatch{StringMatch: &irv1.StringMatchCondition{Attribute: attribute, Operator: irv1.StringMatchOperator(99)}}}, "unsupported string match"},
+		{"semver", &irv1.Condition{Kind: &irv1.Condition_SemverComparison{SemverComparison: &irv1.SemVerComparisonCondition{Attribute: attribute, Operator: irv1.SemVerComparisonOperator(99), Semver: "1.2.3"}}}, "unsupported semver"},
+		{"logical", &irv1.Condition{Kind: &irv1.Condition_Logical{Logical: &irv1.LogicalCondition{Operator: irv1.LogicalOperator(99), Conditions: []*irv1.Condition{{Kind: &irv1.Condition_Constant{Constant: true}}, {Kind: &irv1.Condition_Constant{Constant: false}}}}}}, "unsupported logical"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if _, err := compileIRCondition(test.condition); err == nil || !strings.Contains(err.Error(), test.want) {
+				t.Fatalf("compileIRCondition() = %v, want %q", err, test.want)
+			}
+		})
+	}
+}
+
 func TestCompileIRDocumentEnvironmentSelection(t *testing.T) {
 	doc := directCompilerFixture()
 	doc.Flags["static"] = &irv1.Flag{
