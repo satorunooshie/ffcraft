@@ -228,6 +228,28 @@ func TestCompileIRDocumentEnvironmentSelection(t *testing.T) {
 	}
 }
 
+func TestCompileIRRuleAndActionBoundaryErrors(t *testing.T) {
+	tests := []struct {
+		name  string
+		rules []*irv1.Rule
+		want  string
+	}{
+		{"nil rule", []*irv1.Rule{nil}, "rule is incomplete"},
+		{"missing condition", []*irv1.Rule{{Action: &irv1.Action{Kind: &irv1.Action_Serve{Serve: "on"}}}}, "rule is incomplete"},
+		{"missing action", []*irv1.Rule{{Condition: &irv1.Condition{Kind: &irv1.Condition_Constant{Constant: true}}}}, "rule is incomplete"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if _, _, err := compileIRRules(test.rules); err == nil || !strings.Contains(err.Error(), test.want) {
+				t.Fatalf("compileIRRules() = %v, want %q", err, test.want)
+			}
+		})
+	}
+	if _, _, err := compileIRDefaultRule(&irv1.Action{}); err == nil || !strings.Contains(err.Error(), "unsupported IR action") {
+		t.Fatalf("compileIRDefaultRule() = %v, want unsupported action", err)
+	}
+}
+
 func TestCompileIRDocumentScheduleOutputContract(t *testing.T) {
 	doc := &irv1.Document{Flags: map[string]*irv1.Flag{
 		"rollout": {

@@ -192,3 +192,24 @@ func TestCompileIRDocumentEnvironmentSelection(t *testing.T) {
 		t.Fatalf("missing environment warning mode = %s, %#v, %v", output, warnings, err)
 	}
 }
+
+func TestCompileIREvaluationBoundaryErrors(t *testing.T) {
+	serve := &irv1.Action{Kind: &irv1.Action_Serve{Serve: "on"}}
+	tests := []struct {
+		name string
+		eval *irv1.Evaluation
+		want string
+	}{
+		{"nil evaluation", nil, "default_action is required"},
+		{"nil default action", &irv1.Evaluation{}, "default_action is required"},
+		{"incomplete rule", &irv1.Evaluation{DefaultAction: serve, Rules: []*irv1.Rule{{}}}, "rule is incomplete"},
+		{"unsupported default action", &irv1.Evaluation{DefaultAction: &irv1.Action{}}, "unsupported IR action"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if _, err := compileIREvaluation(test.eval); err == nil || !strings.Contains(err.Error(), test.want) {
+				t.Fatalf("compileIREvaluation() = %v, want %q", err, test.want)
+			}
+		})
+	}
+}
