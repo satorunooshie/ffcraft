@@ -21,7 +21,10 @@ func FromAST(doc *ast.Document) (*irv1.Document, error) {
 		return nil, fmt.Errorf("document is nil")
 	}
 	out := &irv1.Document{Flags: make(map[string]*irv1.Flag, len(doc.Flags)), Extensions: cloneExtensions(doc.Extensions)}
-	for _, flag := range doc.Flags {
+	for index, flag := range doc.Flags {
+		if flag == nil {
+			return nil, fmt.Errorf("flag[%d] is nil", index)
+		}
 		if _, exists := out.Flags[flag.Key]; exists {
 			return nil, fmt.Errorf("duplicate flag %q", flag.Key)
 		}
@@ -30,6 +33,9 @@ func FromAST(doc *ast.Document) (*irv1.Document, error) {
 			f.Variants[name] = variant(value)
 		}
 		for name, env := range flag.Environments {
+			if env == nil {
+				return nil, fmt.Errorf("environment is nil")
+			}
 			converted, err := environment(env, f.Variants, flag.DefaultVariant)
 			if err != nil {
 				return nil, fmt.Errorf("flag %q environment %q: %w", flag.Key, name, err)
@@ -45,6 +51,9 @@ func FromAST(doc *ast.Document) (*irv1.Document, error) {
 }
 
 func environment(source *ast.Environment, variants map[string]*irv1.VariantValue, defaultVariant string) (*irv1.Environment, error) {
+	if source == nil {
+		return nil, fmt.Errorf("environment is nil")
+	}
 	baseAction := source.DefaultAction
 	var progressive *ast.ProgressiveRolloutAction
 	if candidate, ok := baseAction.(*ast.ProgressiveRolloutAction); ok {

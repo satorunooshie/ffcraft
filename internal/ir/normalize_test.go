@@ -282,6 +282,28 @@ func TestFromASTLowersSameVariantProgressiveRolloutToNoOp(t *testing.T) {
 	}
 }
 
+func TestFromASTRejectsNilContainers(t *testing.T) {
+	tests := []struct {
+		name string
+		doc  *ast.Document
+		want string
+	}{
+		{"nil flag", &ast.Document{Flags: []*ast.Flag{nil}}, "flag[0] is nil"},
+		{"nil environment", &ast.Document{Flags: []*ast.Flag{{
+			Key: "flag", DefaultVariant: "on",
+			Variants:     map[string]ast.VariantValue{"on": {Kind: ast.VariantValueKindBool, Bool: true}},
+			Environments: map[string]*ast.Environment{"prod": nil},
+		}}}, "environment is nil"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if _, err := ir.FromAST(test.doc); err == nil || !strings.Contains(err.Error(), test.want) {
+				t.Fatalf("FromAST() error = %v, want %q", err, test.want)
+			}
+		})
+	}
+}
+
 func minimalIRForUnknownField() *irv1.Document {
 	return &irv1.Document{Flags: map[string]*irv1.Flag{"f": {Variants: map[string]*irv1.VariantValue{"on": {Kind: &irv1.VariantValue_BoolValue{BoolValue: true}}}, Environments: map[string]*irv1.Environment{"prod": {Base: &irv1.Evaluation{DefaultAction: &irv1.Action{Kind: &irv1.Action_Serve{Serve: "on"}}}}}}}}
 }
