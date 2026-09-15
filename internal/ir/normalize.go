@@ -135,6 +135,9 @@ func progressiveSnapshots(rollout *ast.ProgressiveRolloutAction, defaultVariant 
 	if rollout.Steps == 0 {
 		return nil, fmt.Errorf("progressive rollout must have at least one step")
 	}
+	if rollout.Steps > 1024 {
+		return nil, fmt.Errorf("progressive rollout exceeds IR schedule limit 1024")
+	}
 	start, err := parseInstant(rollout.Start)
 	if err != nil {
 		return nil, err

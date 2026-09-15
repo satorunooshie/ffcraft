@@ -243,6 +243,24 @@ func TestFromASTRejectsDistributionWeightOverflow(t *testing.T) {
 	}
 }
 
+func TestFromASTRejectsProgressiveRolloutBeyondIRScheduleLimit(t *testing.T) {
+	_, err := ir.FromAST(&ast.Document{Flags: []*ast.Flag{{
+		Key: "too-many-steps", DefaultVariant: "off",
+		Variants: map[string]ast.VariantValue{
+			"on":  {Kind: ast.VariantValueKindBool, Bool: true},
+			"off": {Kind: ast.VariantValueKindBool},
+		},
+		Environments: map[string]*ast.Environment{"prod": {
+			DefaultAction: &ast.ProgressiveRolloutAction{
+				Variant: "on", Stickiness: "user.id", Start: "2026-01-01T00:00:00Z", End: "2026-01-02T00:00:00Z", Steps: 1025,
+			},
+		}},
+	}}})
+	if err == nil || !strings.Contains(err.Error(), "exceeds IR schedule limit 1024") {
+		t.Fatalf("FromAST() error = %v, want schedule limit rejection", err)
+	}
+}
+
 func minimalIRForUnknownField() *irv1.Document {
 	return &irv1.Document{Flags: map[string]*irv1.Flag{"f": {Variants: map[string]*irv1.VariantValue{"on": {Kind: &irv1.VariantValue_BoolValue{BoolValue: true}}}, Environments: map[string]*irv1.Environment{"prod": {Base: &irv1.Evaluation{DefaultAction: &irv1.Action{Kind: &irv1.Action_Serve{Serve: "on"}}}}}}}}
 }
