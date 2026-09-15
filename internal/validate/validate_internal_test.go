@@ -21,7 +21,7 @@ func TestValidateAnyValueTable(t *testing.T) {
 		{"nested list", []any{true, map[string]any{"x": "y"}}, ""},
 		{"nonfinite number", math.Inf(1), "non-finite"},
 		{"nested nonfinite", []any{map[string]any{"x": math.NaN()}}, "field \"x\""},
-		{"unsupported type", int64(1), "unsupported object value type"},
+		{"unsupported type", struct{}{}, "unsupported object value type"},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

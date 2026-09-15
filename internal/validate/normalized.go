@@ -127,7 +127,7 @@ func validateVariantValue(value ast.VariantValue) error {
 
 func validateAnyValue(value any) error {
 	switch value := value.(type) {
-	case nil, bool, string:
+	case nil, bool, string, int64:
 		return nil
 	case float64:
 		if math.IsNaN(value) || math.IsInf(value, 0) {

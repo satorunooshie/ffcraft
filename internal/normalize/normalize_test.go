@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	irv1 "github.com/satorunooshie/ffcraft/gen/ffcraft/ir/v1"
+	"github.com/satorunooshie/ffcraft/internal/ast"
 	"github.com/satorunooshie/ffcraft/internal/authoring"
 	"github.com/satorunooshie/ffcraft/internal/ir"
 )
@@ -157,6 +158,52 @@ flags:
 	}
 	if _, err := NormalizeAST(doc); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestNormalizeASTPreservesNestedVariantsAndMetadata(t *testing.T) {
+	const source = `version: v1
+variant_sets:
+  objects:
+    a:
+      enabled: true
+      nested: [7, null]
+    b:
+      enabled: false
+      nested: [8, null]
+flags:
+  - key: config
+    variant_set: objects
+    default_variant: a
+    metadata:
+      owner: platform
+      description: nested config
+      expiry: "2027-01-01"
+      tags: [config, nested]
+    environments:
+      prod:
+        default_action:
+          serve: a
+`
+	doc, err := authoring.ParseYAML([]byte(source))
+	if err != nil {
+		t.Fatal(err)
+	}
+	normalized, err := NormalizeAST(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	flag := normalized.Flags[0]
+	value := flag.Variants["a"]
+	if value.Kind != ast.VariantValueKindObject || value.Object["enabled"] != true {
+		t.Fatalf("object variant = %#v", value)
+	}
+	nested, ok := value.Object["nested"].([]any)
+	if !ok || len(nested) != 2 || nested[0] != int64(7) || nested[1] != nil {
+		t.Fatalf("nested variant values = %#v", value.Object["nested"])
+	}
+	if flag.Metadata == nil || flag.Metadata.Owner != "platform" || flag.Metadata.Description != "nested config" || len(flag.Metadata.Tags) != 2 {
+		t.Fatalf("metadata = %#v", flag.Metadata)
 	}
 }
 
