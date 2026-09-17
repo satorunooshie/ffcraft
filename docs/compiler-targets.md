@@ -77,3 +77,14 @@ silent semantic change.
 For GO Feature Flag, a missing or non-string `bucketingKey` returns the SDK
 caller default with an error result (`ReasonError` and
 `ErrorCodeTargetingKeyMissing`) in the in-process runtime.
+
+## Contains restrictions
+
+Array `contains` and reversed `in` remain available to IR and Go code generation,
+but both provider compilers reject them with
+`FFCRAFT_TARGET_CONDITION_UNSUPPORTED`. They do not emit overloaded native
+membership operations that change exact element equality.
+
+`string_contains` is supported by flagd with a string type guard. GO Feature
+Flag rejects it because its native substring matching is case-insensitive.
+These restrictions apply inside logical conditions and schedule snapshots too.

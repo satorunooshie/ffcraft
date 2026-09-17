@@ -165,7 +165,12 @@ Supported field types:
 - `map[string]any`
 
 If a path is referenced in authoring YAML but not listed in `context.fields`, `ffcodegen` infers it automatically.
-For collection operators, `contains` and `in` also infer slice types such as `[]string` and `[]int64` when the operand shape makes the collection side unambiguous.
+`contains: [{var: user.tags}, beta]` and `in: [beta, {var: user.tags}]`
+infer `[]string`. Numeric and boolean elements infer the corresponding slices.
+`string_contains` infers `string`; decimal comparisons and equality infer
+`float64`. Provider compilation is separate: array conditions are currently
+rejected by both providers, and `string_contains` is supported only by flagd.
+See [contains target support](authoring-format.md#contains-semantics-and-target-support).
 
 ### Accessors
 

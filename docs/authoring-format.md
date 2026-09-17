@@ -72,7 +72,8 @@ Comparison:
 Collection and string:
 
 - `in`
-- `contains`
+- `contains` (array element membership)
+- `string_contains` (case-sensitive substring matching)
 - `starts_with`
 - `ends_with`
 
@@ -291,3 +292,36 @@ At minimum, `ffcompile` validates:
 ## Unsupported / Not Yet Compiled
 
 - YAML aliases and anchors
+
+## Contains semantics and target support
+
+`contains: [{var: user.tags}, beta]` tests for the exact `beta` element in an
+array; `in: [beta, {var: user.tags}]` is equivalent. Go code generation preserves
+`UserTags []string`. Numeric and boolean elements infer their corresponding
+slice types. IR evaluation rejects non-array containers and does not coerce
+strings to numbers or interpret nested arrays as ranges.
+
+Use `string_contains: [{var: user.name}, beta]` for a case-sensitive substring
+match and a Go `string` field. Non-string and missing values evaluate to false.
+
+| Operation | Go generation / IR | flagd | GO Feature Flag |
+| --- | --- | --- | --- |
+| Array `contains` / reversed `in` | Supported | Explicit error | Explicit error |
+| `string_contains` | Supported | String type guard | Explicit error |
+
+Unsupported provider output returns `FFCRAFT_TARGET_CONDITION_UNSUPPORTED`
+without emitting configuration, including for nested and scheduled conditions.
+The native array operators do not preserve exact element equality. GO Feature
+Flag's native substring operation is case-insensitive, so it cannot preserve
+this condition's semantics. Existing array authoring remains usable for Go
+code generation; compiling that input to either provider now fails explicitly.
+
+flagd uses `if(starts_with(attribute, ""), in(literal, attribute), false)`.
+The string guard follows the
+[official string comparison specification](https://flagd.dev/reference/specifications/custom-operations/string-comparison-operation-spec/).
+Generated output is tested with flagd core v0.15.0 for valid strings, wrong
+container types, missing attributes, empty strings, and negation.
+
+Runtime-specific array support, if added later, must be explicitly selected
+and tested against a named implementation and version. Nonstandard operators
+such as `contains_any` are not enabled in portable output.
