@@ -9,16 +9,18 @@ import (
 type ConditionKind string
 
 const (
-	ConditionEquality    ConditionKind = "equality"
-	ConditionInequality  ConditionKind = "inequality"
-	ConditionNumeric     ConditionKind = "numeric_comparison"
-	ConditionMembership  ConditionKind = "membership"
-	ConditionStringMatch ConditionKind = "string_match"
-	ConditionSemver      ConditionKind = "semver_comparison"
-	ConditionPresence    ConditionKind = "presence"
-	ConditionLogical     ConditionKind = "logical"
-	ConditionNegation    ConditionKind = "negation"
-	ConditionConstant    ConditionKind = "constant"
+	ConditionEquality           ConditionKind = "equality"
+	ConditionInequality         ConditionKind = "inequality"
+	ConditionNumeric            ConditionKind = "numeric_comparison"
+	ConditionMembership         ConditionKind = "membership"
+	ConditionCollectionContains ConditionKind = "collection_contains"
+	ConditionStringContains     ConditionKind = "string_contains"
+	ConditionStringMatch        ConditionKind = "string_match"
+	ConditionSemver             ConditionKind = "semver_comparison"
+	ConditionPresence           ConditionKind = "presence"
+	ConditionLogical            ConditionKind = "logical"
+	ConditionNegation           ConditionKind = "negation"
+	ConditionConstant           ConditionKind = "constant"
 )
 
 // Target identifies a compiler target capability profile.
@@ -52,6 +54,8 @@ func ConditionCapabilityMatrix() []ConditionCapability {
 		ConditionInequality,
 		ConditionNumeric,
 		ConditionMembership,
+		ConditionCollectionContains,
+		ConditionStringContains,
 		ConditionStringMatch,
 		ConditionSemver,
 		ConditionPresence,
@@ -62,7 +66,7 @@ func ConditionCapabilityMatrix() []ConditionCapability {
 	for _, target := range []Target{TargetFlagd, TargetGOFeatureFlag} {
 		for _, condition := range conditions {
 			capability := ConditionCapability{Target: target, Condition: condition, Supported: true}
-			if condition == ConditionPresence || (condition == ConditionSemver && target == TargetFlagd) || (condition == ConditionInequality && target == TargetFlagd) {
+			if condition == ConditionCollectionContains || (condition == ConditionStringContains && target == TargetGOFeatureFlag) || condition == ConditionPresence || (condition == ConditionSemver && target == TargetFlagd) || (condition == ConditionInequality && target == TargetFlagd) {
 				capability.Supported = false
 				capability.Diagnostic = UnsupportedConditionCode
 			}
@@ -91,7 +95,7 @@ func ValidateConditionCapabilityMatrix(matrix []ConditionCapability) error {
 		}
 	}
 	expected := len([]Target{TargetFlagd, TargetGOFeatureFlag}) * len([]ConditionKind{
-		ConditionConstant, ConditionEquality, ConditionInequality, ConditionNumeric, ConditionMembership,
+		ConditionConstant, ConditionEquality, ConditionInequality, ConditionNumeric, ConditionMembership, ConditionCollectionContains, ConditionStringContains,
 		ConditionStringMatch, ConditionSemver, ConditionPresence, ConditionLogical,
 		ConditionNegation,
 	})

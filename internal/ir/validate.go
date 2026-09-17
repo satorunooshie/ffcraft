@@ -215,6 +215,13 @@ func validateConditionDepth(condition *irv1.Condition, depth int) error {
 		if literal, ok := kind.NumericComparison.Literal.GetKind().(*irv1.NumericValue_DoubleValue); ok && (math.IsNaN(literal.DoubleValue) || math.IsInf(literal.DoubleValue, 0)) {
 			return fmt.Errorf("numeric comparison literal is not finite")
 		}
+	case *irv1.Condition_CollectionContains:
+		if kind.CollectionContains == nil {
+			return fmt.Errorf("collection contains condition is nil")
+		}
+		if err := validateAttributeLiteral(kind.CollectionContains.Attribute, kind.CollectionContains.Literal); err != nil {
+			return err
+		}
 	case *irv1.Condition_Membership:
 		if kind.Membership == nil {
 			return fmt.Errorf("membership condition is nil")

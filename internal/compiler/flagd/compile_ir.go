@@ -159,6 +159,9 @@ func compileIRCondition(condition *irv1.Condition) (any, error) {
 		return compileIRBinary(kind.Equality.Attribute, kind.Equality.Literal, equalityOperator(kind.Equality.Operator))
 	case *irv1.Condition_NumericComparison:
 		return compileIRBinaryNumeric(kind.NumericComparison)
+	case *irv1.Condition_CollectionContains:
+		// Native in/co cannot preserve exact array element equality.
+		return nil, fmt.Errorf("native array membership cannot preserve exact element equality: %w", &capability.UnsupportedConditionError{Target: capability.TargetFlagd, Condition: capability.ConditionCollectionContains})
 	case *irv1.Condition_Membership:
 		values := make([]any, 0, len(kind.Membership.Literals.Values))
 		for _, value := range kind.Membership.Literals.Values {
@@ -166,16 +169,22 @@ func compileIRCondition(condition *irv1.Condition) (any, error) {
 		}
 		return map[string]any{"in": []any{compileIRVar(kind.Membership.Attribute), values}}, nil
 	case *irv1.Condition_StringMatch:
+		if kind.StringMatch.Operator == irv1.StringMatchOperator_STRING_MATCH_OPERATOR_CONTAINS {
+			// starts_with accepts only strings. Convert invalid types to false
+			// and keep them away from the overloaded in operation.
+			attribute := compileIRVar(kind.StringMatch.Attribute)
+			return map[string]any{"if": []any{
+				map[string]any{"starts_with": []any{attribute, ""}},
+				map[string]any{"in": []any{kind.StringMatch.Literal, attribute}},
+				false,
+			}}, nil
+		}
 		operator, ok := map[irv1.StringMatchOperator]string{
-			irv1.StringMatchOperator_STRING_MATCH_OPERATOR_CONTAINS:    "in",
 			irv1.StringMatchOperator_STRING_MATCH_OPERATOR_STARTS_WITH: "starts_with",
 			irv1.StringMatchOperator_STRING_MATCH_OPERATOR_ENDS_WITH:   "ends_with",
 		}[kind.StringMatch.Operator]
 		if !ok {
 			return nil, fmt.Errorf("unsupported string match operator")
-		}
-		if operator == "in" {
-			return map[string]any{"in": []any{kind.StringMatch.Literal, compileIRVar(kind.StringMatch.Attribute)}}, nil
 		}
 		return map[string]any{operator: []any{compileIRVar(kind.StringMatch.Attribute), kind.StringMatch.Literal}}, nil
 	case *irv1.Condition_SemverComparison:

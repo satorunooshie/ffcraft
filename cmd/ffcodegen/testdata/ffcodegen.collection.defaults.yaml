@@ -11,5 +11,5 @@ targets:
           int: "[]int"
           string: "[]string"
     accessors:
-      enable-new-home:
+      inferred-collections:
         sdk_fallback_variant: off

@@ -66,6 +66,14 @@ type Contains struct {
 
 func (*Contains) isCondition() {}
 
+// StringContains matches a substring; Contains tests array membership.
+type StringContains struct {
+	Container Value
+	Value     Value
+}
+
+func (*StringContains) isCondition() {}
+
 type StartsWith struct {
 	Target Value
 	Prefix string

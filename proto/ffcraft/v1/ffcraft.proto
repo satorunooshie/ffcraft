@@ -271,6 +271,8 @@ message Condition {
     Not not = 19;
     OneOf one_of = 20;
     LiteralBool literal_bool = 21;
+    // Explicit substring matching; value must be a string scalar.
+    StringContains string_contains = 22;
   }
 }
 
@@ -340,6 +342,11 @@ message In {
 }
 
 message Contains {
+  Value container = 1 [(buf.validate.field).required = true];
+  Value value = 2 [(buf.validate.field).required = true];
+}
+
+message StringContains {
   Value container = 1 [(buf.validate.field).required = true];
   Value value = 2 [(buf.validate.field).required = true];
 }

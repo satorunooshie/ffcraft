@@ -17,6 +17,8 @@ func TestConditionParserShapeContracts(t *testing.T) {
 		{"nested invalid condition", "{not: {regex: x}}", "unsupported condition operator"},
 		{"binary arity", "{eq: [x]}", "two-item sequence"},
 		{"binary mapping", "{eq: x}", "two-item sequence"},
+		{"substring arity", "{string_contains: [x]}", "two-item sequence"},
+		{"substring literal type", "{string_contains: [x, {var: y}]}", "expected string scalar"},
 		{"string arity", "{starts_with: [x]}", "two-item sequence"},
 		{"string literal type", "{starts_with: [x, {var: y}]}", "expected string scalar"},
 	}

@@ -45,6 +45,10 @@ func normalizeCondition(doc *ffv1.FeatureFlagDocument, cond *ffv1.Condition) (as
 		return normalizeBinaryCondition(kind.Contains.Container, kind.Contains.Value, func(left, right ast.Value) ast.Condition {
 			return &ast.Contains{Container: left, Value: right}
 		})
+	case *ffv1.Condition_StringContains:
+		return normalizeBinaryCondition(kind.StringContains.Container, kind.StringContains.Value, func(left, right ast.Value) ast.Condition {
+			return &ast.StringContains{Container: left, Value: right}
+		})
 	case *ffv1.Condition_StartsWith:
 		target, err := normalizeValue(kind.StartsWith.Target)
 		if err != nil {

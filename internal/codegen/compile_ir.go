@@ -340,6 +340,8 @@ func collectIRContextFieldsFromCondition(condition *irv1.Condition, add func(str
 				add(path(kind.NumericComparison.Attribute), "float64")
 			}
 		}
+	case *irv1.Condition_CollectionContains:
+		add(path(kind.CollectionContains.Attribute), "[]"+irScalarType(kind.CollectionContains.Literal))
 	case *irv1.Condition_Membership:
 		if kind.Membership.Literals != nil && len(kind.Membership.Literals.Values) > 0 {
 			add(path(kind.Membership.Attribute), irScalarType(kind.Membership.Literals.Values[0]))

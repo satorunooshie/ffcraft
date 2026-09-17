@@ -1010,13 +1010,17 @@ func conditionCapabilityFixture(kind capability.ConditionKind) *irv1.Document {
 			Operator: irv1.NumericComparisonOperator_NUMERIC_COMPARISON_OPERATOR_GTE, Attribute: path,
 			Literal: &irv1.NumericValue{Kind: &irv1.NumericValue_IntValue{IntValue: 1}},
 		}}}
+	case capability.ConditionCollectionContains:
+		condition = &irv1.Condition{Kind: &irv1.Condition_CollectionContains{CollectionContains: &irv1.CollectionContainsCondition{Attribute: path, Literal: stringLiteral("beta")}}}
+	case capability.ConditionStringContains:
+		condition = &irv1.Condition{Kind: &irv1.Condition_StringMatch{StringMatch: &irv1.StringMatchCondition{Operator: irv1.StringMatchOperator_STRING_MATCH_OPERATOR_CONTAINS, Attribute: path, Literal: "beta"}}}
 	case capability.ConditionMembership:
 		condition = &irv1.Condition{Kind: &irv1.Condition_Membership{Membership: &irv1.MembershipCondition{
 			Attribute: path, Literals: &irv1.ScalarList{Values: []*irv1.ScalarValue{stringLiteral("on"), stringLiteral("off")}},
 		}}}
 	case capability.ConditionStringMatch:
 		condition = &irv1.Condition{Kind: &irv1.Condition_StringMatch{StringMatch: &irv1.StringMatchCondition{
-			Operator: irv1.StringMatchOperator_STRING_MATCH_OPERATOR_CONTAINS, Attribute: path, Literal: "o",
+			Operator: irv1.StringMatchOperator_STRING_MATCH_OPERATOR_STARTS_WITH, Attribute: path, Literal: "o",
 		}}}
 	case capability.ConditionSemver:
 		condition = &irv1.Condition{Kind: &irv1.Condition_SemverComparison{SemverComparison: &irv1.SemVerComparisonCondition{

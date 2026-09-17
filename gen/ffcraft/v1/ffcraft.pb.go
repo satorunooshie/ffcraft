@@ -1182,6 +1182,7 @@ type Condition struct {
 	//	*Condition_Not
 	//	*Condition_OneOf
 	//	*Condition_LiteralBool
+	//	*Condition_StringContains
 	Kind          isCondition_Kind `protobuf_oneof:"kind"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1404,6 +1405,15 @@ func (x *Condition) GetLiteralBool() *LiteralBool {
 	return nil
 }
 
+func (x *Condition) GetStringContains() *StringContains {
+	if x != nil {
+		if x, ok := x.Kind.(*Condition_StringContains); ok {
+			return x.StringContains
+		}
+	}
+	return nil
+}
+
 type isCondition_Kind interface {
 	isCondition_Kind()
 }
@@ -1488,6 +1498,11 @@ type Condition_LiteralBool struct {
 	LiteralBool *LiteralBool `protobuf:"bytes,21,opt,name=literal_bool,json=literalBool,proto3,oneof"`
 }
 
+type Condition_StringContains struct {
+	// Explicit substring matching; value must be a string scalar.
+	StringContains *StringContains `protobuf:"bytes,22,opt,name=string_contains,json=stringContains,proto3,oneof"`
+}
+
 func (*Condition_Rule) isCondition_Kind() {}
 
 func (*Condition_Eq) isCondition_Kind() {}
@@ -1527,6 +1542,8 @@ func (*Condition_Not) isCondition_Kind() {}
 func (*Condition_OneOf) isCondition_Kind() {}
 
 func (*Condition_LiteralBool) isCondition_Kind() {}
+
+func (*Condition_StringContains) isCondition_Kind() {}
 
 type RuleRef struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -2208,6 +2225,58 @@ func (x *Contains) GetValue() *Value {
 	return nil
 }
 
+type StringContains struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Container     *Value                 `protobuf:"bytes,1,opt,name=container,proto3" json:"container,omitempty"`
+	Value         *Value                 `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StringContains) Reset() {
+	*x = StringContains{}
+	mi := &file_proto_ffcraft_v1_ffcraft_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StringContains) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StringContains) ProtoMessage() {}
+
+func (x *StringContains) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_ffcraft_v1_ffcraft_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StringContains.ProtoReflect.Descriptor instead.
+func (*StringContains) Descriptor() ([]byte, []int) {
+	return file_proto_ffcraft_v1_ffcraft_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *StringContains) GetContainer() *Value {
+	if x != nil {
+		return x.Container
+	}
+	return nil
+}
+
+func (x *StringContains) GetValue() *Value {
+	if x != nil {
+		return x.Value
+	}
+	return nil
+}
+
 type StartsWith struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Target        *Value                 `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
@@ -2218,7 +2287,7 @@ type StartsWith struct {
 
 func (x *StartsWith) Reset() {
 	*x = StartsWith{}
-	mi := &file_proto_ffcraft_v1_ffcraft_proto_msgTypes[32]
+	mi := &file_proto_ffcraft_v1_ffcraft_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2230,7 +2299,7 @@ func (x *StartsWith) String() string {
 func (*StartsWith) ProtoMessage() {}
 
 func (x *StartsWith) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_ffcraft_v1_ffcraft_proto_msgTypes[32]
+	mi := &file_proto_ffcraft_v1_ffcraft_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2243,7 +2312,7 @@ func (x *StartsWith) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartsWith.ProtoReflect.Descriptor instead.
 func (*StartsWith) Descriptor() ([]byte, []int) {
-	return file_proto_ffcraft_v1_ffcraft_proto_rawDescGZIP(), []int{32}
+	return file_proto_ffcraft_v1_ffcraft_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *StartsWith) GetTarget() *Value {
@@ -2270,7 +2339,7 @@ type EndsWith struct {
 
 func (x *EndsWith) Reset() {
 	*x = EndsWith{}
-	mi := &file_proto_ffcraft_v1_ffcraft_proto_msgTypes[33]
+	mi := &file_proto_ffcraft_v1_ffcraft_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2282,7 +2351,7 @@ func (x *EndsWith) String() string {
 func (*EndsWith) ProtoMessage() {}
 
 func (x *EndsWith) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_ffcraft_v1_ffcraft_proto_msgTypes[33]
+	mi := &file_proto_ffcraft_v1_ffcraft_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2295,7 +2364,7 @@ func (x *EndsWith) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EndsWith.ProtoReflect.Descriptor instead.
 func (*EndsWith) Descriptor() ([]byte, []int) {
-	return file_proto_ffcraft_v1_ffcraft_proto_rawDescGZIP(), []int{33}
+	return file_proto_ffcraft_v1_ffcraft_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *EndsWith) GetTarget() *Value {
@@ -2322,7 +2391,7 @@ type SemverGt struct {
 
 func (x *SemverGt) Reset() {
 	*x = SemverGt{}
-	mi := &file_proto_ffcraft_v1_ffcraft_proto_msgTypes[34]
+	mi := &file_proto_ffcraft_v1_ffcraft_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2334,7 +2403,7 @@ func (x *SemverGt) String() string {
 func (*SemverGt) ProtoMessage() {}
 
 func (x *SemverGt) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_ffcraft_v1_ffcraft_proto_msgTypes[34]
+	mi := &file_proto_ffcraft_v1_ffcraft_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2347,7 +2416,7 @@ func (x *SemverGt) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SemverGt.ProtoReflect.Descriptor instead.
 func (*SemverGt) Descriptor() ([]byte, []int) {
-	return file_proto_ffcraft_v1_ffcraft_proto_rawDescGZIP(), []int{34}
+	return file_proto_ffcraft_v1_ffcraft_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *SemverGt) GetLeft() *Value {
@@ -2374,7 +2443,7 @@ type SemverGte struct {
 
 func (x *SemverGte) Reset() {
 	*x = SemverGte{}
-	mi := &file_proto_ffcraft_v1_ffcraft_proto_msgTypes[35]
+	mi := &file_proto_ffcraft_v1_ffcraft_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2386,7 +2455,7 @@ func (x *SemverGte) String() string {
 func (*SemverGte) ProtoMessage() {}
 
 func (x *SemverGte) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_ffcraft_v1_ffcraft_proto_msgTypes[35]
+	mi := &file_proto_ffcraft_v1_ffcraft_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2399,7 +2468,7 @@ func (x *SemverGte) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SemverGte.ProtoReflect.Descriptor instead.
 func (*SemverGte) Descriptor() ([]byte, []int) {
-	return file_proto_ffcraft_v1_ffcraft_proto_rawDescGZIP(), []int{35}
+	return file_proto_ffcraft_v1_ffcraft_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *SemverGte) GetLeft() *Value {
@@ -2426,7 +2495,7 @@ type SemverLt struct {
 
 func (x *SemverLt) Reset() {
 	*x = SemverLt{}
-	mi := &file_proto_ffcraft_v1_ffcraft_proto_msgTypes[36]
+	mi := &file_proto_ffcraft_v1_ffcraft_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2438,7 +2507,7 @@ func (x *SemverLt) String() string {
 func (*SemverLt) ProtoMessage() {}
 
 func (x *SemverLt) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_ffcraft_v1_ffcraft_proto_msgTypes[36]
+	mi := &file_proto_ffcraft_v1_ffcraft_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2451,7 +2520,7 @@ func (x *SemverLt) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SemverLt.ProtoReflect.Descriptor instead.
 func (*SemverLt) Descriptor() ([]byte, []int) {
-	return file_proto_ffcraft_v1_ffcraft_proto_rawDescGZIP(), []int{36}
+	return file_proto_ffcraft_v1_ffcraft_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *SemverLt) GetLeft() *Value {
@@ -2478,7 +2547,7 @@ type SemverLte struct {
 
 func (x *SemverLte) Reset() {
 	*x = SemverLte{}
-	mi := &file_proto_ffcraft_v1_ffcraft_proto_msgTypes[37]
+	mi := &file_proto_ffcraft_v1_ffcraft_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2490,7 +2559,7 @@ func (x *SemverLte) String() string {
 func (*SemverLte) ProtoMessage() {}
 
 func (x *SemverLte) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_ffcraft_v1_ffcraft_proto_msgTypes[37]
+	mi := &file_proto_ffcraft_v1_ffcraft_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2503,7 +2572,7 @@ func (x *SemverLte) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SemverLte.ProtoReflect.Descriptor instead.
 func (*SemverLte) Descriptor() ([]byte, []int) {
-	return file_proto_ffcraft_v1_ffcraft_proto_rawDescGZIP(), []int{37}
+	return file_proto_ffcraft_v1_ffcraft_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *SemverLte) GetLeft() *Value {
@@ -2535,7 +2604,7 @@ type Value struct {
 
 func (x *Value) Reset() {
 	*x = Value{}
-	mi := &file_proto_ffcraft_v1_ffcraft_proto_msgTypes[38]
+	mi := &file_proto_ffcraft_v1_ffcraft_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2547,7 +2616,7 @@ func (x *Value) String() string {
 func (*Value) ProtoMessage() {}
 
 func (x *Value) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_ffcraft_v1_ffcraft_proto_msgTypes[38]
+	mi := &file_proto_ffcraft_v1_ffcraft_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2560,7 +2629,7 @@ func (x *Value) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Value.ProtoReflect.Descriptor instead.
 func (*Value) Descriptor() ([]byte, []int) {
-	return file_proto_ffcraft_v1_ffcraft_proto_rawDescGZIP(), []int{38}
+	return file_proto_ffcraft_v1_ffcraft_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *Value) GetKind() isValue_Kind {
@@ -2643,7 +2712,7 @@ type VarRef struct {
 
 func (x *VarRef) Reset() {
 	*x = VarRef{}
-	mi := &file_proto_ffcraft_v1_ffcraft_proto_msgTypes[39]
+	mi := &file_proto_ffcraft_v1_ffcraft_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2655,7 +2724,7 @@ func (x *VarRef) String() string {
 func (*VarRef) ProtoMessage() {}
 
 func (x *VarRef) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_ffcraft_v1_ffcraft_proto_msgTypes[39]
+	mi := &file_proto_ffcraft_v1_ffcraft_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2668,7 +2737,7 @@ func (x *VarRef) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use VarRef.ProtoReflect.Descriptor instead.
 func (*VarRef) Descriptor() ([]byte, []int) {
-	return file_proto_ffcraft_v1_ffcraft_proto_rawDescGZIP(), []int{39}
+	return file_proto_ffcraft_v1_ffcraft_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *VarRef) GetPath() string {
@@ -2694,7 +2763,7 @@ type Scalar struct {
 
 func (x *Scalar) Reset() {
 	*x = Scalar{}
-	mi := &file_proto_ffcraft_v1_ffcraft_proto_msgTypes[40]
+	mi := &file_proto_ffcraft_v1_ffcraft_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2706,7 +2775,7 @@ func (x *Scalar) String() string {
 func (*Scalar) ProtoMessage() {}
 
 func (x *Scalar) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_ffcraft_v1_ffcraft_proto_msgTypes[40]
+	mi := &file_proto_ffcraft_v1_ffcraft_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2719,7 +2788,7 @@ func (x *Scalar) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Scalar.ProtoReflect.Descriptor instead.
 func (*Scalar) Descriptor() ([]byte, []int) {
-	return file_proto_ffcraft_v1_ffcraft_proto_rawDescGZIP(), []int{40}
+	return file_proto_ffcraft_v1_ffcraft_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *Scalar) GetKind() isScalar_Kind {
@@ -2817,7 +2886,7 @@ type StringList struct {
 
 func (x *StringList) Reset() {
 	*x = StringList{}
-	mi := &file_proto_ffcraft_v1_ffcraft_proto_msgTypes[41]
+	mi := &file_proto_ffcraft_v1_ffcraft_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2829,7 +2898,7 @@ func (x *StringList) String() string {
 func (*StringList) ProtoMessage() {}
 
 func (x *StringList) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_ffcraft_v1_ffcraft_proto_msgTypes[41]
+	mi := &file_proto_ffcraft_v1_ffcraft_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2842,7 +2911,7 @@ func (x *StringList) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StringList.ProtoReflect.Descriptor instead.
 func (*StringList) Descriptor() ([]byte, []int) {
-	return file_proto_ffcraft_v1_ffcraft_proto_rawDescGZIP(), []int{41}
+	return file_proto_ffcraft_v1_ffcraft_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *StringList) GetValues() []string {
@@ -2861,7 +2930,7 @@ type ValueList struct {
 
 func (x *ValueList) Reset() {
 	*x = ValueList{}
-	mi := &file_proto_ffcraft_v1_ffcraft_proto_msgTypes[42]
+	mi := &file_proto_ffcraft_v1_ffcraft_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2873,7 +2942,7 @@ func (x *ValueList) String() string {
 func (*ValueList) ProtoMessage() {}
 
 func (x *ValueList) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_ffcraft_v1_ffcraft_proto_msgTypes[42]
+	mi := &file_proto_ffcraft_v1_ffcraft_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2886,7 +2955,7 @@ func (x *ValueList) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ValueList.ProtoReflect.Descriptor instead.
 func (*ValueList) Descriptor() ([]byte, []int) {
-	return file_proto_ffcraft_v1_ffcraft_proto_rawDescGZIP(), []int{42}
+	return file_proto_ffcraft_v1_ffcraft_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *ValueList) GetValues() []*Value {
@@ -3029,7 +3098,7 @@ const file_proto_ffcraft_v1_ffcraft_proto_rawDesc = "" +
 	"\aweights\x18\x02 \x03(\v2%.ffcraft.v1.Distribution.WeightsEntryB\x17\xbaH\x14\x9a\x01\x11\b\x02\"\ar\x05\x10\x01\x18\x80\x01*\x04*\x02 \x00R\aweights\x1a:\n" +
 	"\fWeightsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\rR\x05value:\x028\x01\"\x97\a\n" +
+	"\x05value\x18\x02 \x01(\rR\x05value:\x028\x01\"\xde\a\n" +
 	"\tCondition\x12)\n" +
 	"\x04rule\x18\x01 \x01(\v2\x13.ffcraft.v1.RuleRefH\x00R\x04rule\x12 \n" +
 	"\x02eq\x18\x02 \x01(\v2\x0e.ffcraft.v1.EqH\x00R\x02eq\x12 \n" +
@@ -3054,7 +3123,8 @@ const file_proto_ffcraft_v1_ffcraft_proto_rawDesc = "" +
 	"\x06any_of\x18\x12 \x01(\v2\x11.ffcraft.v1.AnyOfH\x00R\x05anyOf\x12#\n" +
 	"\x03not\x18\x13 \x01(\v2\x0f.ffcraft.v1.NotH\x00R\x03not\x12*\n" +
 	"\x06one_of\x18\x14 \x01(\v2\x11.ffcraft.v1.OneOfH\x00R\x05oneOf\x12<\n" +
-	"\fliteral_bool\x18\x15 \x01(\v2\x17.ffcraft.v1.LiteralBoolH\x00R\vliteralBoolB\x06\n" +
+	"\fliteral_bool\x18\x15 \x01(\v2\x17.ffcraft.v1.LiteralBoolH\x00R\vliteralBool\x12E\n" +
+	"\x0fstring_contains\x18\x16 \x01(\v2\x1a.ffcraft.v1.StringContainsH\x00R\x0estringContainsB\x06\n" +
 	"\x04kind\",\n" +
 	"\aRuleRef\x12!\n" +
 	"\x04name\x18\x01 \x01(\tB\r\xbaH\n" +
@@ -3097,6 +3167,9 @@ const file_proto_ffcraft_v1_ffcraft_proto_rawDesc = "" +
 	"\x06target\x18\x01 \x01(\v2\x11.ffcraft.v1.ValueB\x06\xbaH\x03\xc8\x01\x01R\x06target\x127\n" +
 	"\tcandidate\x18\x02 \x01(\v2\x11.ffcraft.v1.ValueB\x06\xbaH\x03\xc8\x01\x01R\tcandidate\"t\n" +
 	"\bContains\x127\n" +
+	"\tcontainer\x18\x01 \x01(\v2\x11.ffcraft.v1.ValueB\x06\xbaH\x03\xc8\x01\x01R\tcontainer\x12/\n" +
+	"\x05value\x18\x02 \x01(\v2\x11.ffcraft.v1.ValueB\x06\xbaH\x03\xc8\x01\x01R\x05value\"z\n" +
+	"\x0eStringContains\x127\n" +
 	"\tcontainer\x18\x01 \x01(\v2\x11.ffcraft.v1.ValueB\x06\xbaH\x03\xc8\x01\x01R\tcontainer\x12/\n" +
 	"\x05value\x18\x02 \x01(\v2\x11.ffcraft.v1.ValueB\x06\xbaH\x03\xc8\x01\x01R\x05value\"d\n" +
 	"\n" +
@@ -3154,7 +3227,7 @@ func file_proto_ffcraft_v1_ffcraft_proto_rawDescGZIP() []byte {
 	return file_proto_ffcraft_v1_ffcraft_proto_rawDescData
 }
 
-var file_proto_ffcraft_v1_ffcraft_proto_msgTypes = make([]protoimpl.MessageInfo, 53)
+var file_proto_ffcraft_v1_ffcraft_proto_msgTypes = make([]protoimpl.MessageInfo, 54)
 var file_proto_ffcraft_v1_ffcraft_proto_goTypes = []any{
 	(*FeatureFlagDocument)(nil), // 0: ffcraft.v1.FeatureFlagDocument
 	(*VariantSet)(nil),          // 1: ffcraft.v1.VariantSet
@@ -3188,46 +3261,47 @@ var file_proto_ffcraft_v1_ffcraft_proto_goTypes = []any{
 	(*Lte)(nil),                 // 29: ffcraft.v1.Lte
 	(*In)(nil),                  // 30: ffcraft.v1.In
 	(*Contains)(nil),            // 31: ffcraft.v1.Contains
-	(*StartsWith)(nil),          // 32: ffcraft.v1.StartsWith
-	(*EndsWith)(nil),            // 33: ffcraft.v1.EndsWith
-	(*SemverGt)(nil),            // 34: ffcraft.v1.SemverGt
-	(*SemverGte)(nil),           // 35: ffcraft.v1.SemverGte
-	(*SemverLt)(nil),            // 36: ffcraft.v1.SemverLt
-	(*SemverLte)(nil),           // 37: ffcraft.v1.SemverLte
-	(*Value)(nil),               // 38: ffcraft.v1.Value
-	(*VarRef)(nil),              // 39: ffcraft.v1.VarRef
-	(*Scalar)(nil),              // 40: ffcraft.v1.Scalar
-	(*StringList)(nil),          // 41: ffcraft.v1.StringList
-	(*ValueList)(nil),           // 42: ffcraft.v1.ValueList
-	nil,                         // 43: ffcraft.v1.FeatureFlagDocument.VariantSetsEntry
-	nil,                         // 44: ffcraft.v1.FeatureFlagDocument.RulesEntry
-	nil,                         // 45: ffcraft.v1.FeatureFlagDocument.DistributionsEntry
-	nil,                         // 46: ffcraft.v1.FeatureFlagDocument.ExtensionsEntry
-	nil,                         // 47: ffcraft.v1.VariantSet.VariantsEntry
-	nil,                         // 48: ffcraft.v1.ObjectValue.FieldsEntry
-	nil,                         // 49: ffcraft.v1.Flag.EnvironmentsEntry
-	nil,                         // 50: ffcraft.v1.Flag.ExtensionsEntry
-	nil,                         // 51: ffcraft.v1.Environment.ExtensionsEntry
-	nil,                         // 52: ffcraft.v1.Distribution.WeightsEntry
-	(*v1.ExtensionValue)(nil),   // 53: ffcraft.ir.v1.ExtensionValue
+	(*StringContains)(nil),      // 32: ffcraft.v1.StringContains
+	(*StartsWith)(nil),          // 33: ffcraft.v1.StartsWith
+	(*EndsWith)(nil),            // 34: ffcraft.v1.EndsWith
+	(*SemverGt)(nil),            // 35: ffcraft.v1.SemverGt
+	(*SemverGte)(nil),           // 36: ffcraft.v1.SemverGte
+	(*SemverLt)(nil),            // 37: ffcraft.v1.SemverLt
+	(*SemverLte)(nil),           // 38: ffcraft.v1.SemverLte
+	(*Value)(nil),               // 39: ffcraft.v1.Value
+	(*VarRef)(nil),              // 40: ffcraft.v1.VarRef
+	(*Scalar)(nil),              // 41: ffcraft.v1.Scalar
+	(*StringList)(nil),          // 42: ffcraft.v1.StringList
+	(*ValueList)(nil),           // 43: ffcraft.v1.ValueList
+	nil,                         // 44: ffcraft.v1.FeatureFlagDocument.VariantSetsEntry
+	nil,                         // 45: ffcraft.v1.FeatureFlagDocument.RulesEntry
+	nil,                         // 46: ffcraft.v1.FeatureFlagDocument.DistributionsEntry
+	nil,                         // 47: ffcraft.v1.FeatureFlagDocument.ExtensionsEntry
+	nil,                         // 48: ffcraft.v1.VariantSet.VariantsEntry
+	nil,                         // 49: ffcraft.v1.ObjectValue.FieldsEntry
+	nil,                         // 50: ffcraft.v1.Flag.EnvironmentsEntry
+	nil,                         // 51: ffcraft.v1.Flag.ExtensionsEntry
+	nil,                         // 52: ffcraft.v1.Environment.ExtensionsEntry
+	nil,                         // 53: ffcraft.v1.Distribution.WeightsEntry
+	(*v1.ExtensionValue)(nil),   // 54: ffcraft.ir.v1.ExtensionValue
 }
 var file_proto_ffcraft_v1_ffcraft_proto_depIdxs = []int32{
-	43, // 0: ffcraft.v1.FeatureFlagDocument.variant_sets:type_name -> ffcraft.v1.FeatureFlagDocument.VariantSetsEntry
-	44, // 1: ffcraft.v1.FeatureFlagDocument.rules:type_name -> ffcraft.v1.FeatureFlagDocument.RulesEntry
-	45, // 2: ffcraft.v1.FeatureFlagDocument.distributions:type_name -> ffcraft.v1.FeatureFlagDocument.DistributionsEntry
+	44, // 0: ffcraft.v1.FeatureFlagDocument.variant_sets:type_name -> ffcraft.v1.FeatureFlagDocument.VariantSetsEntry
+	45, // 1: ffcraft.v1.FeatureFlagDocument.rules:type_name -> ffcraft.v1.FeatureFlagDocument.RulesEntry
+	46, // 2: ffcraft.v1.FeatureFlagDocument.distributions:type_name -> ffcraft.v1.FeatureFlagDocument.DistributionsEntry
 	6,  // 3: ffcraft.v1.FeatureFlagDocument.flags:type_name -> ffcraft.v1.Flag
-	46, // 4: ffcraft.v1.FeatureFlagDocument.extensions:type_name -> ffcraft.v1.FeatureFlagDocument.ExtensionsEntry
-	47, // 5: ffcraft.v1.VariantSet.variants:type_name -> ffcraft.v1.VariantSet.VariantsEntry
+	47, // 4: ffcraft.v1.FeatureFlagDocument.extensions:type_name -> ffcraft.v1.FeatureFlagDocument.ExtensionsEntry
+	48, // 5: ffcraft.v1.VariantSet.variants:type_name -> ffcraft.v1.VariantSet.VariantsEntry
 	3,  // 6: ffcraft.v1.VariantValue.object_value:type_name -> ffcraft.v1.ObjectValue
 	4,  // 7: ffcraft.v1.VariantValue.list_value:type_name -> ffcraft.v1.ListValue
 	5,  // 8: ffcraft.v1.VariantValue.null_value:type_name -> ffcraft.v1.NullValue
-	48, // 9: ffcraft.v1.ObjectValue.fields:type_name -> ffcraft.v1.ObjectValue.FieldsEntry
+	49, // 9: ffcraft.v1.ObjectValue.fields:type_name -> ffcraft.v1.ObjectValue.FieldsEntry
 	2,  // 10: ffcraft.v1.ListValue.values:type_name -> ffcraft.v1.VariantValue
-	49, // 11: ffcraft.v1.Flag.environments:type_name -> ffcraft.v1.Flag.EnvironmentsEntry
-	50, // 12: ffcraft.v1.Flag.extensions:type_name -> ffcraft.v1.Flag.ExtensionsEntry
+	50, // 11: ffcraft.v1.Flag.environments:type_name -> ffcraft.v1.Flag.EnvironmentsEntry
+	51, // 12: ffcraft.v1.Flag.extensions:type_name -> ffcraft.v1.Flag.ExtensionsEntry
 	8,  // 13: ffcraft.v1.Environment.fixed_serve:type_name -> ffcraft.v1.FixedServe
 	9,  // 14: ffcraft.v1.Environment.rule_evaluation:type_name -> ffcraft.v1.RuleEvaluation
-	51, // 15: ffcraft.v1.Environment.extensions:type_name -> ffcraft.v1.Environment.ExtensionsEntry
+	52, // 15: ffcraft.v1.Environment.extensions:type_name -> ffcraft.v1.Environment.ExtensionsEntry
 	10, // 16: ffcraft.v1.RuleEvaluation.rules:type_name -> ffcraft.v1.RuleEntry
 	11, // 17: ffcraft.v1.RuleEvaluation.default_action:type_name -> ffcraft.v1.Action
 	15, // 18: ffcraft.v1.RuleEvaluation.scheduled_rollouts:type_name -> ffcraft.v1.ScheduledStep
@@ -3238,7 +3312,7 @@ var file_proto_ffcraft_v1_ffcraft_proto_depIdxs = []int32{
 	14, // 23: ffcraft.v1.Action.progressive_rollout:type_name -> ffcraft.v1.ProgressiveRollout
 	10, // 24: ffcraft.v1.ScheduledStep.rules:type_name -> ffcraft.v1.RuleEntry
 	11, // 25: ffcraft.v1.ScheduledStep.default_action:type_name -> ffcraft.v1.Action
-	52, // 26: ffcraft.v1.Distribution.weights:type_name -> ffcraft.v1.Distribution.WeightsEntry
+	53, // 26: ffcraft.v1.Distribution.weights:type_name -> ffcraft.v1.Distribution.WeightsEntry
 	18, // 27: ffcraft.v1.Condition.rule:type_name -> ffcraft.v1.RuleRef
 	24, // 28: ffcraft.v1.Condition.eq:type_name -> ffcraft.v1.Eq
 	25, // 29: ffcraft.v1.Condition.ne:type_name -> ffcraft.v1.Ne
@@ -3248,63 +3322,66 @@ var file_proto_ffcraft_v1_ffcraft_proto_depIdxs = []int32{
 	29, // 33: ffcraft.v1.Condition.lte:type_name -> ffcraft.v1.Lte
 	30, // 34: ffcraft.v1.Condition.in:type_name -> ffcraft.v1.In
 	31, // 35: ffcraft.v1.Condition.contains:type_name -> ffcraft.v1.Contains
-	32, // 36: ffcraft.v1.Condition.starts_with:type_name -> ffcraft.v1.StartsWith
-	33, // 37: ffcraft.v1.Condition.ends_with:type_name -> ffcraft.v1.EndsWith
-	34, // 38: ffcraft.v1.Condition.semver_gt:type_name -> ffcraft.v1.SemverGt
-	35, // 39: ffcraft.v1.Condition.semver_gte:type_name -> ffcraft.v1.SemverGte
-	36, // 40: ffcraft.v1.Condition.semver_lt:type_name -> ffcraft.v1.SemverLt
-	37, // 41: ffcraft.v1.Condition.semver_lte:type_name -> ffcraft.v1.SemverLte
+	33, // 36: ffcraft.v1.Condition.starts_with:type_name -> ffcraft.v1.StartsWith
+	34, // 37: ffcraft.v1.Condition.ends_with:type_name -> ffcraft.v1.EndsWith
+	35, // 38: ffcraft.v1.Condition.semver_gt:type_name -> ffcraft.v1.SemverGt
+	36, // 39: ffcraft.v1.Condition.semver_gte:type_name -> ffcraft.v1.SemverGte
+	37, // 40: ffcraft.v1.Condition.semver_lt:type_name -> ffcraft.v1.SemverLt
+	38, // 41: ffcraft.v1.Condition.semver_lte:type_name -> ffcraft.v1.SemverLte
 	20, // 42: ffcraft.v1.Condition.all_of:type_name -> ffcraft.v1.AllOf
 	21, // 43: ffcraft.v1.Condition.any_of:type_name -> ffcraft.v1.AnyOf
 	23, // 44: ffcraft.v1.Condition.not:type_name -> ffcraft.v1.Not
 	22, // 45: ffcraft.v1.Condition.one_of:type_name -> ffcraft.v1.OneOf
 	19, // 46: ffcraft.v1.Condition.literal_bool:type_name -> ffcraft.v1.LiteralBool
-	17, // 47: ffcraft.v1.AllOf.conditions:type_name -> ffcraft.v1.Condition
-	17, // 48: ffcraft.v1.AnyOf.conditions:type_name -> ffcraft.v1.Condition
-	17, // 49: ffcraft.v1.OneOf.conditions:type_name -> ffcraft.v1.Condition
-	17, // 50: ffcraft.v1.Not.condition:type_name -> ffcraft.v1.Condition
-	38, // 51: ffcraft.v1.Eq.left:type_name -> ffcraft.v1.Value
-	38, // 52: ffcraft.v1.Eq.right:type_name -> ffcraft.v1.Value
-	38, // 53: ffcraft.v1.Ne.left:type_name -> ffcraft.v1.Value
-	38, // 54: ffcraft.v1.Ne.right:type_name -> ffcraft.v1.Value
-	38, // 55: ffcraft.v1.Gt.left:type_name -> ffcraft.v1.Value
-	38, // 56: ffcraft.v1.Gt.right:type_name -> ffcraft.v1.Value
-	38, // 57: ffcraft.v1.Gte.left:type_name -> ffcraft.v1.Value
-	38, // 58: ffcraft.v1.Gte.right:type_name -> ffcraft.v1.Value
-	38, // 59: ffcraft.v1.Lt.left:type_name -> ffcraft.v1.Value
-	38, // 60: ffcraft.v1.Lt.right:type_name -> ffcraft.v1.Value
-	38, // 61: ffcraft.v1.Lte.left:type_name -> ffcraft.v1.Value
-	38, // 62: ffcraft.v1.Lte.right:type_name -> ffcraft.v1.Value
-	38, // 63: ffcraft.v1.In.target:type_name -> ffcraft.v1.Value
-	38, // 64: ffcraft.v1.In.candidate:type_name -> ffcraft.v1.Value
-	38, // 65: ffcraft.v1.Contains.container:type_name -> ffcraft.v1.Value
-	38, // 66: ffcraft.v1.Contains.value:type_name -> ffcraft.v1.Value
-	38, // 67: ffcraft.v1.StartsWith.target:type_name -> ffcraft.v1.Value
-	38, // 68: ffcraft.v1.EndsWith.target:type_name -> ffcraft.v1.Value
-	38, // 69: ffcraft.v1.SemverGt.left:type_name -> ffcraft.v1.Value
-	38, // 70: ffcraft.v1.SemverGte.left:type_name -> ffcraft.v1.Value
-	38, // 71: ffcraft.v1.SemverLt.left:type_name -> ffcraft.v1.Value
-	38, // 72: ffcraft.v1.SemverLte.left:type_name -> ffcraft.v1.Value
-	39, // 73: ffcraft.v1.Value.var:type_name -> ffcraft.v1.VarRef
-	40, // 74: ffcraft.v1.Value.scalar:type_name -> ffcraft.v1.Scalar
-	41, // 75: ffcraft.v1.Value.string_list:type_name -> ffcraft.v1.StringList
-	42, // 76: ffcraft.v1.Value.list:type_name -> ffcraft.v1.ValueList
-	5,  // 77: ffcraft.v1.Scalar.null_value:type_name -> ffcraft.v1.NullValue
-	38, // 78: ffcraft.v1.ValueList.values:type_name -> ffcraft.v1.Value
-	1,  // 79: ffcraft.v1.FeatureFlagDocument.VariantSetsEntry.value:type_name -> ffcraft.v1.VariantSet
-	17, // 80: ffcraft.v1.FeatureFlagDocument.RulesEntry.value:type_name -> ffcraft.v1.Condition
-	16, // 81: ffcraft.v1.FeatureFlagDocument.DistributionsEntry.value:type_name -> ffcraft.v1.Distribution
-	53, // 82: ffcraft.v1.FeatureFlagDocument.ExtensionsEntry.value:type_name -> ffcraft.ir.v1.ExtensionValue
-	2,  // 83: ffcraft.v1.VariantSet.VariantsEntry.value:type_name -> ffcraft.v1.VariantValue
-	2,  // 84: ffcraft.v1.ObjectValue.FieldsEntry.value:type_name -> ffcraft.v1.VariantValue
-	7,  // 85: ffcraft.v1.Flag.EnvironmentsEntry.value:type_name -> ffcraft.v1.Environment
-	53, // 86: ffcraft.v1.Flag.ExtensionsEntry.value:type_name -> ffcraft.ir.v1.ExtensionValue
-	53, // 87: ffcraft.v1.Environment.ExtensionsEntry.value:type_name -> ffcraft.ir.v1.ExtensionValue
-	88, // [88:88] is the sub-list for method output_type
-	88, // [88:88] is the sub-list for method input_type
-	88, // [88:88] is the sub-list for extension type_name
-	88, // [88:88] is the sub-list for extension extendee
-	0,  // [0:88] is the sub-list for field type_name
+	32, // 47: ffcraft.v1.Condition.string_contains:type_name -> ffcraft.v1.StringContains
+	17, // 48: ffcraft.v1.AllOf.conditions:type_name -> ffcraft.v1.Condition
+	17, // 49: ffcraft.v1.AnyOf.conditions:type_name -> ffcraft.v1.Condition
+	17, // 50: ffcraft.v1.OneOf.conditions:type_name -> ffcraft.v1.Condition
+	17, // 51: ffcraft.v1.Not.condition:type_name -> ffcraft.v1.Condition
+	39, // 52: ffcraft.v1.Eq.left:type_name -> ffcraft.v1.Value
+	39, // 53: ffcraft.v1.Eq.right:type_name -> ffcraft.v1.Value
+	39, // 54: ffcraft.v1.Ne.left:type_name -> ffcraft.v1.Value
+	39, // 55: ffcraft.v1.Ne.right:type_name -> ffcraft.v1.Value
+	39, // 56: ffcraft.v1.Gt.left:type_name -> ffcraft.v1.Value
+	39, // 57: ffcraft.v1.Gt.right:type_name -> ffcraft.v1.Value
+	39, // 58: ffcraft.v1.Gte.left:type_name -> ffcraft.v1.Value
+	39, // 59: ffcraft.v1.Gte.right:type_name -> ffcraft.v1.Value
+	39, // 60: ffcraft.v1.Lt.left:type_name -> ffcraft.v1.Value
+	39, // 61: ffcraft.v1.Lt.right:type_name -> ffcraft.v1.Value
+	39, // 62: ffcraft.v1.Lte.left:type_name -> ffcraft.v1.Value
+	39, // 63: ffcraft.v1.Lte.right:type_name -> ffcraft.v1.Value
+	39, // 64: ffcraft.v1.In.target:type_name -> ffcraft.v1.Value
+	39, // 65: ffcraft.v1.In.candidate:type_name -> ffcraft.v1.Value
+	39, // 66: ffcraft.v1.Contains.container:type_name -> ffcraft.v1.Value
+	39, // 67: ffcraft.v1.Contains.value:type_name -> ffcraft.v1.Value
+	39, // 68: ffcraft.v1.StringContains.container:type_name -> ffcraft.v1.Value
+	39, // 69: ffcraft.v1.StringContains.value:type_name -> ffcraft.v1.Value
+	39, // 70: ffcraft.v1.StartsWith.target:type_name -> ffcraft.v1.Value
+	39, // 71: ffcraft.v1.EndsWith.target:type_name -> ffcraft.v1.Value
+	39, // 72: ffcraft.v1.SemverGt.left:type_name -> ffcraft.v1.Value
+	39, // 73: ffcraft.v1.SemverGte.left:type_name -> ffcraft.v1.Value
+	39, // 74: ffcraft.v1.SemverLt.left:type_name -> ffcraft.v1.Value
+	39, // 75: ffcraft.v1.SemverLte.left:type_name -> ffcraft.v1.Value
+	40, // 76: ffcraft.v1.Value.var:type_name -> ffcraft.v1.VarRef
+	41, // 77: ffcraft.v1.Value.scalar:type_name -> ffcraft.v1.Scalar
+	42, // 78: ffcraft.v1.Value.string_list:type_name -> ffcraft.v1.StringList
+	43, // 79: ffcraft.v1.Value.list:type_name -> ffcraft.v1.ValueList
+	5,  // 80: ffcraft.v1.Scalar.null_value:type_name -> ffcraft.v1.NullValue
+	39, // 81: ffcraft.v1.ValueList.values:type_name -> ffcraft.v1.Value
+	1,  // 82: ffcraft.v1.FeatureFlagDocument.VariantSetsEntry.value:type_name -> ffcraft.v1.VariantSet
+	17, // 83: ffcraft.v1.FeatureFlagDocument.RulesEntry.value:type_name -> ffcraft.v1.Condition
+	16, // 84: ffcraft.v1.FeatureFlagDocument.DistributionsEntry.value:type_name -> ffcraft.v1.Distribution
+	54, // 85: ffcraft.v1.FeatureFlagDocument.ExtensionsEntry.value:type_name -> ffcraft.ir.v1.ExtensionValue
+	2,  // 86: ffcraft.v1.VariantSet.VariantsEntry.value:type_name -> ffcraft.v1.VariantValue
+	2,  // 87: ffcraft.v1.ObjectValue.FieldsEntry.value:type_name -> ffcraft.v1.VariantValue
+	7,  // 88: ffcraft.v1.Flag.EnvironmentsEntry.value:type_name -> ffcraft.v1.Environment
+	54, // 89: ffcraft.v1.Flag.ExtensionsEntry.value:type_name -> ffcraft.ir.v1.ExtensionValue
+	54, // 90: ffcraft.v1.Environment.ExtensionsEntry.value:type_name -> ffcraft.ir.v1.ExtensionValue
+	91, // [91:91] is the sub-list for method output_type
+	91, // [91:91] is the sub-list for method input_type
+	91, // [91:91] is the sub-list for extension type_name
+	91, // [91:91] is the sub-list for extension extendee
+	0,  // [0:91] is the sub-list for field type_name
 }
 
 func init() { file_proto_ffcraft_v1_ffcraft_proto_init() }
@@ -3351,14 +3428,15 @@ func file_proto_ffcraft_v1_ffcraft_proto_init() {
 		(*Condition_Not)(nil),
 		(*Condition_OneOf)(nil),
 		(*Condition_LiteralBool)(nil),
+		(*Condition_StringContains)(nil),
 	}
-	file_proto_ffcraft_v1_ffcraft_proto_msgTypes[38].OneofWrappers = []any{
+	file_proto_ffcraft_v1_ffcraft_proto_msgTypes[39].OneofWrappers = []any{
 		(*Value_Var)(nil),
 		(*Value_Scalar)(nil),
 		(*Value_StringList)(nil),
 		(*Value_List)(nil),
 	}
-	file_proto_ffcraft_v1_ffcraft_proto_msgTypes[40].OneofWrappers = []any{
+	file_proto_ffcraft_v1_ffcraft_proto_msgTypes[41].OneofWrappers = []any{
 		(*Scalar_StringValue)(nil),
 		(*Scalar_BoolValue)(nil),
 		(*Scalar_IntValue)(nil),
@@ -3371,7 +3449,7 @@ func file_proto_ffcraft_v1_ffcraft_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_ffcraft_v1_ffcraft_proto_rawDesc), len(file_proto_ffcraft_v1_ffcraft_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   53,
+			NumMessages:   54,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

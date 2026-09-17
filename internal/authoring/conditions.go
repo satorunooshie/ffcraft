@@ -92,6 +92,10 @@ func parseConditionOperator(operator string, node *yaml.Node, path string) (*ffv
 		return parseBinaryCondition(node, path+".contains", func(left, right *ffv1.Value) *ffv1.Condition {
 			return &ffv1.Condition{Kind: &ffv1.Condition_Contains{Contains: &ffv1.Contains{Container: left, Value: right}}}
 		})
+	case "string_contains":
+		return parseValueStringCondition(node, path+".string_contains", func(target *ffv1.Value, literal string) *ffv1.Condition {
+			return &ffv1.Condition{Kind: &ffv1.Condition_StringContains{StringContains: &ffv1.StringContains{Container: target, Value: &ffv1.Value{Kind: &ffv1.Value_Scalar{Scalar: &ffv1.Scalar{Kind: &ffv1.Scalar_StringValue{StringValue: literal}}}}}}}
+		})
 	case "starts_with":
 		return parseValueStringCondition(node, path+".starts_with", func(target *ffv1.Value, literal string) *ffv1.Condition {
 			return &ffv1.Condition{Kind: &ffv1.Condition_StartsWith{StartsWith: &ffv1.StartsWith{Target: target, Prefix: literal}}}

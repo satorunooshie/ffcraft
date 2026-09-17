@@ -176,6 +176,9 @@ func compileIRCondition(condition *irv1.Condition) (string, error) {
 			return "", fmt.Errorf("unsupported numeric comparison operator")
 		}
 		return fmt.Sprintf("%s %s %s", compileIRVar(kind.NumericComparison.Attribute), operator, compileIRNumeric(kind.NumericComparison.Literal)), nil
+	case *irv1.Condition_CollectionContains:
+		// Native in/co cannot preserve exact array element equality.
+		return "", fmt.Errorf("native array membership cannot preserve exact element equality: %w", &capability.UnsupportedConditionError{Target: capability.TargetGOFeatureFlag, Condition: capability.ConditionCollectionContains})
 	case *irv1.Condition_Membership:
 		values := make([]string, 0, len(kind.Membership.Literals.Values))
 		for _, literal := range kind.Membership.Literals.Values {
@@ -183,8 +186,11 @@ func compileIRCondition(condition *irv1.Condition) (string, error) {
 		}
 		return fmt.Sprintf("%s in [%s]", compileIRVar(kind.Membership.Attribute), strings.Join(values, ", ")), nil
 	case *irv1.Condition_StringMatch:
+		if kind.StringMatch.Operator == irv1.StringMatchOperator_STRING_MATCH_OPERATOR_CONTAINS {
+			// Native co is case-insensitive, unlike IR substring matching.
+			return "", fmt.Errorf("native substring matching is case-insensitive: %w", &capability.UnsupportedConditionError{Target: capability.TargetGOFeatureFlag, Condition: capability.ConditionStringContains})
+		}
 		operator, ok := map[irv1.StringMatchOperator]string{
-			irv1.StringMatchOperator_STRING_MATCH_OPERATOR_CONTAINS:    "co",
 			irv1.StringMatchOperator_STRING_MATCH_OPERATOR_STARTS_WITH: "sw",
 			irv1.StringMatchOperator_STRING_MATCH_OPERATOR_ENDS_WITH:   "ew",
 		}[kind.StringMatch.Operator]

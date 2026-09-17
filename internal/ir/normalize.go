@@ -267,6 +267,9 @@ func rawCondition(value ast.Condition) (*irv1.Condition, error) {
 		op := numericOperator(value, reversed)
 		return &irv1.Condition{Kind: &irv1.Condition_NumericComparison{NumericComparison: &irv1.NumericComparisonCondition{Operator: op, Attribute: path(variable.Path), Literal: numericValue(literal)}}}, nil
 	case *ast.In:
+		if _, ok := value.Candidate.(*ast.Var); ok {
+			return collectionContains(value.Candidate, value.Target)
+		}
 		variable, ok := value.Target.(*ast.Var)
 		if !ok {
 			return nil, fmt.Errorf("membership target must be a variable")
@@ -284,12 +287,14 @@ func rawCondition(value ast.Condition) (*irv1.Condition, error) {
 			literals = append(literals, scalar(s))
 		}
 		return &irv1.Condition{Kind: &irv1.Condition_Membership{Membership: &irv1.MembershipCondition{Attribute: path(variable.Path), Literals: &irv1.ScalarList{Values: literals}}}}, nil
-	case *ast.Contains, *ast.StartsWith, *ast.EndsWith:
+	case *ast.Contains:
+		return collectionContains(value.Container, value.Value)
+	case *ast.StringContains, *ast.StartsWith, *ast.EndsWith:
 		var target *ast.Var
 		var literal string
 		var op irv1.StringMatchOperator
 		switch item := value.(type) {
-		case *ast.Contains:
+		case *ast.StringContains:
 			var ok bool
 			target, ok = item.Container.(*ast.Var)
 			if !ok {
@@ -563,4 +568,16 @@ func cloneExtensions(values map[string]*irv1.ExtensionValue) map[string]*irv1.Ex
 	out := make(map[string]*irv1.ExtensionValue, len(values))
 	maps.Copy(out, values)
 	return out
+}
+
+func collectionContains(container, value ast.Value) (*irv1.Condition, error) {
+	attribute, ok := container.(*ast.Var)
+	if !ok {
+		return nil, fmt.Errorf("collection contains target must be a variable")
+	}
+	literal, ok := value.(*ast.Scalar)
+	if !ok {
+		return nil, fmt.Errorf("collection contains literal must be scalar")
+	}
+	return &irv1.Condition{Kind: &irv1.Condition_CollectionContains{CollectionContains: &irv1.CollectionContainsCondition{Attribute: path(attribute.Path), Literal: scalar(literal)}}}, nil
 }

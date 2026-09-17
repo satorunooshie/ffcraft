@@ -20,6 +20,8 @@ func TestValidateConditionContracts(t *testing.T) {
 		{"equality missing operands", &irv1.Condition{Kind: &irv1.Condition_Equality{Equality: &irv1.EqualityCondition{Operator: irv1.EqualityOperator_EQUALITY_OPERATOR_EQ}}}, "attribute equality"},
 		{"numeric missing operands", &irv1.Condition{Kind: &irv1.Condition_NumericComparison{NumericComparison: &irv1.NumericComparisonCondition{Operator: irv1.NumericComparisonOperator_NUMERIC_COMPARISON_OPERATOR_GT}}}, "numeric comparison"},
 		{"numeric nonfinite", &irv1.Condition{Kind: &irv1.Condition_NumericComparison{NumericComparison: &irv1.NumericComparisonCondition{Operator: irv1.NumericComparisonOperator_NUMERIC_COMPARISON_OPERATOR_GT, Attribute: attr, Literal: &irv1.NumericValue{Kind: &irv1.NumericValue_DoubleValue{DoubleValue: math.Inf(1)}}}}}, "not finite"},
+		{"collection contains nil", &irv1.Condition{Kind: &irv1.Condition_CollectionContains{}}, "collection contains"},
+		{"collection contains missing operands", &irv1.Condition{Kind: &irv1.Condition_CollectionContains{CollectionContains: &irv1.CollectionContainsCondition{}}}, "attribute"},
 		{"membership missing operands", &irv1.Condition{Kind: &irv1.Condition_Membership{Membership: &irv1.MembershipCondition{}}}, "membership"},
 		{"membership heterogeneous", &irv1.Condition{Kind: &irv1.Condition_Membership{Membership: &irv1.MembershipCondition{Attribute: attr, Literals: &irv1.ScalarList{Values: []*irv1.ScalarValue{{Kind: &irv1.ScalarValue_StringValue{StringValue: "x"}}, {Kind: &irv1.ScalarValue_BoolValue{BoolValue: true}}}}}}}, "homogeneous"},
 		{"string match missing attribute", &irv1.Condition{Kind: &irv1.Condition_StringMatch{StringMatch: &irv1.StringMatchCondition{}}}, "string match"},

@@ -331,6 +331,16 @@
         {
           "type": "object",
           "additionalProperties": false,
+          "required": ["string_contains"],
+          "properties": {
+            "string_contains": {
+              "$ref": "#/$defs/valueAndStringOperands"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
           "required": ["starts_with"],
           "properties": {
             "starts_with": {
@@ -560,7 +570,7 @@
         },
         "default_action": {
           "$ref": "#/$defs/action"
-        },
+        }
       }
     },
     "ruleEvaluation": {

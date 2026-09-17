@@ -6,6 +6,7 @@ package runtimeeval
 import (
 	"math"
 	"math/big"
+	"reflect"
 	"regexp"
 	"strings"
 
@@ -53,6 +54,24 @@ func Evaluate(condition *irv1.Condition, context Context) bool {
 			return false
 		}
 		return compareNumbers(left, right, kind.NumericComparison.Operator)
+	case *irv1.Condition_CollectionContains:
+		if kind.CollectionContains == nil || kind.CollectionContains.Literal == nil {
+			return false
+		}
+		value, ok := lookup(context, kind.CollectionContains.Attribute)
+		if !ok || value == nil {
+			return false
+		}
+		items := reflect.ValueOf(value)
+		if items.Kind() != reflect.Slice && items.Kind() != reflect.Array {
+			return false
+		}
+		for i := 0; i < items.Len(); i++ {
+			if equal(items.Index(i).Interface(), kind.CollectionContains.Literal) {
+				return true
+			}
+		}
+		return false
 	case *irv1.Condition_Membership:
 		if kind.Membership == nil || kind.Membership.Literals == nil {
 			return false

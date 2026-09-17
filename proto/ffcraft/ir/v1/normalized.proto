@@ -190,7 +190,16 @@ message Condition {
     PresenceCondition presence = 7;
     LogicalCondition logical = 8;
     Condition negation = 9;
+    CollectionContainsCondition collection_contains = 10;
   }
+}
+
+// Tests exact scalar element equality in a context array. Non-array values
+// and missing attributes evaluate to false. Int64 and double share the numeric
+// domain, as in EqualityCondition; strings are never coerced to numbers.
+message CollectionContainsCondition {
+  AttributePath attribute = 1 [(buf.validate.field).required = true];
+  ScalarValue literal = 2 [(buf.validate.field).required = true];
 }
 
 // PresenceCondition is true when the context attribute exists, including when
