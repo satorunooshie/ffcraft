@@ -337,7 +337,7 @@ func collectIRContextFieldsFromCondition(condition *irv1.Condition, add func(str
 			if _, ok := kind.NumericComparison.Literal.GetKind().(*irv1.NumericValue_IntValue); ok {
 				add(path(kind.NumericComparison.Attribute), "int64")
 			} else {
-				add(path(kind.NumericComparison.Attribute), "float")
+				add(path(kind.NumericComparison.Attribute), "float64")
 			}
 		}
 	case *irv1.Condition_Membership:
@@ -366,7 +366,7 @@ func irScalarType(value *irv1.ScalarValue) string {
 	case *irv1.ScalarValue_IntValue:
 		return "int64"
 	case *irv1.ScalarValue_DoubleValue:
-		return "float"
+		return "float64"
 	case *irv1.ScalarValue_StringValue:
 		return "string"
 	default:
