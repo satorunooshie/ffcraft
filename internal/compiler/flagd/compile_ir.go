@@ -60,7 +60,8 @@ func compileIREnvironment(env *irv1.Environment) (any, error) {
 		return nil, err
 	}
 	active := base
-	for index, scheduled := range slices.Backward(env.Schedule) {
+	// Later snapshots wrap earlier ones, so the newest elapsed date wins.
+	for index, scheduled := range env.Schedule {
 
 		condition := map[string]any{">=": []any{
 			map[string]any{"var": "$flagd.timestamp"},

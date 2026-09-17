@@ -98,3 +98,50 @@ func directCompilerFixture() *irv1.Document {
 		},
 	}}
 }
+
+func TestScheduleSelectsNewestElapsedSnapshot(t *testing.T) {
+	evaluation := func(name string) *irv1.Evaluation {
+		return &irv1.Evaluation{DefaultAction: &irv1.Action{Kind: &irv1.Action_Serve{Serve: name}}}
+	}
+	env := &irv1.Environment{Base: evaluation("base")}
+	for i, day := range []int{1, 10, 22} {
+		env.Schedule = append(env.Schedule, &irv1.ScheduledEvaluation{
+			EffectiveAt: timestamppb.New(time.Date(2026, 5, day, 0, 0, 0, 0, time.UTC)),
+			Evaluation:  evaluation([]string{"internal", "ten-percent", "public"}[i]),
+		})
+	}
+	targeting, err := compileIREnvironment(env)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Interpret the emitted if/>= tree to check actual branch selection.
+	var evaluate func(any, int64) string
+	evaluate = func(expr any, now int64) string {
+		if variant, ok := expr.(string); ok {
+			return variant
+		}
+		args := expr.(map[string]any)["if"].([]any)
+		comparison := args[0].(map[string]any)[">="].([]any)
+		if now >= comparison[1].(int64) {
+			return evaluate(args[1], now)
+		}
+		return evaluate(args[2], now)
+	}
+	previous := "base"
+	for i, step := range env.Schedule {
+		at := step.EffectiveAt.AsTime().Unix()
+		want := []string{"internal", "ten-percent", "public"}[i]
+		for _, tc := range []struct {
+			at   int64
+			want string
+		}{{at - 1, previous}, {at, want}, {at + 1, want}} {
+			if got := evaluate(targeting, tc.at); got != tc.want {
+				t.Errorf("at %s: got %s, want %s", time.Unix(tc.at, 0), got, tc.want)
+			}
+		}
+		previous = want
+	}
+	if got := evaluate(targeting, time.Date(2027, 1, 1, 0, 0, 0, 0, time.UTC).Unix()); got != "public" {
+		t.Fatalf("after all dates: %s", got)
+	}
+}
